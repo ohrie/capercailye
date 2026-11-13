@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%224%22 y=%224%22 width=%228%22 height=%228%22 fill=%22%23c8102e%22/%3E%3C/svg%3E"
+    />
+    <title>capercailye</title>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" id="sidebar" aria-label="Einstellungen">
+        <header class="sidebar__header">
+          <h1 class="brand">capercailye</h1>
+          <button
+            class="icon-button"
+            id="sidebar-collapse"
+            type="button"
+            title="Seitenleiste einklappen"
+            aria-label="Seitenleiste einklappen"
+          >
+            ‹
+          </button>
+        </header>
+
+        <section class="panel" aria-labelledby="print-heading">
+          <h2 class="panel__title" id="print-heading">Druck</h2>
+
+          <label class="field">
+            <span class="field__label">Maßstab</span>
+            <select id="print-scale">
+              <option value="15000">1:15 000</option>
+              <option value="25000" selected>1:25 000</option>
+              <option value="50000">1:50 000</option>
+            </select>
+          </label>
+
+          <div class="field">
+            <span class="field__label">Ausrichtung</span>
+            <div class="segmented" role="radiogroup" aria-label="Ausrichtung">
+              <label
+                ><input type="radio" name="orientation" value="portrait" checked /><span
+                  >Hoch</span
+                ></label
+              >
+              <label
+                ><input type="radio" name="orientation" value="landscape" /><span>Quer</span></label
+              >
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="field__label">Auflösung</span>
+            <div class="segmented" role="radiogroup" aria-label="Auflösung">
+              <label
+                ><input type="radio" name="dpi" value="254" checked /><span>254 dpi</span></label
+              >
+              <label><input type="radio" name="dpi" value="300" /><span>300 dpi</span></label>
+            </div>
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" id="print-view" />
+            <span class="switch__track" aria-hidden="true"></span>
+            <span>Druckansicht</span>
+          </label>
+
+          <p class="hint" id="print-info"></p>
+
+          <button class="button button--primary" id="export-pdf" type="button">
+            PDF exportieren
+          </button>
+          <p class="status" id="export-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="panel" aria-labelledby="layers-heading">
+          <h2 class="panel__title" id="layers-heading">Ebenen</h2>
+          <div id="layer-toggles" class="toggles"></div>
+        </section>
+
+        <footer class="sidebar__footer" id="attribution">
+          © OpenStreetMap-Mitwirkende · Relief: Mapterhorn, LGL-BW (dl-de/by-2-0)
+        </footer>
+      </aside>
+
+      <main class="map" id="map">
+        <button
+          class="icon-button map__expand"
+          id="sidebar-expand"
+          type="button"
+          title="Seitenleiste öffnen"
+          aria-label="Seitenleiste öffnen"
+        >
+          ›
+        </button>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

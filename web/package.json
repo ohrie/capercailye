@@ -1,0 +1,27 @@
+{
+  "name": "capercailye-web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "bun test",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "@maplibre/maplibre-gl-style-spec": "^26.6.0",
+    "jspdf": "^4.2.1",
+    "maplibre-gl": "^6.18.0",
+    "pmtiles": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "oxfmt": "^0.78.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}

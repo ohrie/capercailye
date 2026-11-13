@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.pmtiles
+*.jar
+*.osm.pbf
+web/public/data
+.DS_Store
