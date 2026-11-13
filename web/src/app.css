@@ -25,6 +25,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   height: 100%;
@@ -272,6 +276,10 @@ button:focus-visible,
   font-variant-numeric: tabular-nums;
 }
 
+.hint--warn {
+  color: var(--warn);
+}
+
 .status {
   margin: 0;
   min-height: 1.4em;
@@ -329,11 +337,54 @@ button:focus-visible,
   stroke-width: 1;
 }
 
+.print-frame__number {
+  font-family: var(--font);
+  font-size: 56px;
+  font-weight: 700;
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  opacity: 0.5;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.print-frame__area {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 1.5;
+  stroke-dasharray: 8 5;
+}
+
 .print-frame__label {
   font-family: var(--font);
   font-size: 12px;
   fill: var(--accent);
   font-weight: 600;
+}
+
+/* Corner and centre handles of the area; only they catch the mouse. */
+.print-frame__handle {
+  fill: var(--accent);
+  stroke: var(--accent-fg);
+  stroke-width: 2;
+  pointer-events: all;
+  touch-action: none;
+}
+
+.print-frame__handle--corner {
+  cursor: nwse-resize;
+}
+
+.print-frame__handle--corner[data-corner="ne"],
+.print-frame__handle--corner[data-corner="sw"] {
+  cursor: nesw-resize;
+}
+
+.print-frame__handle--move {
+  cursor: move;
 }
 
 /* Hidden render target for the PDF export (must stay in the layout to render). */

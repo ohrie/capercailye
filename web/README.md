@@ -1,7 +1,7 @@
 # capercailye – Web-App
 
-Bun + Vite + TypeScript (ohne Framework), MapLibre GL JS, PMTiles, jsPDF. Stand: Meilenstein M0
-(Durchstich: Karte mit vorläufigem Stil, eine A4-Seite als PDF).
+Bun + Vite + TypeScript (ohne Framework), MapLibre GL JS, PMTiles, jsPDF. Stand: Meilenstein M5
+(Blattschnitt in beiden Modi, mehrseitiger PDF-Export).
 
 ## Befehle
 
@@ -10,7 +10,7 @@ bun install          # Abhängigkeiten
 bun run dev          # Dev-Server auf http://localhost:5173
 bun run build        # Typprüfung (tsc) + Produktions-Build nach dist/
 bun run preview      # Build ansehen (liefert /data/ ebenfalls aus)
-bun test             # Unit-Tests (Maßstab/Zoom, Papiermaße, Stil gegen Spec und Tile-Schema)
+bun test             # Unit-Tests (Maßstab/Zoom, Papiermaße, Blattschnitt, Stil gegen Spec und Tile-Schema)
 bun run fmt          # Formatieren mit oxfmt
 bun run fmt:check    # Formatierung prüfen
 ```
@@ -36,8 +36,8 @@ Kacheldatei.
 
 ```
 src/
-├── main.ts          Karte, Zustand, Export-Ablauf, window.__capercailye
-├── sidebar.ts       Druck-Einstellungen, Ebenen-Schalter, Einklappen
+├── main.ts          Karte, Zustand, Export-Ablauf (Fortschritt, Abbruch), window.__capercailye
+├── sidebar.ts       Druck-Einstellungen (Modus, Seiten/Maßstab, Ausrichtung), Ebenen-Schalter, Einklappen
 ├── state.ts         kleiner beobachtbarer App-Zustand
 ├── tiles.ts         MapLibre-Worker, pmtiles://-Protokoll, DemSource (maplibre-contour), Kachel-Log
 ├── config.ts        Startansicht, Pfade, Quellenangabe
@@ -52,8 +52,9 @@ src/
 │                    collect.ts Features → Papier-mm → GeoJSON, layers.ts Klon-Layer,
 │                    rendered.ts gesetzte Wegzeichen als Hindernisse, index.ts Steuerung für
 │                    Vorschau (Druckansicht) und Export
-└── print/           scale.ts (Maßstab↔Zoom), paper.ts, frame.ts (Blattrahmen),
-                     render.ts (versteckte Karte), pdf.ts (jsPDF), export.ts
+└── print/           scale.ts (Maßstab↔Zoom), paper.ts, layout.ts (Blattschnitt, rein, getestet),
+                     frame.ts (Gebiet, Griffe, Blattrahmen), render.ts (versteckte Karte),
+                     pdf.ts (jsPDF, Blattrand), export.ts (Schleife über die Blätter)
 public/fonts/        Noto Sans Regular/Italic/Medium als Glyph-PBF (Bereiche 0–511, 8192–8447;
                      aus protomaps/basemaps-assets, Lizenz OFL 1.1, siehe OFL.txt)
 vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
@@ -85,11 +86,58 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
 - Ändert sich `../tiles/SCHEMA.md`, die Liste in `style/style.test.ts` mitziehen.
 - `VECTOR_TILE_ZOOM` in `style/sources.ts` steuert, welche Kachelstufe MapLibre beim gebrochenen
   Druckzoom lädt (`"round"`: 1:25 000 → z13, 1:50 000 → z12).
+- **Blattschnitt** (M5, `print/layout.ts`, PLAN.md 4): Der Nutzer legt ein **Gebiet** fest
+  (`state.print.area`, Länge/Breite; gestricheltes Rechteck mit vier Eckgriffen zum Aufziehen und
+  einem Mittelgriff zum Verschieben, beim Start 90 % eines Kartenfelds bei 1:25 000, nicht
+  gespeichert). Daraus entsteht ein Raster aus A4-Blättern, mittig über dem Gebiet, als
+  nummerierte Rahmen auf der Karte (zeilenweise von links oben; Nachbarn nur über die vier
+  Kanten). Die Griffe verschieben immer das ganze Raster samt Gebiet; einzelne Blätter lassen
+  sich nicht verschieben, sonst wäre die Überlappung kaputt. Während des Ziehens zeichnet nur der
+  Rahmen neu, `setState` kommt erst bei `pointerup`. „Gebiet zur Kartenmitte“ verschiebt das Gebiet
+  (Größe bleibt).
+  - **Kartenfeld** = druckbare Fläche minus Legendenstreifen (Hochformat 194 × 270 mm). Die
+    Überlappung (`OVERLAP_MM` = 10 mm) wird zwischen den Kartenfeldern gerechnet: der Streifen
+    deckt die unteren 11 mm des Kartenbilds ab, mit Überlappung auf der druckbaren Fläche gäbe es
+    zwischen übereinanderliegenden Blättern eine Lücke. Das Kartenbild wird über die ganze
+    druckbare Fläche gerendert, Renderpunkt ist deren Mitte.
+  - **Ein Zoom** für alle Blätter: `zoomForScale(Maßstab, Breite der Gebietsmitte)`
+    (`layout.zoom`). Druckansicht, Platzierung und Export nutzen genau diesen Zoom. Gerechnet wird
+    in globalen Papier-mm (`placement/geo.ts`), dort ist Mercator linear.
+  - **Modus „Maßstab“** (Standard): 1:15 000 / 25 000 / 50 000 wählen, die Seitenzahl ergibt sich
+    (`cols = ceil((w−10)/(Feldbreite−10))`, entsprechend `rows`).
+  - **Modus „Seiten“:** 1, 2, 3, 4, 6, 8, 9 oder 12 Seiten wählen, der Maßstab wird berechnet:
+    für jede Zerlegung `c × r = N` der Maßstab, bei dem das Raster das Gebiet gerade deckt; die
+    Zerlegung mit dem kleinsten Maßstab gewinnt, aufgerundet auf volle 1 000. Grenzen 1:10 000
+    (darunter ist das Raster größer als das Gebiet) und 1:50 000 (Gültigkeitsbereich der
+    Stilgrößen); wird 1:50 000 überschritten, steht „Gebiet passt nicht auf N Seiten, mehr Seiten
+    wählen“ da (`areaCovered = false`), der Export bleibt möglich.
+  - **Höchstens 24 Blätter** (`MAX_SHEETS`): bei mehr (Maßstab-Modus) gibt es keine Blätter, nur den
+    Gebietsumriss und den Hinweis „Gebiet zu groß“; der Export ist gesperrt.
+  - **Druckansicht** nutzt `layout.zoom`; die Platzierungsregion ist das Raster (druckbare Flächen)
+    plus 5 mm Zugabe. Im Export wird jedes Blatt einzeln platziert (Blatt + Zugabe, wie bisher):
+    in den Überlappungen können verdrängte Symbole oder Namen deshalb leicht abweichen; Linien und
+    Flächen sind deckungsgleich.
+  - **Blattrand im PDF** (`print/pdf.ts`): Maßstabszahl, Leiste (höchstens 40 mm), Nordpfeil,
+    „Blatt n von N“ (nur bei mehr als einem Blatt) laufen über einen Cursor von links nach rechts;
+    die Nachbarblätter stehen als Nummer mit Pfeil mittig an jeder Kante außerhalb des Rahmens.
+    Dazu Kontrollstrecke und Quellenzeile wie bisher.
+- **Mehrseitiger Export** (`print/export.ts`): **ein** PDF, die Blätter in Nummernfolge, je Blatt
+  eine versteckte Karte mit eigenem Mittelpunkt und gemeinsamem Zoom (300 dpi fest). Der Canvas
+  wird nach `addImage` freigegeben. Die Statuszeile zeigt „Seite 3 von 6 wird gerendert …“, der
+  Knopf wird währenddessen zu „Abbrechen“ (geprüft wird vor jedem Blatt, das laufende wird fertig;
+  danach „Export abgebrochen“, kein Download). Dateiname `capercailye-1-21000-hoch-6-seiten.pdf`,
+  bei einem Blatt `capercailye-1-25000-hoch.pdf`. Relief-Fehler werden über alle Seiten summiert.
 - Automatisierter Export (z. B. aus Playwright):
-  `await window.__capercailye.exportPdf({ scale: 25000, orientation: "portrait" })`
+  `await window.__capercailye.exportPdf({ mode: "pages", pages: 6, orientation: "portrait", area: { west: 7.70, south: 49.10, east: 7.86, north: 49.20 } })`
   liefert `{ blob, meta }` ohne Download (immer 300 dpi, `EXPORT_DPI` in `print/paper.ts`; ein
-  `dpi`-Parameter existiert nur für Tests); `meta` enthält Zoom, Canvas- und Bildgröße in px/mm
-  sowie die angeforderten Kachelstufen.
+  `dpi`-Parameter existiert nur für Tests). `mode`, `pages`, `area`, `scale`, `orientation` und
+  `signal` (AbortSignal) überschreiben `state.print` nur für diesen Export; ohne `area` gilt das
+  Gebiet der Oberfläche (`center` ersatzweise: ein Standardblatt um diesen Punkt). `meta`:
+  `scale, zoom, orientation, dpi, cols, rows, pageCount, pageMm, imageMm, reliefErrors, reduced,
+  effectiveDpi, totalMs, imageFormat` und `pages[]` mit `number, col, row, center, imagePx,
+  actualCanvasPx, effectiveDpi, reduced, tileZooms, renderMs, reliefErrors` je Blatt.
+  `window.__capercailye.layout(settings?)` liefert das berechnete Layout (Maßstab, Zoom, Raster,
+  Blätter mit `fieldMm`/`printMm`/`center`/`neighbours`, `areaCovered`, `tooLarge`) für die Prüfung.
 - **Symbole entfallen im Druck nie** (PLAN.md 4a): Symbol-Layer mit Metadaten
   `"capercailye:placement": "displace"` (Piktogramme) werden in der Druckansicht und im Export
   durch Klone auf der GeoJSON-Quelle `placement` ersetzt (Layer beliebiger Vektorquellen, auch

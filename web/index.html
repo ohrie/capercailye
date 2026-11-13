@@ -28,12 +28,36 @@
         <section class="panel" aria-labelledby="print-heading">
           <h2 class="panel__title" id="print-heading">Druck</h2>
 
-          <label class="field">
+          <div class="field">
+            <span class="field__label">Vorgabe</span>
+            <div class="segmented" role="radiogroup" aria-label="Vorgabe">
+              <label><input type="radio" name="mode" value="pages" /><span>Seiten</span></label>
+              <label
+                ><input type="radio" name="mode" value="scale" checked /><span>Maßstab</span></label
+              >
+            </div>
+          </div>
+
+          <label class="field" id="field-scale">
             <span class="field__label">Maßstab</span>
             <select id="print-scale">
               <option value="15000">1:15 000</option>
               <option value="25000" selected>1:25 000</option>
               <option value="50000">1:50 000</option>
+            </select>
+          </label>
+
+          <label class="field" id="field-pages" hidden>
+            <span class="field__label">Seiten</span>
+            <select id="print-pages">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="6" selected>6</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="12">12</option>
             </select>
           </label>
 
@@ -58,6 +82,8 @@
           </label>
 
           <p class="hint" id="print-info"></p>
+          <p class="hint hint--warn" id="print-note" hidden></p>
+          <button class="button" id="area-recenter" type="button">Gebiet zur Kartenmitte</button>
 
           <button class="button button--primary" id="export-pdf" type="button">
             PDF exportieren

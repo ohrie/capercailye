@@ -39,3 +39,31 @@ Dafür braucht es einen eigenen Platzierungs-Algorithmus, der für den festen Dr
 - Kein Zeichen entfällt durch Kollision (siehe PLAN.md 4a).
 
 Voraussetzungen: Die Tiles müssten die Routen pro Abschnitt einzeln mit Relation-ID liefern (heute nur die deduplizierte, gekappte Liste), und die Platzierung liefe wie bei den Piktogrammen in der App statt über MapLibres `symbol-placement: line`.
+
+## Nur Aussichtspunkte mit Namen
+
+Derzeit werden Aussichtspunkte standardmäßig ausgeschaltet. Zukünftig soll es standardmäßig angeschaltet sein, aber es sollen nur solche Orte mit Namen sichtbar auf der Karte sein.
+
+## Gastronomie in Städten ausdünnen
+
+Im Gelände und in den Bergen muss jedes Restaurant, jede Hütte und jedes Café auf der Karte stehen. In Städten und anderen dichten Bereichen ist das nicht wichtig, dort ist jedes einzelne Symbol eher Ballast. Heute führt eine Kollision nie zum Ausblenden eines Piktogramms (PLAN.md 4a), in der Innenstadt werden die Symbole deshalb weit verdrängt und die Karte wird unruhig.
+
+Gesucht ist eine gute Lösung, vermutlich mit einigem Aufwand. Denkbare Ansätze:
+
+- Dichte messen, z. B. Anzahl Gastronomie-Punkte je Fläche auf dem Papier oder Lage innerhalb von Siedlungsflächen (`landuse=residential|commercial`, `place=town|city`), und nur dort ausdünnen.
+- In dichten Bereichen ein Sammelsymbol oder nur die wichtigsten Betriebe zeigen, im Außenbereich weiter alle.
+- Die Regel „Symbole entfallen nie“ ausdrücklich auf den Außenbereich beschränken und die Ausnahme in PLAN.md 4a festhalten.
+
+## Legende
+
+Die Karte soll eine Legende bekommen, die beim Lesen des Ausdrucks hilft:
+
+- **Übergeordnete Routen** auf dem Blatt auflisten, jeweils mit Wegzeichen und Namen (Fernwanderwege, regionale Hauptwege; lokale Rundwege eher nicht). Das greift die zurückgestellte Routenlegende B5 aus PLAN.md wieder auf.
+- **Piktogramme erklären**, möglichst nur die, die auf dem Blatt vorkommen.
+- **Flächen und Signaturen erklären**, also Landnutzung (Wald, Wiese, Obstwiese, Weinberg, Fels usw.) und die Weg-Signaturen.
+
+Zu klären: Legende im Blattrand, als eigene PDF-Seite (G5) oder in der App neben der Karte, und wie viel Platz sie auf A4 einnehmen darf.
+
+## Namen von Restaurants, Bäckereien und Cafés überdenken
+
+Wann die Namen von Restaurants, Bäckereien und Cafés erscheinen, sollte neu entschieden werden. Zu klären: im Außenbereich immer, in Orten gar nicht oder nur bei Platz, und ob Bäckereien und Cafés anders behandelt werden als Restaurants und Hütten.
