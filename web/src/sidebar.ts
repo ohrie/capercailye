@@ -33,11 +33,6 @@ export function initSidebar(hooks: SidebarHooks): void {
       }
     });
   }
-  for (const input of document.querySelectorAll<HTMLInputElement>('input[name="dpi"]')) {
-    input.addEventListener("change", () => {
-      if (input.checked) setState({ print: { ...getState().print, dpi: Number(input.value) } });
-    });
-  }
   printView.addEventListener("change", () => setState({ printView: printView.checked }));
   subscribe((s) => {
     printView.checked = s.printView;

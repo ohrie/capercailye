@@ -2,7 +2,17 @@
 //
 // Glyphs live in a 15 x 15 unit grid (the Maki/Temaki grid). Boxed pictograms put the
 // glyph into a rounded square with a thin dark border; plain symbols get a white halo.
-// Sizes are paper millimetres at the print zoom (style/units.ts: 1 CSS px = 0.2646 mm).
+// Sizes are paper millimetres at the print zoom (style/units.ts: 1 CSS px = 0.2646 mm); the
+// numbers live in style/sizes.ts.
+import {
+  ICON_MM,
+  ICON_SMALL_MM,
+  PLAIN_L_MM,
+  PLAIN_MM,
+  PLAIN_SMALL_MM,
+  PLAIN_XL_MM,
+  PLAIN_XS_MM,
+} from "../style/sizes";
 import { mm } from "../style/units";
 import { CC0_GLYPHS, type Cc0GlyphName } from "./glyphs-cc0";
 
@@ -113,63 +123,60 @@ const OWN = {
 
 // --- Registry ------------------------------------------------------------------------------
 
-const BOX = 3.4;
-const BOX_SMALL = 3.0;
-
 /** Icon name (image id without "poi:") -> definition. Names equal the tile `kind` values. */
 export const POI_ICONS: Record<string, IconDef> = {
-  railway_station: { style: "transport", glyph: "maki/rail", sizeMm: BOX },
-  railway_halt: { style: "transport", glyph: "maki/rail", sizeMm: BOX_SMALL },
-  viewtower: { style: "sight", glyph: "maki/observation-tower", sizeMm: BOX },
-  alpine_hut: { style: "sight", glyph: "maki/home", sizeMm: BOX },
-  wilderness_hut: { style: "sight", glyph: "temaki/sleep_shelter", sizeMm: BOX },
-  shelter: { style: "sight", glyph: "maki/shelter", sizeMm: BOX },
-  castle: { style: "sight", glyph: "maki/castle", sizeMm: BOX },
+  railway_station: { style: "transport", glyph: "maki/rail", sizeMm: ICON_MM },
+  railway_halt: { style: "transport", glyph: "maki/rail", sizeMm: ICON_SMALL_MM },
+  viewtower: { style: "sight", glyph: "maki/observation-tower", sizeMm: ICON_MM },
+  alpine_hut: { style: "sight", glyph: "maki/home", sizeMm: ICON_MM },
+  wilderness_hut: { style: "sight", glyph: "temaki/sleep_shelter", sizeMm: ICON_MM },
+  shelter: { style: "sight", glyph: "maki/shelter", sizeMm: ICON_MM },
+  castle: { style: "sight", glyph: "maki/castle", sizeMm: ICON_MM },
   castle_ruins: {
     style: "sight",
     glyph: "maki/castle",
     // A crack through the castle marks the ruin.
     overlay: [{ d: "M9.6 4.2L7.6 7.2L9.2 8.8L7.2 11.6", stroke: "bg", strokeWidth: 1.2 }],
-    sizeMm: BOX,
+    sizeMm: ICON_MM,
   },
-  ruins: { style: "sight", glyph: "temaki/ruins", sizeMm: BOX },
-  viewpoint: { style: "sight", glyph: "maki/viewpoint", sizeMm: BOX },
-  waterfall: { style: "sight", glyph: "maki/waterfall", sizeMm: BOX },
-  cave_entrance: { style: "sight", glyph: OWN.cave, sizeMm: BOX },
-  monument: { style: "sight", glyph: "maki/monument", sizeMm: BOX_SMALL },
-  picnic_site: { style: "sight", glyph: "maki/picnic-site", sizeMm: BOX_SMALL },
-  bbq: { style: "sight", glyph: "temaki/campfire", sizeMm: BOX_SMALL },
-  restaurant: { style: "food", glyph: "maki/restaurant", sizeMm: BOX },
-  cafe: { style: "food", glyph: "maki/cafe", sizeMm: BOX },
-  hostel: { style: "lodging", glyph: "temaki/bunk_beds", sizeMm: BOX_SMALL },
-  hotel: { style: "lodging", glyph: "maki/lodging", sizeMm: BOX_SMALL },
-  camp_site: { style: "camp", glyph: "maki/campsite", sizeMm: BOX },
-  caravan_site: { style: "camp", glyph: "temaki/camper_trailer", sizeMm: BOX_SMALL },
-  parking: { style: "transport", glyph: "maki/parking", sizeMm: BOX_SMALL },
-  toilets: { style: "transport", glyph: "maki/toilet", sizeMm: BOX_SMALL },
-  drinking_water: { style: "water", glyph: "maki/drinking-water", sizeMm: BOX_SMALL },
-  church: { style: "plain", glyph: OWN.church, sizeMm: 2.7 },
-  chapel: { style: "plain", glyph: OWN.chapel, sizeMm: 2.4 },
-  place_of_worship: { style: "plain", glyph: "maki/place-of-worship", sizeMm: 2.4 },
-  spring: { style: "plain", glyph: OWN.spring, sizeMm: 2.4, color: WATER_BLUE },
-  fountain: { style: "plain", glyph: "temaki/fountain", sizeMm: 2.3, color: WATER_BLUE },
-  weir: { style: "plain", glyph: OWN.weir, sizeMm: 2.0, color: WATER_BLUE },
-  guidepost: { style: "plain", glyph: OWN.flag, sizeMm: 2.9 },
-  wayside_cross: { style: "plain", glyph: OWN.wayside_cross, sizeMm: 2.0 },
-  wayside_shrine: { style: "plain", glyph: OWN.wayside_shrine, sizeMm: 2.1 },
-  memorial: { style: "plain", glyph: "temaki/milestone", sizeMm: 2.0 },
-  tower: { style: "plain", glyph: "temaki/tower", sizeMm: 2.4 },
-  communication_tower: { style: "plain", glyph: "temaki/tower_communication", sizeMm: 2.5 },
-  mast: { style: "plain", glyph: "temaki/mast", sizeMm: 2.2 },
-  wind_turbine: { style: "plain", glyph: "temaki/wind_turbine", sizeMm: 2.5 },
-  rock: { style: "plain", glyph: "temaki/boulder1", sizeMm: 2.0, color: ROCK_BROWN },
-  stone: { style: "plain", glyph: "temaki/boulder2", sizeMm: 1.8, color: ROCK_BROWN },
-  sinkhole: { style: "plain", glyph: OWN.sinkhole, sizeMm: 2.0, color: ROCK_BROWN },
+  ruins: { style: "sight", glyph: "temaki/ruins", sizeMm: ICON_MM },
+  viewpoint: { style: "sight", glyph: "maki/viewpoint", sizeMm: ICON_MM },
+  waterfall: { style: "sight", glyph: "maki/waterfall", sizeMm: ICON_MM },
+  cave_entrance: { style: "sight", glyph: OWN.cave, sizeMm: ICON_MM },
+  monument: { style: "sight", glyph: "maki/monument", sizeMm: ICON_SMALL_MM },
+  picnic_site: { style: "sight", glyph: "maki/picnic-site", sizeMm: ICON_SMALL_MM },
+  bbq: { style: "sight", glyph: "temaki/campfire", sizeMm: ICON_SMALL_MM },
+  restaurant: { style: "food", glyph: "maki/restaurant", sizeMm: ICON_MM },
+  cafe: { style: "food", glyph: "maki/cafe", sizeMm: ICON_MM },
+  hostel: { style: "lodging", glyph: "temaki/bunk_beds", sizeMm: ICON_SMALL_MM },
+  hotel: { style: "lodging", glyph: "maki/lodging", sizeMm: ICON_SMALL_MM },
+  camp_site: { style: "camp", glyph: "maki/campsite", sizeMm: ICON_MM },
+  caravan_site: { style: "camp", glyph: "temaki/camper_trailer", sizeMm: ICON_SMALL_MM },
+  parking: { style: "transport", glyph: "maki/parking", sizeMm: ICON_SMALL_MM },
+  toilets: { style: "transport", glyph: "maki/toilet", sizeMm: ICON_SMALL_MM },
+  drinking_water: { style: "water", glyph: "maki/drinking-water", sizeMm: ICON_SMALL_MM },
+  church: { style: "plain", glyph: OWN.church, sizeMm: PLAIN_L_MM },
+  chapel: { style: "plain", glyph: OWN.chapel, sizeMm: PLAIN_MM },
+  place_of_worship: { style: "plain", glyph: "maki/place-of-worship", sizeMm: PLAIN_MM },
+  spring: { style: "plain", glyph: OWN.spring, sizeMm: PLAIN_MM, color: WATER_BLUE },
+  fountain: { style: "plain", glyph: "temaki/fountain", sizeMm: PLAIN_MM, color: WATER_BLUE },
+  weir: { style: "plain", glyph: OWN.weir, sizeMm: PLAIN_SMALL_MM, color: WATER_BLUE },
+  guidepost: { style: "plain", glyph: OWN.flag, sizeMm: PLAIN_XL_MM },
+  wayside_cross: { style: "plain", glyph: OWN.wayside_cross, sizeMm: PLAIN_SMALL_MM },
+  wayside_shrine: { style: "plain", glyph: OWN.wayside_shrine, sizeMm: PLAIN_SMALL_MM },
+  memorial: { style: "plain", glyph: "temaki/milestone", sizeMm: PLAIN_SMALL_MM },
+  tower: { style: "plain", glyph: "temaki/tower", sizeMm: PLAIN_MM },
+  communication_tower: { style: "plain", glyph: "temaki/tower_communication", sizeMm: PLAIN_MM },
+  mast: { style: "plain", glyph: "temaki/mast", sizeMm: PLAIN_MM },
+  wind_turbine: { style: "plain", glyph: "temaki/wind_turbine", sizeMm: PLAIN_MM },
+  rock: { style: "plain", glyph: "temaki/boulder1", sizeMm: PLAIN_SMALL_MM, color: ROCK_BROWN },
+  stone: { style: "plain", glyph: "temaki/boulder2", sizeMm: PLAIN_XS_MM, color: ROCK_BROWN },
+  sinkhole: { style: "plain", glyph: OWN.sinkhole, sizeMm: PLAIN_SMALL_MM, color: ROCK_BROWN },
   // Not a tile kind: GTFS bus stops (own PMTiles file, layer `bus_stop`, no `kind`), drawn by the
-  // `busstops` group. Slightly larger than the other plain symbols so the "H" stays readable.
-  busstop: { style: "plain", glyph: OWN.busstop, sizeMm: 3.0 },
+  // `busstops` group. Larger than the other plain symbols so the "H" stays readable.
+  busstop: { style: "plain", glyph: OWN.busstop, sizeMm: PLAIN_XL_MM },
   // Not a tile kind: unnamed guideposts get a smaller flag.
-  guidepost_small: { style: "plain", glyph: OWN.flag, sizeMm: 2.0 },
+  guidepost_small: { style: "plain", glyph: OWN.flag, sizeMm: PLAIN_SMALL_MM },
 };
 
 /** Every `kind` of the `poi` tile layer (tiles/SCHEMA.md). */

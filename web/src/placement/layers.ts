@@ -4,8 +4,9 @@
 //   "displace"  symbol layer whose icons must never be dropped. In print mode the layer is
 //               hidden and replaced by clones on the GeoJSON source PLACEMENT_SOURCE, which
 //               collect.ts fills with displaced points (+ leader lines):
-//                 placement-<id>-icon    icons only, allow-overlap; at the top of the style, so
-//                                        they are placed before every label and block them.
+//                 placement-icons        ONE layer for the icons of all displaced layers (below):
+//                                        allow-overlap; at the top of the style, so they are
+//                                        placed before every label and block them.
 //                 placement-<id>-name    the layer's text only, normal collision, at the
 //                                        original layer's position (same label priority as
 //                                        before); a name that does not fit drops out.
@@ -15,6 +16,10 @@
 //                                        (MapLibre), and collect.ts reads the features from the
 //                                        loaded tiles. Matters for sources that only feed displaced
 //                                        layers (the GTFS `busstops` source).
+//               The merged icon layer sorts by the layers' `symbol-sort-key` (the rank of
+//               style/hierarchy.ts), so the draw order follows the importance hierarchy across
+//               layers and sources: a railway station lies over a bus stop (other source), a bus
+//               stop over a restaurant.
 //   "fixed"     symbol or circle layer that is drawn as it is (never moves) and only reserves
 //               its space, e.g. peak dots.
 //   "obstacle"  symbol layer that MapLibre places itself (line placement: the positions are only
@@ -30,12 +35,13 @@
 // everything; the icon clones are inserted below the first "obstacle" layer, so waymarks are placed
 // even before the pictograms, are never removed by them, and the pictograms avoid them.
 import type { FeatureCollection, Geometry } from "geojson";
-import type {
-  CircleLayerSpecification,
-  LayerSpecification,
-  LineLayerSpecification,
-  StyleSpecification,
-  SymbolLayerSpecification,
+import {
+  latest,
+  type CircleLayerSpecification,
+  type LayerSpecification,
+  type LineLayerSpecification,
+  type StyleSpecification,
+  type SymbolLayerSpecification,
 } from "@maplibre/maplibre-gl-style-spec";
 import { mm } from "../style/units";
 
@@ -60,7 +66,7 @@ export interface ManagedLayer {
   role: PlacementRole;
   /** Original spec (with the visibility the style was built with). */
   spec: LayerSpecification;
-  /** Clone layer ids (empty for "fixed"). */
+  /** Clone layer ids (empty for "fixed"); the merged icon layer ICON_CLONE_ID is not among them. */
   clones: string[];
 }
 
@@ -89,8 +95,10 @@ export function managedLayers(layers: readonly LayerSpecification[]): ManagedLay
   return out;
 }
 
-const iconId = (id: string) => `${PLACEMENT_PREFIX}${id}-icon`;
-const nameId = (id: string) => `${PLACEMENT_PREFIX}${id}-name`;
+/** The merged icon layer of all displaced layers. */
+export const ICON_CLONE_ID = `${PLACEMENT_PREFIX}icons`;
+/** Id of the name clone of a displaced layer. */
+export const nameCloneId = (id: string) => `${PLACEMENT_PREFIX}${id}-name`;
 const leaderId = (id: string) => `${PLACEMENT_PREFIX}${id}-leader`;
 const anchorId = (id: string) => `${PLACEMENT_PREFIX}${id}-anchor`;
 const sourceId = (id: string) => `${PLACEMENT_PREFIX}${id}-source`;
@@ -100,8 +108,8 @@ function hasText(spec: LayerSpecification): boolean {
 }
 
 function cloneIds(spec: LayerSpecification): string[] {
-  const ids = [leaderId(spec.id), anchorId(spec.id), sourceId(spec.id), iconId(spec.id)];
-  if (hasText(spec)) ids.push(nameId(spec.id));
+  const ids = [leaderId(spec.id), anchorId(spec.id), sourceId(spec.id)];
+  if (hasText(spec)) ids.push(nameCloneId(spec.id));
   return ids;
 }
 
@@ -118,22 +126,74 @@ function visibilityOf(spec: LayerSpecification): Visibility {
   return (spec.layout as { visibility?: Visibility } | undefined)?.visibility ?? "visible";
 }
 
-function iconClone(spec: SymbolLayerSpecification, vis: Visibility): SymbolLayerSpecification {
-  const layout = pick(
-    spec.layout as Record<string, unknown>,
-    (k) => k.startsWith("icon-") || k.startsWith("symbol-"),
-  );
-  // Icons always overlap-allowed, so the sort key only sets the draw order (ascending = later on
-  // top). Negated, the important symbols lie on top where the displacement had to give up.
-  const sortKey = layout["symbol-sort-key"];
+type Layout = Record<string, unknown>;
+const layerIs = (id: string) => ["==", ["get", P_LAYER], id] as const;
+
+/** A literal array (e.g. an offset) must be wrapped to be usable inside "case". */
+const asExpression = (v: unknown): unknown =>
+  Array.isArray(v) && typeof v[0] !== "string" ? ["literal", v] : v;
+
+type Spec = { default?: unknown };
+const LAYOUT_SYMBOL = (latest as unknown as { layout_symbol: Record<string, Spec> }).layout_symbol;
+
+/**
+ * One property of the merged icon layer: the common value if all layers agree, otherwise a
+ * "case" on the feature's source layer (`_layer`). A layer without the property gets the spec
+ * default. Zoom expressions cannot sit inside "case": properties with a zoom curve (icon-size)
+ * must be equal in all layers (style/sizes.ts does that).
+ */
+function merged(
+  key: string,
+  specs: readonly { id: string; values: Layout }[],
+  fallback: unknown,
+): unknown {
+  const values = specs.map((s) => asExpression(s.values[key] ?? fallback));
+  if (values.every((v) => JSON.stringify(v) === JSON.stringify(values[0]))) return values[0];
+  const branches = specs.slice(0, -1).flatMap((s, i) => [layerIs(s.id), values[i]]);
+  return ["case", ...branches, values[values.length - 1]];
+}
+
+/**
+ * Icons of all displaced layers in ONE symbol layer. Icons are always overlap-allowed, so the
+ * sort key only sets the draw order (ascending = later on top); negated, the most important
+ * symbols (lowest rank) lie on top where the displacement had to give up. In one layer this holds
+ * across all source layers, which separate clone layers could not do.
+ */
+function mergedIconClone(
+  specs: readonly SymbolLayerSpecification[],
+  vis: Visibility,
+): SymbolLayerSpecification {
+  const own = specs.map((spec) => ({
+    id: spec.id,
+    values: pick(
+      spec.layout as Layout,
+      (k) => k.startsWith("icon-") || k.startsWith("symbol-"),
+    ) as Layout,
+    paint: pick(spec.paint as Layout, (k) => k.startsWith("icon-")),
+  }));
+  const keys = new Set(own.flatMap((o) => Object.keys(o.values)));
+  const layout: Layout = {};
+  for (const key of keys) {
+    layout[key] = merged(key, own, LAYOUT_SYMBOL[key]?.default);
+  }
+  if (layout["symbol-sort-key"] !== undefined) {
+    layout["symbol-sort-key"] = ["*", -1, merged("symbol-sort-key", own, 0)];
+  }
+  const paintKeys = new Set(own.flatMap((o) => Object.keys(o.paint)));
+  const paint: Layout = {};
+  for (const key of paintKeys)
+    paint[key] = merged(
+      key,
+      own.map((o) => ({ id: o.id, values: o.paint })),
+      undefined,
+    );
   return {
-    id: iconId(spec.id),
+    id: ICON_CLONE_ID,
     type: "symbol",
     source: PLACEMENT_SOURCE,
-    filter: roleFilter(spec.id, "symbol") as never,
+    filter: ["==", ["get", P_ROLE], "symbol"] as never,
     layout: {
       ...layout,
-      ...(sortKey !== undefined ? { "symbol-sort-key": ["*", -1, sortKey] } : {}),
       "symbol-z-order": "auto",
       "symbol-placement": "point",
       "icon-allow-overlap": true,
@@ -142,7 +202,7 @@ function iconClone(spec: SymbolLayerSpecification, vis: Visibility): SymbolLayer
       "icon-padding": 0,
       visibility: vis,
     } as SymbolLayerSpecification["layout"],
-    paint: pick(spec.paint as Record<string, unknown>, (k) => k.startsWith("icon-")),
+    paint: paint as SymbolLayerSpecification["paint"],
   };
 }
 
@@ -152,7 +212,7 @@ function nameClone(spec: SymbolLayerSpecification, vis: Visibility): SymbolLayer
     (k) => (k.startsWith("text-") && k !== "text-optional") || k.startsWith("symbol-"),
   );
   return {
-    id: nameId(spec.id),
+    id: nameCloneId(spec.id),
     type: "symbol",
     source: PLACEMENT_SOURCE,
     filter: roleFilter(spec.id, "symbol") as never,
@@ -220,7 +280,8 @@ export function withPlacementLayers(
 
   const layers: LayerSpecification[] = [];
   const top: LayerSpecification[] = [];
-  const icons: LayerSpecification[] = [];
+  const iconSpecs: SymbolLayerSpecification[] = [];
+  let iconsVisible = false;
   for (const spec of style.layers) {
     const m = displaced.find((d) => d.id === spec.id);
     if (!m) {
@@ -233,8 +294,10 @@ export function withPlacementLayers(
     layers.push({ ...symbol, layout: { ...symbol.layout, visibility: active ? off : vis } });
     if (hasText(spec)) layers.push(nameClone(symbol, active ? vis : off));
     top.push(...leaderLayers(spec, active ? vis : off), keepAliveLayer(symbol, active ? vis : off));
-    icons.push(iconClone(symbol, active ? vis : off));
+    iconSpecs.push(symbol);
+    if (vis === "visible") iconsVisible = true;
   }
+  const icons = [mergedIconClone(iconSpecs, active && iconsVisible ? "visible" : "none")];
   // Leaders, anchors and icons go below the first "obstacle" layer (waymarks) and below "fixed"
   // symbol layers (settlement names), or to the very top: those are placed before the icons and
   // keep their spot; every other label is placed after the icons and avoids them.

@@ -13,7 +13,7 @@ import { installIcons } from "./icons";
 import { downloadBlob, exportPdf, type ExportResult, pdfFilename } from "./print/export";
 import { PrintPlacement, rectAround, withPlacementLayers } from "./placement";
 import { PrintFrame } from "./print/frame";
-import { BLEED_MM, type Orientation, printableArea } from "./print/paper";
+import { BLEED_MM, EXPORT_DPI, type Orientation, printableArea } from "./print/paper";
 import { zoomForScale } from "./print/scale";
 import { initSidebar, setExportBusy, setStatus, updatePrintInfo } from "./sidebar";
 import { getState, setState, subscribe } from "./state";
@@ -129,6 +129,7 @@ subscribe((state, prev) => {
 export interface ExportCallOptions {
   scale?: number;
   orientation?: Orientation;
+  /** Automation only (tests); the UI always exports at EXPORT_DPI (300). */
   dpi?: number;
   center?: [number, number];
   vectorTileZoom?: VectorTileZoomMode;
@@ -150,7 +151,7 @@ async function runExport(options: ExportCallOptions = {}): Promise<ExportResult>
       center: options.center ?? [c.lng, c.lat],
       scale: options.scale ?? s.scale,
       orientation: options.orientation ?? s.orientation,
-      dpi: options.dpi ?? s.dpi,
+      dpi: options.dpi ?? EXPORT_DPI,
       style: currentStyle(),
       vectorTileZoom: options.vectorTileZoom,
     });

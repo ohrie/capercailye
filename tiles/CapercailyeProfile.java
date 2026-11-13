@@ -216,8 +216,10 @@ public class CapercailyeProfile implements Profile {
       case "castle" -> sf.hasTag("ruins", "yes") ? new Poi("castle_ruins", 10, true) : p;
       case "ruins" -> sf.hasTag("ruins", "castle") ? new Poi("castle_ruins", 10, true) : p;
       case "memorial" -> SKIP_MEMORIALS.contains(sf.getString("memorial", "")) ? null : p;
-      case "parking", "toilets" -> sf.hasTag("access", "private", "no") ||
+      case "parking" -> sf.hasTag("access", "private", "no") ||
         SKIP_PARKING.contains(sf.getString("parking", "")) ? null : p;
+      // toilets: only publicly accessible ones (access missing, yes or public); customers/permit/... drop out
+      case "toilets" -> !sf.hasTag("access") || sf.hasTag("access", "yes", "public") ? p : null;
       case "shelter" -> SKIP_SHELTERS.contains(sf.getString("shelter_type", "")) ? null : p;
       case "wind_turbine" -> sf.hasTag("generator:source", "wind") ? p : null;
       case "guidepost" -> sf.hasTag("tourism", "information") || !sf.hasTag("tourism") ? p : null;

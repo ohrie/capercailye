@@ -5,7 +5,8 @@
 //   poi-minor  small plain symbols without names (crosses, masts, unnamed guideposts …),
 //              only at 1:25 000 (z >= 12.5); fills the gaps the main layer leaves.
 // On screen MapLibre's collision decides: icons never overlap, names are optional
-// (text-optional), and `symbol-sort-key` (PRIORITY below, named before unnamed) sets the order.
+// (text-optional), and `symbol-sort-key` (PRIORITY, derived from style/hierarchy.ts, named before
+// unnamed) sets the order.
 // In print view and in the PDF both layers are taken over by the print placement
 // (metadata PLACEMENT_DISPLACE, src/placement): every icon is drawn, overlapping icons are
 // displaced by priority (same sort key), and only names may drop out.
@@ -13,17 +14,30 @@
 // Density rules (per A4 sheet at 1:25 000 in BW: parking 67, guideposts 50 …):
 //   parking      only with hiking=yes, a name containing "Wanderparkplatz", or area_m2 >= 2500
 //                (≈ 80–100 cars); never access=private/no/customers/permit/… (no name label).
-//   guidepost    named: yellow flag + name, priority just below huts/views/castles.
+//   guidepost    named: yellow flag, in poi-main; the name only with the "Wegweisernamen" switch.
 //                unnamed: small flag in poi-minor, lowest priority (drops out first).
+//   viewpoint    own layer `viewpoints-main` (group "viewpoints", off by default); view towers stay
+//                in poi-main.
 //   bus stops    no longer from OSM: GTFS stops (>= 4 departures per weekend day) come from their own
 //                PMTiles file as group "busstops" (busstopLayers below); railway stations/halts stay here.
-//   restaurant/cafe  icon + name, priority below huts, shelters, views and guideposts.
+//   restaurant/cafe  icon + name.
+// Every priority comes from style/hierarchy.ts (the importance hierarchy), every size from
+// style/sizes.ts.
 import type {
   ExpressionSpecification,
   FilterSpecification,
   LayerSpecification,
 } from "@maplibre/maplibre-gl-style-spec";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { flagGeometry, POI_ICONS, type PoiKind } from "../icons/registry";
+import { nameCloneId } from "../placement/layers";
+import {
+  BUSSTOP_PRIORITY,
+  FALLBACK_PRIORITY,
+  KIND_RANKS,
+  UNNAMED_GUIDEPOST_PRIORITY,
+} from "./hierarchy";
+import { iconSizeByScale } from "./sizes";
 import { BUSSTOPS_SOURCE, OSM_SOURCE } from "./sources";
 import { mm, pt } from "./units";
 
@@ -72,56 +86,10 @@ export const MINOR_KINDS: PoiKind[] = [
   "weir",
 ];
 
-/** Placement priority (lower first). Kinds not listed use the tile `rank`. */
-export const PRIORITY: Partial<Record<PoiKind, number>> = {
-  railway_station: 10,
-  viewtower: 10,
-  alpine_hut: 10,
-  castle: 10,
-  castle_ruins: 10,
-  viewpoint: 14,
-  wilderness_hut: 15,
-  shelter: 16,
-  cave_entrance: 17,
-  waterfall: 17,
-  ruins: 18,
-  railway_halt: 19,
-  church: 20,
-  chapel: 22,
-  camp_site: 23,
-  guidepost: 25,
-  spring: 26,
-  drinking_water: 27,
-  parking: 28,
-  monument: 30,
-  restaurant: 32,
-  cafe: 33,
-  hostel: 34,
-  picnic_site: 36,
-  place_of_worship: 36,
-  caravan_site: 40,
-  hotel: 42,
-  bbq: 44,
-  toilets: 46,
-  tower: 48,
-  communication_tower: 49,
-  wind_turbine: 49,
-  wayside_cross: 50,
-  wayside_shrine: 50,
-  memorial: 52,
-  fountain: 52,
-  rock: 54,
-  stone: 54,
-  sinkhole: 54,
-  weir: 55,
-  mast: 58,
-};
+/** Placement priority (lower first) per kind: the rank in style/hierarchy.ts. */
+export const PRIORITY: Readonly<Record<PoiKind, number>> = KIND_RANKS;
 
-/**
- * Placement priority of GTFS bus stops: just below railway halts (19) and churches (20), above
- * chapels and guideposts. A stop with >= 4 weekend departures is worth a place on the sheet.
- */
-export const BUSSTOP_PRIORITY = 21;
+export { BUSSTOP_PRIORITY, UNNAMED_GUIDEPOST_PRIORITY };
 
 /** Access values that exclude a car park (the tiles already drop private/no). */
 export const PARKING_EXCLUDED_ACCESS = [
@@ -155,17 +123,14 @@ const priority = [
   "match",
   kind,
   ...Object.entries(PRIORITY).flat(),
-  ["coalesce", ["get", "rank"], 50],
+  ["coalesce", ["get", "rank"], FALLBACK_PRIORITY],
 ] as unknown as ExpressionSpecification;
 const sortKey: ExpressionSpecification = ["+", priority, ["case", ["has", "name"], 0, 0.5]];
-/** Unnamed guideposts are the first thing to give way. */
-const UNNAMED_GUIDEPOST_PRIORITY = 60;
-
 /** Bus stops appear from z11.5, i.e. at every print scale from 1:50 000 (z11.95) to 1:10 000. */
 const BUSSTOP_MINZOOM = 11.5;
 
-/** Icons are drawn exactly at the print zoom (1:25 000 ≈ z12.95, 1:50 000 ≈ z11.95). */
-const iconSize: ExpressionSpecification = ["interpolate", ["linear"], ["zoom"], 11, 0.75, 12.5, 1];
+/** Icon size by print scale: one rule for pictograms, bus stops and waymarks (style/sizes.ts). */
+const iconSize = iconSizeByScale;
 
 const iconImage = (name: ExpressionSpecification | string): ExpressionSpecification => [
   "concat",
@@ -230,19 +195,43 @@ function poiLayer(id: string, filter: FilterSpecification, minzoom: number) {
   };
 }
 
-export function poiLayers(): LayerSpecification[] {
-  const isGuidepost: ExpressionSpecification = ["==", kind, "guidepost"];
-  const main: LayerSpecification = {
-    ...poiLayer(
-      "poi-main",
-      [
-        "all",
-        ["!", isKind(...MINOR_KINDS)],
-        ["any", ["!=", kind, "parking"], parkingShown],
-        ["any", ["!", isGuidepost], ["has", "name"]],
-      ],
-      11,
-    ),
+const isGuidepost: ExpressionSpecification = ["==", kind, "guidepost"];
+
+/** Id of the layer whose text carries the guidepost names (see setGuidepostNames). */
+export const GUIDEPOST_NAME_LAYER = "poi-main";
+
+/**
+ * `text-field` of the main layers: the name of every named kind; guideposts only with
+ * `guidepostNames` (sidebar switch "Wegweisernamen", off by default: the flags stay).
+ */
+export function poiNameField(guidepostNames: boolean): ExpressionSpecification {
+  const kinds = guidepostNames ? NAMED_KINDS : NAMED_KINDS.filter((k) => k !== "guidepost");
+  return ["case", ["all", isKind(...kinds), ["has", "name"]], ["get", "name"], ""];
+}
+
+/**
+ * Switches the guidepost names on a live map: the original layer and, in print view, its name
+ * clone (placement/layers.ts) get the other `text-field`. Icons and their placement are untouched.
+ */
+export function setGuidepostNames(map: MapLibreMap, on: boolean): void {
+  for (const id of [GUIDEPOST_NAME_LAYER, nameCloneId(GUIDEPOST_NAME_LAYER)]) {
+    if (map.getLayer(id)) map.setLayoutProperty(id, "text-field", poiNameField(on));
+  }
+}
+
+export interface PoiLayerOptions {
+  /** Print the names of guideposts (default false). */
+  guidepostNames?: boolean;
+}
+
+/** A boxed-pictogram layer with optional names (poi-main, viewpoints-main). */
+function mainLayer(
+  id: string,
+  filter: FilterSpecification,
+  guidepostNames: boolean,
+): LayerSpecification {
+  return {
+    ...poiLayer(id, filter, 11),
     layout: {
       "symbol-sort-key": sortKey,
       "symbol-z-order": "auto",
@@ -253,7 +242,7 @@ export function poiLayers(): LayerSpecification[] {
       "icon-padding": 1,
       "icon-allow-overlap": false,
       "icon-ignore-placement": false,
-      "text-field": ["case", ["all", isKind(...NAMED_KINDS), ["has", "name"]], ["get", "name"], ""],
+      "text-field": poiNameField(guidepostNames),
       "text-font": FONT,
       "text-size": ["case", isGuidepost, FLAG_NAME_SIZE, NAME_SIZE],
       "text-max-width": 9,
@@ -274,7 +263,22 @@ export function poiLayers(): LayerSpecification[] {
       "text-halo-color": HALO_COLOR,
       "text-halo-width": 1.1,
     },
-  };
+  } as LayerSpecification;
+}
+
+export function poiLayers(opts: PoiLayerOptions = {}): LayerSpecification[] {
+  const main = mainLayer(
+    "poi-main",
+    [
+      "all",
+      ["!", isKind(...MINOR_KINDS)],
+      // Viewpoints have their own layer and switch (viewpointLayers).
+      ["!=", kind, "viewpoint"],
+      ["any", ["!=", kind, "parking"], parkingShown],
+      ["any", ["!", isGuidepost], ["has", "name"]],
+    ],
+    opts.guidepostNames ?? false,
+  );
 
   const minor: LayerSpecification = {
     ...poiLayer(
@@ -295,6 +299,14 @@ export function poiLayers(): LayerSpecification[] {
 
   // Array order = draw order; MapLibre places the topmost layer first, so main wins collisions.
   return [minor, main];
+}
+
+/**
+ * Viewpoints (tourism=viewpoint): own layer in group "viewpoints", off by default. Same look and
+ * placement role as poi-main; while the group is off, the print placement reserves no room.
+ */
+export function viewpointLayers(): LayerSpecification[] {
+  return [mainLayer("viewpoints-main", ["==", kind, "viewpoint"], false)];
 }
 
 /**

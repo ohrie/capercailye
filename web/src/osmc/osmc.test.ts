@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { expression } from "@maplibre/maplibre-gl-style-spec";
 import { svgForImageId } from "../icons/runtime";
+import { ICON_MM } from "../style/sizes";
 import { mm } from "../style/units";
 import {
   OSMC_COLOURS as C,
@@ -271,10 +272,9 @@ describe("combined image", () => {
     expect(signs(waymarkSvg(entries)!.svg)).toBe(4);
   });
 
-  test("single sign size: 4.5–5 mm high", () => {
+  test("single sign is as high as a boxed pictogram (style/sizes.ts)", () => {
     const img = osmcToSvg("blue:white:blue_diamond")!;
-    expect(img.height / mm(1)).toBeGreaterThanOrEqual(4.5);
-    expect(img.height / mm(1)).toBeLessThanOrEqual(5);
+    expect(img.height / mm(1)).toBeCloseTo(ICON_MM, 6);
     expect(img.width).toBeCloseTo(img.height);
   });
 

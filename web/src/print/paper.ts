@@ -10,6 +10,9 @@ export const BLEED_MM = 5;
 /** Height of the white strip at the bottom of the map area holding scale, check line, attribution. */
 export const LEGEND_STRIP_MM = 11;
 
+/** Resolution of the PDF export: always 300 dpi (A4 incl. bleed stays far below the canvas limit). */
+export const EXPORT_DPI = 300;
+
 export interface SizeMm {
   width: number;
   height: number;

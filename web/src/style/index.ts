@@ -7,7 +7,7 @@ import { cliffLayers } from "./cliffs";
 import { contourLayers, hillshadeLayers } from "./hillshade";
 import { labelLayers, nameLayers } from "./labels";
 import { backgroundLayers, landcoverLayers } from "./landcover";
-import { busstopLayers, poiLayers } from "./poi";
+import { busstopLayers, poiLayers, setGuidepostNames, viewpointLayers } from "./poi";
 import { protectedLayers } from "./protected";
 import { routeLayers, waymarkLayers } from "./routes";
 import { shieldLayers, withoutShieldRefs } from "./shields";
@@ -34,7 +34,13 @@ export interface LayerGroup {
   defaultVisible: boolean;
   /** Optional data source of the group (id in `sources`); without it the group is left out. */
   source?: string;
-  layers: () => LayerSpecification[];
+  /** Layers of the group; may depend on switches (e.g. the guidepost names inside poi-main). */
+  layers: (visibility?: GroupVisibility) => LayerSpecification[];
+  /**
+   * Switches without layers of their own (the layers read them while the style is built) update
+   * a live map here when toggled.
+   */
+  onToggle?: (map: MapLibreMap, visible: boolean) => void;
 }
 
 /**
@@ -69,7 +75,28 @@ export const GROUPS: LayerGroup[] = [
   },
   // Road number shields (Autobahn / Bundesstrasse); follow the "Beschriftung" toggle.
   { id: "shields", toggledBy: "labels", defaultVisible: true, layers: shieldLayers },
-  { id: "poi", label: "Piktogramme", defaultVisible: true, layers: poiLayers },
+  {
+    id: "poi",
+    label: "Piktogramme",
+    defaultVisible: true,
+    layers: (v = {}) => poiLayers({ guidepostNames: isOn("guidepostnames", v) }),
+  },
+  // Viewpoints (tourism=viewpoint) are off by default; view towers stay in "poi".
+  {
+    id: "viewpoints",
+    label: "Aussichtspunkte",
+    defaultVisible: false,
+    layers: viewpointLayers,
+  },
+  // Names of the guideposts (the flags are part of "poi" and always shown). Not a layer group: the
+  // switch only changes the text-field of poi-main.
+  {
+    id: "guidepostnames",
+    label: "Wegweisernamen",
+    defaultVisible: false,
+    layers: () => [],
+    onToggle: setGuidepostNames,
+  },
   // GTFS bus stops (M2c): own source. Above the pictograms: where displaced icons still overlap, the
   // stop (priority 21) must not be covered by restaurants, parking etc. Its names are placed first.
   {
@@ -86,15 +113,18 @@ export const GROUPS: LayerGroup[] = [
 
 export type GroupVisibility = Record<string, boolean>;
 
+/** State of a toggle (its default if the visibility map has no entry). */
+function isOn(id: string, visibility: GroupVisibility): boolean {
+  return visibility[id] ?? GROUPS.find((g) => g.id === id)?.defaultVisible ?? true;
+}
+
 export function defaultVisibility(): GroupVisibility {
   return Object.fromEntries(GROUPS.map((g) => [g.id, g.defaultVisible]));
 }
 
 /** Visibility of a group, following its controlling toggle if it has one. */
 function groupVisible(group: LayerGroup, visibility: GroupVisibility): boolean {
-  const key = group.toggledBy ?? group.id;
-  const owner = GROUPS.find((g) => g.id === key) ?? group;
-  return visibility[key] ?? owner.defaultVisible;
+  return isOn(group.toggledBy ?? group.id, visibility);
 }
 
 export interface StyleOptions {
@@ -117,7 +147,7 @@ export function buildStyle(opts: StyleOptions): StyleSpecification {
   const layers = GROUPS.flatMap((g) => {
     if (g.source && !sources[g.source]) return [];
     const visible = groupVisible(g, opts.visibility);
-    return g.layers().map((layer) => {
+    return g.layers(opts.visibility).map((layer) => {
       if (!layer.id.startsWith(`${g.id}-`)) {
         throw new Error(`Layer ${layer.id} must be prefixed with ${g.id}-`);
       }
@@ -138,6 +168,7 @@ export function buildStyle(opts: StyleOptions): StyleSpecification {
 
 /** Switches a toggle: the group itself and every group that follows it (`toggledBy`). */
 export function setGroupVisible(map: MapLibreMap, groupId: string, visible: boolean): void {
+  GROUPS.find((g) => g.id === groupId)?.onToggle?.(map, visible);
   const prefixes = GROUPS.filter((g) => g.id === groupId || g.toggledBy === groupId).map(
     (g) => `${g.id}-`,
   );

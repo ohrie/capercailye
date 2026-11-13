@@ -5,7 +5,6 @@ import { defaultVisibility, type GroupVisibility } from "./style";
 export interface PrintSettings {
   scale: number;
   orientation: Orientation;
-  dpi: number;
 }
 
 export interface AppState {
@@ -18,7 +17,7 @@ export interface AppState {
 type Listener = (state: AppState, prev: AppState) => void;
 
 let state: AppState = {
-  print: { scale: 25000, orientation: "portrait", dpi: 254 },
+  print: { scale: 25000, orientation: "portrait" },
   printView: false,
   visibility: defaultVisibility(),
 };

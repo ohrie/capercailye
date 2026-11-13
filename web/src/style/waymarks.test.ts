@@ -11,12 +11,8 @@ import { evaluateLayer } from "../placement/collect";
 import { managedLayers, withPlacementLayers } from "../placement/layers";
 import { zoomForScale } from "../print/scale";
 import { buildStyle, defaultVisibility, GROUPS } from "./index";
-import {
-  WAYMARK_PADDING_MM,
-  WAYMARK_SMALL_SIZE,
-  WAYMARK_SPACING_MM,
-  waymarkLayers,
-} from "./routes";
+import { WAYMARK_PADDING_MM, WAYMARK_SPACING_MM, waymarkLayers } from "./routes";
+import { SMALL_SCALE_FACTOR } from "./sizes";
 import { mm, PRINT_MIN_ZOOM } from "./units";
 
 const base = () =>
@@ -77,13 +73,13 @@ describe("waymarks layer", () => {
   test("only from the print band on; smaller at 1:50 000, full size from 1:25 000", () => {
     expect(layer!.minzoom).toBe(PRINT_MIN_ZOOM);
     expect(SCALE_ZOOM(50000)).toBeGreaterThan(PRINT_MIN_ZOOM);
-    expect(evalLayout("icon-size", SCALE_ZOOM(50000))).toBe(WAYMARK_SMALL_SIZE);
+    expect(evalLayout("icon-size", SCALE_ZOOM(50000))).toBe(SMALL_SCALE_FACTOR);
     for (const scale of [25000, 15000, 10000]) {
       expect(evalLayout("icon-size", SCALE_ZOOM(scale))).toBe(1);
     }
     // The step lies between the two scales anywhere in Baden-Württemberg (47.5–49.8° N).
     for (const lat of [47.5, 49.8]) {
-      expect(evalLayout("icon-size", zoomForScale(50000, lat))).toBe(WAYMARK_SMALL_SIZE);
+      expect(evalLayout("icon-size", zoomForScale(50000, lat))).toBe(SMALL_SCALE_FACTOR);
       expect(evalLayout("icon-size", zoomForScale(25000, lat))).toBe(1);
     }
   });

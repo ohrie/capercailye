@@ -6,19 +6,24 @@
 // screwed to a tree: the outline separates the sign from forest/meadow colours, the white rim
 // keeps coloured backgrounds apart from the outline. Sizes are paper mm (style/units.ts).
 import type { SvgImage } from "../icons/registry";
+import {
+  WAYMARK_GAP_MM,
+  WAYMARK_MM,
+  WAYMARK_OUTLINE_MM,
+  WAYMARK_RADIUS_MM,
+  WAYMARK_RIM_MM,
+} from "../style/sizes";
 import { mm } from "../style/units";
 import { osmcColour, parseOsmc, type ParsedOsmc } from "./parse";
 import { circle, foregroundElems, path, rect, render, type Elem, type Halo } from "./shapes";
 
+// Sizes (plate height, gap, rim, outline) come from style/sizes.ts.
+export { WAYMARK_GAP_MM };
 /** Height of one sign (plate) on paper in mm. */
-export const WAYMARK_HEIGHT_MM = 4.8;
-/** Gap between two signs of a combined image in mm. */
-export const WAYMARK_GAP_MM = 0.5;
+export const WAYMARK_HEIGHT_MM = WAYMARK_MM;
 /** At most this many signs per image (the tiles cap at 4 as well). */
 export const WAYMARK_MAX_SIGNS = 4;
 
-const OUTLINE_MM = 0.12;
-const RIM_MM = 0.3;
 const OUTLINE = "#2b2b2b";
 const WHITE = "#ffffff";
 const DARK = "#1d1d1b";
@@ -397,11 +402,11 @@ function signGraphic(sign: Sign): Graphic {
 function composeSigns(signs: readonly Sign[], opts: SignOptions = {}): SvgImage | undefined {
   if (signs.length === 0) return undefined;
   const plateH = mm(opts.heightMm ?? WAYMARK_HEIGHT_MM);
-  const rim = mm(RIM_MM);
-  const outline = mm(OUTLINE_MM);
+  const rim = mm(WAYMARK_RIM_MM);
+  const outline = mm(WAYMARK_OUTLINE_MM);
   const u = (plateH - 2 * rim) / 20;
   const gap = mm(WAYMARK_GAP_MM);
-  const radius = mm(0.45);
+  const radius = mm(WAYMARK_RADIUS_MM);
   let x = 0;
   let body = "";
   signs.forEach((sign, i) => {

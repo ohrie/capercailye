@@ -1,11 +1,11 @@
 // Application-wide constants.
 
-/** Initial view: Veringenstadt. */
-export const INITIAL_CENTER: [number, number] = [9.2103, 48.1836];
+/** Initial view: Dahn im Pfälzerwald (Rheinland-Pfalz). BW: Veringenstadt [9.2103, 48.1836]. */
+export const INITIAL_CENTER: [number, number] = [7.7765, 49.1505];
 export const INITIAL_ZOOM = 13;
 
 /** PMTiles file, served by the dev server from $CAPERCAILYE_DATA (default ~/.local/share/capercailye). */
-export const PMTILES_PATH = "data/capercailye-bw.pmtiles";
+export const PMTILES_PATH = "data/capercailye-rp.pmtiles";
 
 /**
  * Bus stops from GTFS (PLAN.md 4c), a second small PMTiles file next to the OSM one
@@ -32,7 +32,23 @@ export const RELIEF_TIMEOUT_MS = 15_000;
 export const BUSSTOPS_ATTRIBUTION = "Fahrplandaten: DELFI e.V. / gtfs.de, CC BY 4.0";
 
 export const OSM_ATTRIBUTION = "© OpenStreetMap-Mitwirkende";
-export const RELIEF_ATTRIBUTION = "Relief: Mapterhorn, LGL-BW (dl-de/by-2-0)";
+/**
+ * Elevation sources inside the Mapterhorn tiles, per area (key = `<area>` of
+ * `capercailye-<area>.pmtiles`). Producer texts from https://mapterhorn.com/attribution
+ * (attribution.json, "producer"); both are licensed dl-de/by-2-0.
+ */
+const RELIEF_SOURCES: Record<string, string> = {
+  bw: "LGL, www.lgl-bw.de (dl-de/by-2-0)",
+  rp: "©GeoBasis-DE / LVermGeoRP (dl-de/by-2-0)",
+};
+
+/** Area key of the loaded PMTiles file, e.g. "rp" for data/capercailye-rp.pmtiles. */
+export const AREA = /capercailye-([^/]+)\.pmtiles$/.exec(PMTILES_PATH)?.[1] ?? "";
+
+/** Relief credit for the loaded area; unknown areas point to Mapterhorn's full source list. */
+export const RELIEF_ATTRIBUTION = `Relief: Mapterhorn, ${
+  RELIEF_SOURCES[AREA] ?? "Quellen: mapterhorn.com/attribution"
+}`;
 
 export const ATTRIBUTION_TEXT = [OSM_ATTRIBUTION, RELIEF_ATTRIBUTION, BUSSTOPS_ATTRIBUTION].join(
   " · ",

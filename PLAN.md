@@ -107,7 +107,7 @@ Das ist der Kern des Projekts.
 - **Druckansicht:** Ein Schalter stellt die Vorschau auf den Druckzoom, dann entspricht der Bildschirm inhaltlich dem Ausdruck.
 - **Export:** Seiten nacheinander in einer versteckten Karte rendern (mit 5 mm Zugabe ringsum, die danach abgeschnitten wird, damit Labels am Blattrand nicht abreißen), als Bild ins PDF legen, Größe in Millimetern setzen.
 - **Auflösung:** Standard 254 dpi, wahlweise 300 dpi.
-- **Blattrand (Vektor):** Rahmen, Maßstabsleiste, Maßstabszahl, Nordpfeil, Blattnummer mit Nachbarblättern, Quellenangaben (© OpenStreetMap-Mitwirkende, LGL-BW dl-de/by-2-0, Mapterhorn), dazu eine 10-cm-Kontrollstrecke. Der wichtigste Maßstabsfehler in der Praxis ist „An Seite anpassen“ im Druckdialog; die App weist darauf hin.
+- **Blattrand (Vektor):** Rahmen, Maßstabsleiste, Maßstabszahl, Nordpfeil, Blattnummer mit Nachbarblättern, Quellenangaben (© OpenStreetMap-Mitwirkende, Mapterhorn mit der Höhenquelle des Gebiets, z. B. LGL-BW bzw. GeoBasis-DE / LVermGeoRP, dl-de/by-2-0), dazu eine 10-cm-Kontrollstrecke. Der wichtigste Maßstabsfehler in der Praxis ist „An Seite anpassen“ im Druckdialog; die App weist darauf hin.
 - Stilgrößen werden in Millimetern auf dem Papier gedacht: Schrift mindestens 6,5 pt, Pfad 0,25 mm, Fahrweg 0,35 mm, Höhenlinie 0,1–0,15 mm, Routenhinterlegung 1,2–1,5 mm.
 
 ## 4a. Grundsatz: Vollständigkeit im Druck

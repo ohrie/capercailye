@@ -19,4 +19,8 @@ Das Modul `web/src/osmc/` als eigenständiges npm-Paket veröffentlichen, damit 
 - Lizenz MIT wie capercailye; die Formen bleiben unabhängig von Waymarked Trails (GPL-3.0), das nur als Verhaltensreferenz dient.
 - Tests und Musterseite (`sample-sheet.ts`) mitnehmen; die BW-Häufigkeitsliste als Testdaten, ggf. um weitere Regionen ergänzen.
 
-**Grundlage:** Zerlegung und Formen sind portiert aus der Perl-Bibliothek [mueschel/OsmcToSVG](https://github.com/mueschel/OsmcToSVG) (Lizenz CC0-1.0). Im Paket und in der README darauf verweisen.
+**Grundlage (npm-Paket):** Zerlegung und Formen sind portiert aus der Perl-Bibliothek [mueschel/OsmcToSVG](https://github.com/mueschel/OsmcToSVG) (Lizenz CC0-1.0). Im Paket und in der README darauf verweisen.
+
+## Route-Marker nicht darstellen
+
+Route-Marker (die Wegzeichen-Schilder entlang der Wanderrouten) sollten nicht dargestellt werden. Die Routen blieben über die farbige Hinterlegung erkennbar. Zu klären: ganz entfernen oder als Schalter (Standard aus), und wie Routen ohne Zeichen dann zuzuordnen sind.

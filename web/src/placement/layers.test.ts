@@ -42,6 +42,7 @@ describe("withPlacementLayers", () => {
     expect(roles["poi-main"]).toBe("displace");
     expect(roles["poi-minor"]).toBe("displace");
     expect(roles["busstops-main"]).toBe("displace");
+    expect(roles["viewpoints-main"]).toBe("displace");
     expect(roles["labels-peak-dot"]).toBe("fixed");
     expect(roles["labels-place-town"]).toBe("fixed");
     // Road numbers/names are labels: they may drop out.
@@ -52,16 +53,30 @@ describe("withPlacementLayers", () => {
     const on = withPlacementLayers(base(), true).style;
     const off = withPlacementLayers(base(), false).style;
     expect(vis(on, "poi-main")).toBe("none");
-    expect(vis(on, "placement-poi-main-icon")).toBe("visible");
+    expect(vis(on, "placement-icons")).toBe("visible");
     expect(vis(on, "placement-poi-main-name")).toBe("visible");
     expect(vis(off, "poi-main")).toBe("visible");
-    expect(vis(off, "placement-poi-main-icon")).toBe("none");
+    expect(vis(off, "placement-icons")).toBe("none");
+  });
+
+  test("one merged icon layer for all displaced layers, hidden when none is wanted", () => {
+    const { style } = withPlacementLayers(base(), true);
+    expect(
+      style.layers.filter((l) => l.id.endsWith("-icon") || l.id === "placement-icons"),
+    ).toHaveLength(1);
+    const none = buildStyle({
+      pmtilesUrl: "https://example.invalid/x.pmtiles",
+      glyphsUrl: "https://example.invalid/{fontstack}/{range}.pbf",
+      relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
+      visibility: { ...defaultVisibility(), poi: false, viewpoints: false, busstops: false },
+    });
+    expect(vis(withPlacementLayers(none, true).style, "placement-icons")).toBe("none");
   });
 
   test("clones never drop icons; names keep the original label priority", () => {
     const { style } = withPlacementLayers(base(), true);
     const ids = style.layers.map((l) => l.id);
-    const icon = style.layers.find((l) => l.id === "placement-poi-main-icon")!;
+    const icon = style.layers.find((l) => l.id === "placement-icons")!;
     expect(icon.layout).toMatchObject({
       "icon-allow-overlap": true,
       "icon-ignore-placement": false,
@@ -71,7 +86,7 @@ describe("withPlacementLayers", () => {
     expect((name.layout as Record<string, unknown>)["icon-image"]).toBeUndefined();
     expect(ids.indexOf("placement-poi-main-name")).toBe(ids.indexOf("poi-main") + 1);
     // Icons are placed (= sit above) after settlement names, before peak names and all others.
-    const iconAt = ids.indexOf("placement-poi-main-icon");
+    const iconAt = ids.indexOf("placement-icons");
     expect(iconAt).toBeLessThan(ids.indexOf("labels-place-hamlet"));
     expect(iconAt).toBeGreaterThan(ids.indexOf("labels-peak"));
     expect(ids.indexOf("placement-poi-main-leader")).toBeLessThan(iconAt);
@@ -80,14 +95,11 @@ describe("withPlacementLayers", () => {
   test("bus stop clones read the bus stop source's features and get no name layer", () => {
     const { style } = withPlacementLayers(base(), true);
     expect(vis(style, "busstops-main")).toBe("none");
-    expect(vis(style, "placement-busstops-main-icon")).toBe("visible");
+    expect(vis(style, "placement-icons")).toBe("visible");
     const ids = style.layers.map((l) => l.id);
     expect(ids).not.toContain("placement-busstops-main-name");
-    // Above the pictograms: a stop is drawn over lower-priority icons it still overlaps.
-    expect(ids.indexOf("busstops-main")).toBeGreaterThan(ids.indexOf("poi-main"));
-    expect(ids.indexOf("placement-busstops-main-icon")).toBeGreaterThan(
-      ids.indexOf("placement-poi-main-icon"),
-    );
+    // One merged icon layer: the draw order comes from the sort key, i.e. the hierarchy.
+    expect(ids.filter((id) => id === "placement-icons")).toHaveLength(1);
   });
 
   test("print mode keeps every source of a displaced layer loading (hidden originals load no tiles)", () => {
@@ -163,7 +175,7 @@ describe("evaluateLayer", () => {
     const [castle] = evaluateLayer(main!, [f(1, "castle", { name: "Burg" })], 12.95);
     expect(castle!.item.box.maxX - castle!.item.box.minX).toBeCloseTo(3.4, 5);
     expect(castle!.item.box.minX).toBeCloseTo(-1.7, 5);
-    expect(castle!.item.priority).toBe(10);
+    expect(castle!.item.priority).toBe(PRIORITY.castle);
     const [post] = evaluateLayer(main!, [f(2, "guidepost", { name: "Hadeck" })], 12.95);
     // Flag: pole foot on the point, so the box lies above and mostly right of it.
     expect(post!.item.box.maxY).toBeGreaterThan(0);
@@ -173,7 +185,7 @@ describe("evaluateLayer", () => {
   });
 
   test("placement data: displaced points, leaders and anchors on the true location", () => {
-    const feats = [f(1, "castle"), f(2, "viewpoint")];
+    const feats = [f(1, "castle"), f(2, "restaurant")];
     const cands = evaluateLayer(main!, feats, 13);
     const placements = placeSymbols(cands.map((c) => c.item));
     const data = placementData(cands, placements, 13);
@@ -183,9 +195,9 @@ describe("evaluateLayer", () => {
     const anchor = data.features.find((x) => x.properties!._role === "anchor")!;
     expect(anchor.geometry).toEqual({ type: "Point", coordinates: [9.2, 48.18] });
     const sym = data.features.find(
-      (x) => x.properties!._role === "symbol" && x.properties!.kind === "viewpoint",
+      (x) => x.properties!._role === "symbol" && x.properties!.kind === "restaurant",
     )!;
-    expect(sym.properties!.kind).toBe("viewpoint");
+    expect(sym.properties!.kind).toBe("restaurant");
     expect(sym.properties!._layer).toBe("poi-main");
   });
 });
@@ -198,10 +210,11 @@ describe("bus stops", () => {
     lngLat,
   });
 
-  test("priority sits just below railway halts and churches", () => {
-    expect(BUSSTOP_PRIORITY).toBeGreaterThan(PRIORITY.railway_halt!);
-    expect(BUSSTOP_PRIORITY).toBeGreaterThan(PRIORITY.church!);
-    expect(BUSSTOP_PRIORITY).toBeLessThan(PRIORITY.guidepost!);
+  test("priority sits between railway halts and huts, above every restaurant", () => {
+    expect(BUSSTOP_PRIORITY).toBeGreaterThan(PRIORITY.railway_station);
+    expect(BUSSTOP_PRIORITY).toBeGreaterThan(PRIORITY.railway_halt);
+    expect(BUSSTOP_PRIORITY).toBeLessThan(PRIORITY.restaurant);
+    expect(BUSSTOP_PRIORITY).toBeLessThan(PRIORITY.church);
   });
 
   test("every stop is a candidate from z11.5, with a 3 mm icon box and the constant priority", () => {

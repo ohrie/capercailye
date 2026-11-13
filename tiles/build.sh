@@ -3,7 +3,7 @@
 #
 # Usage: tiles/build.sh [input.osm.pbf] [area-name]
 #   input     default: $CAPERCAILYE_DATA/baden-wuerttemberg-latest.osm.pbf
-#   area-name default: derived from the input file name (baden-wuerttemberg → bw)
+#   area-name default: derived from the input file name (baden-wuerttemberg → bw, rheinland-pfalz → rp)
 # Output: $CAPERCAILYE_DATA/capercailye-<area>.pmtiles
 # Env:    JAVA_XMX (heap, default 4g), PLANETILER_VERSION (default: latest release),
 #         extra Planetiler args may follow after "--", e.g. build.sh in.pbf de -- --threads=8
@@ -23,6 +23,7 @@ if [[ -z "$AREA" ]]; then
   base="${base%%.osm.pbf}"
   case "$base" in
     baden-wuerttemberg) AREA=bw ;;
+    rheinland-pfalz) AREA=rp ;;
     germany) AREA=de ;;
     europe) AREA=eu ;;
     *) AREA="$base" ;;

@@ -13,7 +13,7 @@
 import type { GeoJSONSource, Map as MapLibreMap, MapSourceDataEvent } from "maplibre-gl";
 import { computePlacement, type PlacementRequest } from "./collect";
 import type { RectMm } from "./geo";
-import { EMPTY_COLLECTION, type ManagedLayer, PLACEMENT_SOURCE } from "./layers";
+import { EMPTY_COLLECTION, ICON_CLONE_ID, type ManagedLayer, PLACEMENT_SOURCE } from "./layers";
 import { renderedObstacles } from "./rendered";
 
 export { computePlacement } from "./collect";
@@ -100,15 +100,19 @@ export class PrintPlacement {
   /** Re-applies original/clone visibility from the toggles (after setGroupVisible). */
   sync(): void {
     const map = this.map;
+    const set = (id: string, on: boolean) => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+    };
+    let anyWanted = false;
     for (const m of this.managed) {
       if (m.role !== "displace") continue;
       const wanted = this.options.wanted(m.id);
-      const set = (id: string, on: boolean) => {
-        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
-      };
+      anyWanted ||= wanted;
       set(m.id, wanted && !this.active);
       for (const c of m.clones) set(c, wanted && this.active);
     }
+    // The icons of all displaced layers share one clone layer (placement/layers.ts).
+    set(ICON_CLONE_ID, anyWanted && this.active);
     this.dirty = true;
     // Region or toggles may have changed without a camera move: make sure "idle" comes again.
     map.triggerRepaint();

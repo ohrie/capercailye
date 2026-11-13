@@ -5,6 +5,7 @@ import { waymarkImageExpression } from "../osmc";
 import { PLACEMENT_KEY } from "../placement/layers";
 import { any, attrIn } from "./expr";
 import { COLORS } from "./palette";
+import { iconSizeByScale, WAYMARK_MM } from "./sizes";
 import { OSM_SOURCE } from "./sources";
 import { lineWidth, mm, PRINT_MIN_ZOOM } from "./units";
 
@@ -43,16 +44,10 @@ export function routeLayers(): LayerSpecification[] {
 export const WAYMARK_SPACING_MM = 60;
 /**
  * Clearance around a waymark (mm): two waymarks keep twice this distance (they thin each other
- * out, see waymarkLayers), labels placed later keep this distance.
+ * out, see waymarkLayers), labels placed later keep this distance. Proportional to the sign
+ * height (2.5 mm at 4.8 mm), see style/sizes.ts.
  */
-export const WAYMARK_PADDING_MM = 2.5;
-/**
- * Below this zoom (scales smaller than about 1:35 000, i.e. 1:50 000) waymarks are drawn at
- * WAYMARK_SMALL_SIZE of their size (4.8 mm -> 3.8 mm plate): the sheet holds four times the area,
- * but every route keeps its sign (no thinning by network).
- */
-export const WAYMARK_SMALL_ZOOM = 12.4;
-export const WAYMARK_SMALL_SIZE = 0.8;
+export const WAYMARK_PADDING_MM = Math.round(((2.5 * WAYMARK_MM) / 4.8) * 10) / 10;
 /** Waymarks only from the print band on (1:50 000 is about z11.9); the overview has none. */
 export const WAYMARK_MIN_ZOOM = PRINT_MIN_ZOOM;
 
@@ -89,6 +84,9 @@ export const hasWaymark: ExpressionSpecification = any(
  * more routes (and the major network) win, which shows the dropped neighbour's signs anyway.
  * `icon-ignore-placement: false`: every label placed later avoids them.
  *
+ * Size: WAYMARK_MM, at SMALL_SCALE_FACTOR below z12.4 (about 1:50 000), the same rule as for
+ * pictograms and bus stops (style/sizes.ts); every route keeps its sign (no thinning by network).
+ *
  * Role "obstacle": the print placement reads the placed waymark boxes from MapLibre after its
  * placement and moves pictograms off them (placement/rendered.ts).
  */
@@ -106,7 +104,7 @@ export function waymarkLayers(): LayerSpecification[] {
         "symbol-placement": "line",
         "symbol-spacing": mm(WAYMARK_SPACING_MM),
         "icon-image": waymarkImageExpression(),
-        "icon-size": ["step", ["zoom"], WAYMARK_SMALL_SIZE, WAYMARK_SMALL_ZOOM, 1],
+        "icon-size": iconSizeByScale,
         // Upright and unrotated, whatever the direction of the way.
         "icon-rotation-alignment": "viewport",
         "icon-pitch-alignment": "viewport",

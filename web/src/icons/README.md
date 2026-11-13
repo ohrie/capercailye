@@ -25,12 +25,16 @@ in `glyphs-cc0.ts` ergänzen und hier eintragen. Keine GPL- oder CC-BY-SA-Quelle
 
 ## Dichte-Regeln (style/poi.ts)
 
+Größen: `style/sizes.ts`, Rangfolge: `style/hierarchy.ts`.
+
 - Parkplätze nur mit `hiking`, Name mit „Wanderparkplatz“ oder `area_m2` ≥ 2500; nie mit
   `access` = private/no/customers/permit/residents/delivery/agricultural/forestry/destination.
-- Benannte Wegweiser: gelbes Fähnchen mit Namen (Priorität direkt nach Hütten, Aussicht, Burgen).
-  Unbenannte: kleines Fähnchen ohne Namen in `poi-minor`, weicht als Erstes.
+- Benannte Wegweiser: gelbes Fähnchen (Rang 51, Wanderinfrastruktur); der Name nur mit dem
+  Schalter „Wegweisernamen“ (Standard aus). Unbenannte: kleines Fähnchen ohne Namen in `poi-minor`, weicht als Erstes.
 - Bushaltestellen kommen nicht mehr aus OSM, sondern aus GTFS (eigene Quelle, Gruppe `busstops`,
   Layer `busstops-main`): grüne Scheibe mit gelbem Rand und weißem „H“ (allgemeines
-  Haltestellenzeichen), 3,0 mm, Priorität 21 (`BUSSTOP_PRIORITY`), Name optional.
+  Haltestellenzeichen), 3,0 mm, Rang 12 (`BUSSTOP_PRIORITY`, `style/hierarchy.ts`), Name optional.
+- Aussichtspunkte (`viewpoint`) in eigener Ebene `viewpoints-main`, Standard aus (Schalter
+  „Aussichtspunkte“); Aussichtstürme bleiben immer sichtbar.
 - `poi-minor` (Wegkreuze, Bildstöcke, Denkmäler, Brunnen, Türme, Masten,
   Windräder, Felsen, Dolinen, Wehre) erst ab z12,5, also nur bei 1:25 000.

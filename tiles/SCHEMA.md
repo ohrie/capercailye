@@ -245,7 +245,7 @@ features · **30** food, water, guideposts, parking · **40** comfort and minor 
 | `bbq` | 40 | `amenity=bbq`, `leisure=firepit` | |
 | `hotel` | 40 | `tourism=hotel\|guest_house` | |
 | `caravan_site` | 40 | `tourism=caravan_site` | |
-| `toilets` | 40 | `amenity=toilets`, not `access=private\|no` | |
+| `toilets` | 40 | `amenity=toilets`, only if `access` is missing or `yes\|public` (all other values dropped: `customers`, `permit`, `permissive`, `private`, `no`, …) | |
 | `fountain` | 40 | `amenity=fountain` | `drinking_water` |
 | `memorial` | 40 | `historic=memorial`, not `memorial=stolperstein\|plaque\|blue_plaque` | |
 | `communication_tower` | 40 | `man_made=communications_tower`, `man_made=tower` + `tower:type=communication` | |

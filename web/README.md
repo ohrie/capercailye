@@ -19,7 +19,7 @@ bun run fmt:check    # Formatierung prüfen
 
 Die PMTiles werden nicht ins Repo kopiert. Der Dev-Server liefert `/data/*` aus
 `$CAPERCAILYE_DATA/` mit Range-Requests (206) aus; ein anderes Verzeichnis per
-`CAPERCAILYE_DATA=/pfad bun run dev`. Erwartet wird `capercailye-bw.pmtiles` (Schema:
+`CAPERCAILYE_DATA=/pfad bun run dev`. Erwartet wird die Datei aus `PMTILES_PATH` in `src/config.ts` (derzeit `capercailye-rp.pmtiles`) (Schema:
 `../tiles/SCHEMA.md`). Optional ist `capercailye-busstops.pmtiles` (GTFS-Bushaltestellen aus
 `../transit/`, Layer `bus_stop`, Attribute `name`, `sat`, `sun`, `min`, Zoom 10–14, PLAN.md 4c):
 `src/data.ts` prüft beim Start per Range-Request auf die PMTiles-Kennung; fehlt die Datei, wird
@@ -86,8 +86,9 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
 - `VECTOR_TILE_ZOOM` in `style/sources.ts` steuert, welche Kachelstufe MapLibre beim gebrochenen
   Druckzoom lädt (`"round"`: 1:25 000 → z13, 1:50 000 → z12).
 - Automatisierter Export (z. B. aus Playwright):
-  `await window.__capercailye.exportPdf({ scale: 25000, orientation: "portrait", dpi: 254 })`
-  liefert `{ blob, meta }` ohne Download; `meta` enthält Zoom, Canvas- und Bildgröße in px/mm
+  `await window.__capercailye.exportPdf({ scale: 25000, orientation: "portrait" })`
+  liefert `{ blob, meta }` ohne Download (immer 300 dpi, `EXPORT_DPI` in `print/paper.ts`; ein
+  `dpi`-Parameter existiert nur für Tests); `meta` enthält Zoom, Canvas- und Bildgröße in px/mm
   sowie die angeforderten Kachelstufen.
 - **Symbole entfallen im Druck nie** (PLAN.md 4a): Symbol-Layer mit Metadaten
   `"capercailye:placement": "displace"` (Piktogramme) werden in der Druckansicht und im Export
@@ -101,11 +102,41 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   MapLibres normale Kollision.
 - **Wegzeichen** (`style/routes.ts`, Layer `waymarks-line`): je Abschnitt des Tile-Layers `routes`
   ein kombiniertes Bild aller Routen, aufrecht entlang der Linie, etwa alle 6 cm auf dem Papier,
-  ab z11,5 (alle Druckmaßstäbe), bei 1:50 000 auf 80 % verkleinert. Der Layer liegt ganz oben und
+  ab z11,5 (alle Druckmaßstäbe), bei 1:50 000 verkleinert (`SMALL_SCALE_FACTOR`). Der Layer liegt ganz oben und
   wird vor allen anderen Symbolen platziert: Beschriftungen und Piktogramme können kein Wegzeichen
-  verdrängen; `icon-allow-overlap: false` mit 2,5 mm Polster dünnt nur Wegzeichen untereinander
+  verdrängen; `icon-allow-overlap: false` mit 1,8 mm Polster dünnt nur Wegzeichen untereinander
   aus (keine Stapel an Abzweigen; das Bild mit mehr Routen gewinnt). In der Druckansicht und im
   Export liest `placement/rendered.ts` die gesetzten Wegzeichen aus MapLibres Kollisionsindex
   (interne Struktur, Stand maplibre-gl 6.18) und lässt die Piktogramme ihnen ausweichen.
+- **Symbolgrößen: `src/style/sizes.ts`** (einzige Stelle, Papier-mm): Kasten-Piktogramme 3,4 mm
+  (`ICON_MM`), kleine Kästen 3,0 mm, Wegzeichen-Schild 3,4 mm (`WAYMARK_MM`, Abstand 0,35 mm),
+  Plain-Symbole in Stufen relativ dazu. Bei 1:50 000 gilt für Piktogramme, Haltestellen und
+  Wegzeichen derselbe Faktor (`SMALL_SCALE_FACTOR` 0,85 unterhalb z12,4, `iconSizeByScale`).
+- **Wichtigkeits-Hierarchie: `src/style/hierarchy.ts`** (einzige Quelle für Rangfolge). Kleiner =
+  wichtiger: bleibt am Ort (Platzierung) und liegt oben. `PRIORITY`, `BUSSTOP_PRIORITY` und die
+  Sortierschlüssel der Ebenen werden daraus abgeleitet. Die Klone aller verdrängten Ebenen
+  (Piktogramme, Aussichtspunkte, Bushaltestellen) bilden **eine** Symbolebene `placement-icons`,
+  deren Sortierschlüssel der Rang ist: Die Zeichenreihenfolge folgt der Hierarchie auch über
+  Ebenen und Quellen hinweg (Bahnhof über Bushaltestelle über Restaurant).
+
+  | Stufe     | Inhalt                                                                                                                                                              |
+  | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 0         | Wegzeichen (Ebene `waymarks-line`, immer oben, Rolle `obstacle`)                                                                                                    |
+  | 1 (10–14) | Anreise und Schutz: Bahnhof, Haltepunkt, Bushaltestelle, Alpen-/Wildnishütte, Unterstand                                                                            |
+  | 2 (20–24) | Wasser: Trinkwasser, Quelle                                                                                                                                         |
+  | 3 (30–36) | Ziele: Aussichtsturm, Burg, Burgruine, Ruine, Höhle, Wasserfall, Aussichtspunkt                                                                                     |
+  | 4 (40–43) | Einkehr: Restaurant, Café                                                                                                                                           |
+  | 5 (50–55) | Wanderinfrastruktur: Parkplatz, benannter Wegweiser, Toiletten, Rastplatz, Grillstelle                                                                              |
+  | 6 (60–64) | Übernachtung: Campingplatz, Herberge, Caravanplatz, Hotel                                                                                                           |
+  | 7 (70–73) | Kirchen: Kirche, Kapelle, Gotteshaus, Denkmal                                                                                                                       |
+  | 8 (80–89) | Kleine Landmarken (`poi-minor`): Türme, Masten, Windräder, Wegkreuze, Bildstöcke, Gedenksteine, Brunnen, Felsen, Dolinen, Wehre; unbenannter Wegweiser zuletzt (89) |
+
+  Gipfelpunkte und Ortsnamen bleiben `fixed`.
+
+- **Schalter mit Standard „aus“:** „Aussichtspunkte“ (`viewpoint`, eigene Ebene `viewpoints-main`;
+  ausgeblendet nimmt er nicht an der Platzierung teil; Aussichtstürme sind immer da) und
+  „Wegweisernamen“ (Gruppe `guidepostnames` ohne eigene Ebenen: sie setzt das `text-field` von
+  `poi-main` und seines Namensklons; die Fähnchen bleiben).
+- Der Export hat immer 300 dpi (kein Umschalter).
 - Beim Drucken „Tatsächliche Größe“ / 100 % wählen, nicht „An Seite anpassen“; die
   Kontrollstrecke (10 cm) auf dem Ausdruck nachmessen.
