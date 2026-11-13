@@ -1,11 +1,16 @@
 import type { Map as MapLibreMap, VectorTileSource } from "maplibre-gl";
 import type { SourceSpecification } from "@maplibre/maplibre-gl-style-spec";
+import type { FeatureCollection } from "geojson";
 import { BUSSTOPS_ATTRIBUTION, DEM_MAXZOOM, OSM_ATTRIBUTION, RELIEF_ATTRIBUTION } from "../config";
 
 export const OSM_SOURCE = "osm";
 export const BUSSTOPS_SOURCE = "busstops";
 export const DEM_SOURCE = "dem";
 export const CONTOUR_SOURCE = "contours";
+/** The loaded GPX track (GeoJSON); always part of the style, empty without a track. */
+export const GPX_SOURCE = "gpx";
+
+export const EMPTY_GPX: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 /**
  * Contour options for maplibre-contour (the DemSource itself lives in tiles.ts, browser only).
@@ -62,6 +67,11 @@ export function busstopsSource(pmtilesUrl: string): SourceSpecification {
     url: `pmtiles://${pmtilesUrl}`,
     attribution: BUSSTOPS_ATTRIBUTION,
   };
+}
+
+/** GPX track: lines plus start/end points (`_kind`, see src/gpx.ts); empty without a track. */
+export function gpxSource(data: FeatureCollection = EMPTY_GPX): SourceSpecification {
+  return { type: "geojson", data };
 }
 
 export function demSource(url: string): SourceSpecification {

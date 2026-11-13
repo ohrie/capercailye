@@ -1,10 +1,11 @@
-// Sidebar wiring: print settings, layer toggles, collapse.
+// Sidebar wiring: print settings, GPX panel, layer toggles (sections, sub-switches), collapse.
 import { MAX_SHEETS, type PrintMode, type SheetLayout } from "./print/layout";
 import type { Orientation } from "./print/paper";
 import { formatScale } from "./print/scale";
 import { getState, setState, subscribe } from "./state";
-import { ATTRIBUTION_TEXT } from "./config";
-import { GROUPS } from "./style";
+import { SIDEBAR_ATTRIBUTION_TEXT } from "./config";
+import type { Track } from "./gpx";
+import { type LayerGroup, SECTIONS, uiGroups } from "./style";
 
 function el<T extends HTMLElement>(id: string): T {
   const node = document.getElementById(id);
@@ -21,6 +22,12 @@ export interface SidebarHooks {
   onCancel: () => void;
   /** Button "Gebiet zur Kartenmitte". */
   onRecenter: () => void;
+  /** A GPX file was chosen in the panel. */
+  onGpxFile: (file: File) => void;
+  /** Button "Gebiet auf Track setzen". */
+  onGpxArea: () => void;
+  /** Button "Track entfernen". */
+  onGpxRemove: () => void;
   onCollapseChange: () => void;
 }
 
@@ -76,35 +83,25 @@ export function initSidebar(hooks: SidebarHooks): void {
     if (s.print !== prev.print) syncControls();
   });
 
-  // Layer toggles: one per labelled style group.
-  const toggles = el<HTMLDivElement>("layer-toggles");
-  for (const group of GROUPS) {
-    if (!group.label) continue;
-    const label = document.createElement("label");
-    label.className = "switch";
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.checked = getState().visibility[group.id] ?? group.defaultVisible;
-    input.dataset.group = group.id;
-    if (hooks.unavailableGroups?.includes(group.id)) {
-      input.disabled = true;
-      input.checked = false;
-      label.classList.add("switch--disabled");
-      label.title = "Datei nicht vorhanden";
-    }
-    input.addEventListener("change", () => {
-      setState({ visibility: { ...getState().visibility, [group.id]: input.checked } });
-    });
-    const track = document.createElement("span");
-    track.className = "switch__track";
-    track.setAttribute("aria-hidden", "true");
-    const text = document.createElement("span");
-    text.textContent = group.label;
-    label.append(input, track, text);
-    toggles.appendChild(label);
-  }
+  // GPX panel: file chooser (the drop target is the map, see main.ts).
+  const gpxFile = el<HTMLInputElement>("gpx-file");
+  el("gpx-load").addEventListener("click", () => gpxFile.click());
+  gpxFile.addEventListener("change", () => {
+    const file = gpxFile.files?.[0];
+    // Reset, so choosing the same file again (after removing the track) fires `change`.
+    if (file) hooks.onGpxFile(file);
+    gpxFile.value = "";
+  });
+  el("gpx-area").addEventListener("click", () => hooks.onGpxArea());
+  el("gpx-remove").addEventListener("click", () => hooks.onGpxRemove());
+  updateGpxPanel(getState().gpx);
+  subscribe((s, prev) => {
+    if (s.gpx !== prev.gpx) updateGpxPanel(s.gpx);
+  });
 
-  el("attribution").textContent = ATTRIBUTION_TEXT;
+  initLayerToggles(hooks.unavailableGroups ?? []);
+
+  el("attribution").textContent = SIDEBAR_ATTRIBUTION_TEXT;
 
   const setCollapsed = (collapsed: boolean) => {
     document.body.classList.toggle("sidebar-collapsed", collapsed);
@@ -163,4 +160,91 @@ export function setStatus(text: string, kind: "info" | "warn" | "error" = "info"
   status.textContent = text;
   status.classList.toggle("status--warn", kind === "warn");
   status.classList.toggle("status--error", kind === "error");
+}
+
+const nf1 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+
+/** Name and length of the loaded track, or the hint to load one. */
+function updateGpxPanel(gpx: Track | null): void {
+  el("gpx-info").hidden = gpx === null;
+  el("gpx-hint").hidden = gpx !== null;
+  if (gpx) {
+    el("gpx-name").textContent = gpx.name;
+    el("gpx-length").textContent = `${nf1.format(gpx.lengthKm)} km`;
+    setGpxStatus("");
+  }
+}
+
+/** Error line of the GPX panel (empty clears it). */
+export function setGpxStatus(text: string): void {
+  el("gpx-status").textContent = text;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Layer switches
+
+/**
+ * One switch per labelled style group, in the sections of the panel "Ebenen" (collapsible
+ * <details>). Sub-switches are indented below their parent and disabled, keeping their value,
+ * while the parent is off (the four route networks under "Wanderrouten", the guidepost names).
+ */
+function initLayerToggles(unavailable: readonly string[]): void {
+  const root = el<HTMLDivElement>("layer-toggles");
+  const entries: { group: LayerGroup; input: HTMLInputElement; label: HTMLElement }[] = [];
+  const isOn = (g: LayerGroup) => getState().visibility[g.id] ?? g.defaultVisible;
+
+  const makeInput = (group: LayerGroup): HTMLInputElement => {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.dataset.group = group.id;
+    input.addEventListener("change", () => {
+      setState({ visibility: { ...getState().visibility, [group.id]: input.checked } });
+    });
+    return input;
+  };
+
+  for (const section of SECTIONS) {
+    const details = document.createElement("details");
+    details.className = "layers__section";
+    details.open = true;
+    details.dataset.section = section.id;
+    const summary = document.createElement("summary");
+    summary.textContent = section.label;
+    details.append(summary);
+    const body = document.createElement("div");
+    body.className = "toggles";
+    details.append(body);
+
+    for (const group of uiGroups(section.id)) {
+      const label = document.createElement("label");
+      label.className = "switch";
+      if (group.parent) label.classList.add("switch--sub");
+      const input = makeInput(group);
+      const track = document.createElement("span");
+      track.className = "switch__track";
+      track.setAttribute("aria-hidden", "true");
+      const text = document.createElement("span");
+      text.textContent = group.label!;
+      label.append(input, track, text);
+      body.append(label);
+      entries.push({ group, input, label });
+    }
+    root.append(details);
+  }
+
+  const sync = () => {
+    for (const { group, input, label } of entries) {
+      const missing = unavailable.includes(group.id);
+      const parent = group.parent ? entries.find((e) => e.group.id === group.parent) : undefined;
+      const parentOff = parent ? !isOn(parent.group) : false;
+      input.checked = !missing && isOn(group);
+      input.disabled = missing || parentOff;
+      label.classList.toggle("switch--disabled", input.disabled);
+      label.title = missing ? "Datei nicht vorhanden" : "";
+    }
+  };
+  sync();
+  subscribe((s, prev) => {
+    if (s.visibility !== prev.visibility) sync();
+  });
 }

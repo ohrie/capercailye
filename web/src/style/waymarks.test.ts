@@ -42,9 +42,10 @@ function evalLayout(key: string, zoom: number, properties: Props = {}): unknown 
 const SCALE_ZOOM = (scale: number) => zoomForScale(scale, 48.5);
 
 describe("waymarks layer", () => {
-  test("one layer in the waymarks group, switched by the route toggle, on top of the style", () => {
+  test("one layer in the waymarks group, with its own toggle, on top of the style", () => {
     const group = GROUPS.find((g) => g.id === "waymarks")!;
-    expect(group.toggledBy).toBe("routes");
+    expect(group.toggledBy).toBeUndefined();
+    expect(group.label).toBe("Wegzeichen");
     expect(GROUPS.at(-1)!.id).toBe("waymarks");
     const style = base();
     expect(style.layers.at(-1)!.id).toBe("waymarks-line");
@@ -52,7 +53,7 @@ describe("waymarks layer", () => {
       pmtilesUrl: "x",
       glyphsUrl: "y",
       relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
-      visibility: { ...defaultVisibility(), routes: false },
+      visibility: { ...defaultVisibility(), waymarks: false },
     });
     const vis = (off.layers.find((l) => l.id === "waymarks-line")!.layout as { visibility: string })
       .visibility;

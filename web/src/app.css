@@ -51,6 +51,9 @@ body {
 
 /* Sidebar */
 .sidebar {
+  /* Containing block of the visually hidden inputs (position: absolute): without it they escape the
+     scroll container and make the whole page scrollable. */
+  position: relative;
   flex: 0 0 var(--sidebar-width);
   width: var(--sidebar-width);
   display: flex;
@@ -90,11 +93,22 @@ body {
 }
 
 .panel {
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .panel__title {
@@ -137,6 +151,8 @@ select {
 
 select:focus-visible,
 button:focus-visible,
+summary:focus-visible,
+.search__input:focus-visible,
 .segmented input:focus-visible + span,
 .switch input:focus-visible + .switch__track {
   outline: 2px solid var(--accent);
@@ -235,6 +251,56 @@ button:focus-visible,
   gap: var(--space-3);
 }
 
+/* Layer sections (collapsible <details>) */
+.layers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.layers__section > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.layers__section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.layers__section > summary::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.12s;
+}
+
+.layers__section[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.switch--sub {
+  margin-left: var(--space-5);
+}
+
+.switch--sub + .switch--sub {
+  margin-top: calc(-1 * var(--space-1));
+}
+
 .button {
   font: inherit;
   height: 36px;
@@ -269,6 +335,82 @@ button:focus-visible,
   cursor: pointer;
 }
 
+/* Search */
+.panel--search {
+  position: relative;
+  gap: var(--space-2);
+}
+
+.search__input {
+  font: inherit;
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.search__results {
+  position: absolute;
+  z-index: 5;
+  top: calc(var(--space-4) + 36px + var(--space-1));
+  left: var(--space-5);
+  right: var(--space-5);
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.search__option {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.search__option + .search__option {
+  border-top: 1px solid var(--line);
+}
+
+.search__option--active {
+  background: var(--bg-muted);
+}
+
+.search__name {
+  font-weight: 600;
+}
+
+.search__detail {
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+/* GPX panel */
+.track {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.track__name {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.button-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .hint {
   margin: 0;
   font-size: 12px;
@@ -282,9 +424,12 @@ button:focus-visible,
 
 .status {
   margin: 0;
-  min-height: 1.4em;
   font-size: 12px;
   color: var(--fg-muted);
+}
+
+.status:empty {
+  display: none;
 }
 
 .status--warn {
@@ -312,6 +457,18 @@ button:focus-visible,
 
 .sidebar-collapsed .map__expand {
   display: block;
+}
+
+/* A GPX file is being dragged over the map. */
+.map--drop::after {
+  content: "";
+  position: absolute;
+  inset: var(--space-3);
+  z-index: 4;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: rgba(200, 16, 46, 0.04);
+  pointer-events: none;
 }
 
 .print-frame {

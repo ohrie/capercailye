@@ -54,6 +54,10 @@ export const ATTRIBUTION_TEXT = [OSM_ATTRIBUTION, RELIEF_ATTRIBUTION, BUSSTOPS_A
   " · ",
 );
 
+/** Place search; named in the sidebar footer only (the sheet margin lists what is printed on it). */
+export const SEARCH_ATTRIBUTION = "Suche: Photon (komoot)";
+export const SIDEBAR_ATTRIBUTION_TEXT = `${ATTRIBUTION_TEXT} · ${SEARCH_ATTRIBUTION}`;
+
 /** Absolute URL relative to the app base (MapLibre needs absolute URLs for glyphs and pmtiles). */
 export function appUrl(path: string): string {
   return new URL(import.meta.env.BASE_URL + path, window.location.origin).href;

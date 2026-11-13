@@ -25,6 +25,31 @@
           </button>
         </header>
 
+        <section class="panel panel--search" role="search" aria-label="Suche">
+          <label class="visually-hidden" for="search-input">Ort oder Gipfel suchen</label>
+          <input
+            class="search__input"
+            id="search-input"
+            type="search"
+            placeholder="Ort oder Gipfel suchen"
+            autocomplete="off"
+            spellcheck="false"
+            role="combobox"
+            aria-expanded="false"
+            aria-controls="search-results"
+            aria-autocomplete="list"
+            aria-keyshortcuts="/"
+          />
+          <ul
+            class="search__results"
+            id="search-results"
+            role="listbox"
+            aria-label="Treffer"
+            hidden
+          ></ul>
+          <p class="hint" id="search-state" role="status" aria-live="polite" hidden></p>
+        </section>
+
         <section class="panel" aria-labelledby="print-heading">
           <h2 class="panel__title" id="print-heading">Druck</h2>
 
@@ -91,13 +116,30 @@
           <p class="status" id="export-status" role="status" aria-live="polite"></p>
         </section>
 
+        <section class="panel" aria-labelledby="gpx-heading">
+          <h2 class="panel__title" id="gpx-heading">GPX-Track</h2>
+          <input id="gpx-file" type="file" accept=".gpx,application/gpx+xml,text/xml" hidden />
+          <button class="button" id="gpx-load" type="button">GPX-Datei laden</button>
+          <p class="hint" id="gpx-hint">Oder eine Datei auf die Karte ziehen.</p>
+          <div class="track" id="gpx-info" hidden>
+            <p class="track__name" id="gpx-name"></p>
+            <p class="hint" id="gpx-length"></p>
+            <div class="button-row">
+              <button class="button" id="gpx-area" type="button">Gebiet auf Track setzen</button>
+              <button class="button" id="gpx-remove" type="button">Track entfernen</button>
+            </div>
+          </div>
+          <p class="status status--error" id="gpx-status" role="status" aria-live="polite"></p>
+        </section>
+
         <section class="panel" aria-labelledby="layers-heading">
           <h2 class="panel__title" id="layers-heading">Ebenen</h2>
-          <div id="layer-toggles" class="toggles"></div>
+          <div id="layer-toggles" class="layers"></div>
         </section>
 
         <footer class="sidebar__footer" id="attribution">
-          © OpenStreetMap-Mitwirkende · Relief: Mapterhorn, LGL-BW (dl-de/by-2-0)
+          © OpenStreetMap-Mitwirkende · Relief: Mapterhorn, LGL-BW (dl-de/by-2-0) · Suche: Photon
+          (komoot)
         </footer>
       </aside>
 

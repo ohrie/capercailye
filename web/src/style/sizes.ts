@@ -47,3 +47,13 @@ export const iconSizeByScale: ExpressionSpecification = [
   SMALL_SCALE_ZOOM,
   1,
 ];
+
+// GPX track (M6, style/gpx.ts)
+/** Track line width on paper. */
+export const GPX_LINE_MM = 0.7;
+/** Start / end marker: outer diameter incl. rim. */
+export const GPX_MARKER_MM = 2.4;
+/** Rim (stroke) of the markers. */
+export const GPX_MARKER_RIM_MM = 0.4;
+/** Dot inside the end marker: diameter. */
+export const GPX_MARKER_DOT_MM = 1.0;

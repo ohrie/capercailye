@@ -1,9 +1,14 @@
 // POI pictogram layers (tile layer `poi`, tiles/SCHEMA.md). Layer ids must start with "poi-".
 //
-// Images are "poi:<name>" ids rasterised at runtime from SVG (src/icons). Two layers:
-//   poi-main   boxed pictograms, churches and named guideposts, optional names; placed first.
-//   poi-minor  small plain symbols without names (crosses, masts, unnamed guideposts …),
+// Images are "poi:<name>" ids rasterised at runtime from SVG (src/icons). Two layers for the
+// kinds without a switch of their own (group "poi", sidebar "Weitere Symbole"):
+//   poi-main   boxed pictograms and churches, optional names; placed first.
+//   poi-minor  small plain symbols without names (crosses, masts …),
 //              only at 1:25 000 (z >= 12.5); fills the gaps the main layer leaves.
+// Every other kind belongs to one POI_CATEGORIES entry (M6): its own group with its own layers
+// `<id>-main` (and `<id>-minor` for small kinds), switched by visibility like `viewpoints`. The
+// placement (placement/collect.ts) reads the filter of the original spec, so a runtime setFilter
+// would not reach it; separate layers do.
 // On screen MapLibre's collision decides: icons never overlap, names are optional
 // (text-optional), and `symbol-sort-key` (PRIORITY, derived from style/hierarchy.ts, named before
 // unnamed) sets the order.
@@ -14,8 +19,8 @@
 // Density rules (per A4 sheet at 1:25 000 in BW: parking 67, guideposts 50 …):
 //   parking      only with hiking=yes, a name containing "Wanderparkplatz", or area_m2 >= 2500
 //                (≈ 80–100 cars); never access=private/no/customers/permit/… (no name label).
-//   guidepost    named: yellow flag, in poi-main; the name only with the "Wegweisernamen" switch.
-//                unnamed: small flag in poi-minor, lowest priority (drops out first).
+//   guidepost    named: yellow flag, in guideposts-main; the name only with the "Wegweisernamen"
+//                switch. Unnamed: small flag in guideposts-minor, lowest priority (drops out first).
 //   viewpoint    own layer `viewpoints-main` (group "viewpoints", off by default); view towers stay
 //                in poi-main.
 //   bus stops    no longer from OSM: GTFS stops (>= 4 departures per weekend day) come from their own
@@ -90,6 +95,64 @@ export const MINOR_KINDS: PoiKind[] = [
 export const PRIORITY: Readonly<Record<PoiKind, number>> = KIND_RANKS;
 
 export { BUSSTOP_PRIORITY, UNNAMED_GUIDEPOST_PRIORITY };
+
+export interface PoiCategory {
+  /** Group id; the layers are `<id>-main` and (small kinds only) `<id>-minor`. */
+  id: string;
+  /** German label for the sidebar. */
+  label: string;
+  kinds: PoiKind[];
+  defaultVisible: boolean;
+}
+
+/**
+ * Pictogram kinds with their own sidebar switch (PLAN.md 8: F1, F2, F4, F5, F7, F8, D4, E6, B6).
+ * Group ids must not be a prefix of another group's layer ids (style.test.ts), hence `drinking`.
+ */
+export const POI_CATEGORIES: readonly PoiCategory[] = [
+  {
+    id: "shelters",
+    label: "Schutzhütten",
+    kinds: ["shelter", "wilderness_hut"],
+    defaultVisible: true,
+  },
+  {
+    id: "food",
+    label: "Einkehr",
+    kinds: ["alpine_hut", "restaurant", "cafe"],
+    defaultVisible: true,
+  },
+  { id: "parking", label: "Wanderparkplätze", kinds: ["parking"], defaultVisible: true },
+  {
+    id: "picnic",
+    label: "Rast- und Grillplätze",
+    kinds: ["picnic_site", "bbq"],
+    defaultVisible: true,
+  },
+  {
+    id: "lodging",
+    label: "Unterkünfte",
+    kinds: ["camp_site", "caravan_site", "hostel", "hotel"],
+    defaultVisible: true,
+  },
+  { id: "toilets", label: "Toiletten", kinds: ["toilets"], defaultVisible: true },
+  {
+    id: "drinking",
+    label: "Trinkwasser, Brunnen",
+    kinds: ["drinking_water", "fountain"],
+    defaultVisible: true,
+  },
+  {
+    id: "heritage",
+    label: "Burgen, Ruinen, Denkmäler",
+    kinds: ["castle", "castle_ruins", "ruins", "monument", "memorial"],
+    defaultVisible: true,
+  },
+  { id: "guideposts", label: "Wegweiser", kinds: ["guidepost"], defaultVisible: true },
+];
+
+/** Kinds of the categories (they leave poi-main / poi-minor). */
+const CATEGORY_KINDS: PoiKind[] = POI_CATEGORIES.flatMap((c) => c.kinds);
 
 /** Access values that exclude a car park (the tiles already drop private/no). */
 export const PARKING_EXCLUDED_ACCESS = [
@@ -198,7 +261,7 @@ function poiLayer(id: string, filter: FilterSpecification, minzoom: number) {
 const isGuidepost: ExpressionSpecification = ["==", kind, "guidepost"];
 
 /** Id of the layer whose text carries the guidepost names (see setGuidepostNames). */
-export const GUIDEPOST_NAME_LAYER = "poi-main";
+export const GUIDEPOST_NAME_LAYER = "guideposts-main";
 
 /**
  * `text-field` of the main layers: the name of every named kind; guideposts only with
@@ -266,26 +329,10 @@ function mainLayer(
   } as LayerSpecification;
 }
 
-export function poiLayers(opts: PoiLayerOptions = {}): LayerSpecification[] {
-  const main = mainLayer(
-    "poi-main",
-    [
-      "all",
-      ["!", isKind(...MINOR_KINDS)],
-      // Viewpoints have their own layer and switch (viewpointLayers).
-      ["!=", kind, "viewpoint"],
-      ["any", ["!=", kind, "parking"], parkingShown],
-      ["any", ["!", isGuidepost], ["has", "name"]],
-    ],
-    opts.guidepostNames ?? false,
-  );
-
-  const minor: LayerSpecification = {
-    ...poiLayer(
-      "poi-minor",
-      ["any", isKind(...MINOR_KINDS), ["all", isGuidepost, ["!", ["has", "name"]]]],
-      12.5,
-    ),
+/** A small-symbol layer (no boxes, no names), only at 1:25 000. */
+function minorLayer(id: string, filter: FilterSpecification): LayerSpecification {
+  return {
+    ...poiLayer(id, filter, 12.5),
     layout: {
       "symbol-sort-key": ["case", isGuidepost, UNNAMED_GUIDEPOST_PRIORITY, sortKey],
       "icon-image": ["case", isGuidepost, "poi:guidepost_small", iconImage(kind)],
@@ -295,10 +342,54 @@ export function poiLayers(opts: PoiLayerOptions = {}): LayerSpecification[] {
       "icon-padding": 0.5,
       "icon-allow-overlap": false,
     },
-  };
+  } as LayerSpecification;
+}
 
+/** Kinds of the minor layer without a category: the small plain symbols. */
+const MINOR_REST: PoiKind[] = MINOR_KINDS.filter((k) => !CATEGORY_KINDS.includes(k));
+
+/** The kinds without a switch of their own: group "poi" ("Weitere Symbole"). */
+export function poiLayers(): LayerSpecification[] {
+  const main = mainLayer(
+    "poi-main",
+    // Viewpoints and the category kinds have their own layers and switches; unknown kinds stay here.
+    ["all", ["!", isKind(...MINOR_KINDS, ...CATEGORY_KINDS)], ["!=", kind, "viewpoint"]],
+    false,
+  );
+  const minor = minorLayer("poi-minor", isKind(...MINOR_REST));
   // Array order = draw order; MapLibre places the topmost layer first, so main wins collisions.
   return [minor, main];
+}
+
+/**
+ * Layers of one category (own group): `<id>-main` with the kinds that are not small, optionally
+ * `<id>-minor` with the small ones (MINOR_KINDS, and the unnamed guideposts).
+ */
+export function poiCategoryLayers(
+  cat: PoiCategory,
+  opts: PoiLayerOptions = {},
+): LayerSpecification[] {
+  const mainKinds = cat.kinds.filter((k) => !MINOR_KINDS.includes(k));
+  const minorKinds = cat.kinds.filter((k) => MINOR_KINDS.includes(k));
+  const guideposts = cat.kinds.includes("guidepost");
+  const conditions: ExpressionSpecification[] = [isKind(...mainKinds)];
+  // Car parks only when they serve hikers; guideposts only when named (the rest are small flags).
+  if (cat.kinds.includes("parking"))
+    conditions.push(["any", ["!=", kind, "parking"], parkingShown]);
+  if (guideposts) conditions.push(["any", ["!", isGuidepost], ["has", "name"]]);
+  const layers: LayerSpecification[] = [];
+  const minorParts: ExpressionSpecification[] = [];
+  if (minorKinds.length > 0) minorParts.push(isKind(...minorKinds));
+  if (guideposts) minorParts.push(["all", isGuidepost, ["!", ["has", "name"]]]);
+  if (minorParts.length > 0) {
+    layers.push(minorLayer(`${cat.id}-minor`, ["any", ...minorParts]));
+  }
+  if (mainKinds.length > 0) {
+    layers.push(
+      mainLayer(`${cat.id}-main`, ["all", ...conditions], guideposts && !!opts.guidepostNames),
+    );
+  }
+  return layers;
 }
 
 /**

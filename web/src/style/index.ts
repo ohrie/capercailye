@@ -2,33 +2,57 @@
 // (ids prefixed with the group id); sidebar toggles switch whole groups.
 import type { LayerSpecification, StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
 import type { Map as MapLibreMap } from "maplibre-gl";
+import type { FeatureCollection } from "geojson";
 import { buildingLayers } from "./buildings";
 import { cliffLayers } from "./cliffs";
 import { contourLayers, hillshadeLayers } from "./hillshade";
 import { labelLayers, nameLayers } from "./labels";
 import { backgroundLayers, landcoverLayers } from "./landcover";
-import { busstopLayers, poiLayers, setGuidepostNames, viewpointLayers } from "./poi";
+import { gpxLayers } from "./gpx";
+import {
+  busstopLayers,
+  POI_CATEGORIES,
+  poiCategoryLayers,
+  poiLayers,
+  setGuidepostNames,
+  viewpointLayers,
+} from "./poi";
 import { protectedLayers } from "./protected";
-import { routeLayers, waymarkLayers } from "./routes";
+import { NETWORK_GROUPS, routeLayers, setRouteNetworks, waymarkLayers } from "./routes";
 import { shieldLayers, withoutShieldRefs } from "./shields";
 import {
   BUSSTOPS_SOURCE,
   CONTOUR_SOURCE,
   DEM_SOURCE,
+  GPX_SOURCE,
   OSM_SOURCE,
   type ReliefUrls,
   busstopsSource,
   contourSource,
   demSource,
+  gpxSource,
   osmSource,
 } from "./sources";
 import { transportLayers } from "./transport";
 import { waterLayers } from "./water";
 
+/** Sections of the sidebar panel "Ebenen". */
+export type LayerSection = "routes" | "terrain" | "symbols";
+
+export const SECTIONS: readonly { id: LayerSection; label: string }[] = [
+  { id: "routes", label: "Routen" },
+  { id: "terrain", label: "Gelände und Karte" },
+  { id: "symbols", label: "Symbole" },
+];
+
 export interface LayerGroup {
   id: string;
   /** German label for the sidebar; groups without label are not toggleable on their own. */
   label?: string;
+  /** Sidebar section of a labelled group. */
+  section?: LayerSection;
+  /** Labelled group this switch is a sub-switch of (indented; disabled, value kept, while it is off). */
+  parent?: string;
   /** Id of the labelled group whose sidebar toggle also switches this group. */
   toggledBy?: string;
   defaultVisible: boolean;
@@ -40,7 +64,7 @@ export interface LayerGroup {
    * Switches without layers of their own (the layers read them while the style is built) update
    * a live map here when toggled.
    */
-  onToggle?: (map: MapLibreMap, visible: boolean) => void;
+  onToggle?: (map: MapLibreMap, visible: boolean, visibility: GroupVisibility) => void;
 }
 
 /**
@@ -51,22 +75,68 @@ export interface LayerGroup {
 export const GROUPS: LayerGroup[] = [
   { id: "base", defaultVisible: true, layers: backgroundLayers },
   { id: "landcover", defaultVisible: true, layers: landcoverLayers },
-  { id: "hillshade", label: "Schummerung", defaultVisible: true, layers: hillshadeLayers },
+  {
+    id: "hillshade",
+    label: "Schummerung",
+    section: "terrain",
+    defaultVisible: true,
+    layers: hillshadeLayers,
+  },
   // M4: contour lines and elevation numbers (maplibre-contour). Above the hillshade, below all
   // other lines and symbols: the numbers are placed last and yield to waymarks, names and icons.
   {
     id: "contours",
     label: "Höhenlinien",
+    section: "terrain",
     defaultVisible: true,
     source: CONTOUR_SOURCE,
     layers: contourLayers,
   },
-  { id: "protected", label: "Schutzgebiete", defaultVisible: true, layers: protectedLayers },
+  {
+    id: "protected",
+    label: "Schutzgebiete",
+    section: "terrain",
+    defaultVisible: true,
+    layers: protectedLayers,
+  },
   { id: "water", defaultVisible: true, layers: waterLayers },
   { id: "cliffs", defaultVisible: true, layers: cliffLayers },
-  { id: "buildings", label: "Gebäude", defaultVisible: true, layers: buildingLayers },
-  { id: "routes", label: "Wanderrouten", defaultVisible: true, layers: routeLayers },
+  {
+    id: "buildings",
+    label: "Gebäude",
+    section: "terrain",
+    defaultVisible: true,
+    layers: buildingLayers,
+  },
+  {
+    id: "routes",
+    label: "Wanderrouten",
+    section: "routes",
+    defaultVisible: true,
+    layers: routeLayers,
+  },
+  // Network sub-switches of "Wanderrouten" (B3): no layers of their own, they set the filters of
+  // routes-band and waymarks-line (also built into the style from the visibility, for the export).
+  ...(
+    [
+      ["iwn", "International"],
+      ["nwn", "National"],
+      ["rwn", "Regional"],
+      ["lwn", "Lokal"],
+    ] as const
+  ).map(([net, label]): LayerGroup => ({
+    id: NETWORK_GROUPS[net],
+    label,
+    section: "routes",
+    parent: "routes",
+    defaultVisible: true,
+    layers: () => [],
+    onToggle: (map, _visible, visibility) => setRouteNetworks(map, visibility),
+  })),
   { id: "transport", defaultVisible: true, layers: transportLayers },
+  // M6: the GPX track above the roads, below the names. The source always exists (empty without a
+  // track), so the print placement knows the fixed start/end markers from the beginning.
+  { id: "gpx", defaultVisible: true, layers: gpxLayers },
   {
     id: "names",
     toggledBy: "labels",
@@ -75,24 +145,38 @@ export const GROUPS: LayerGroup[] = [
   },
   // Road number shields (Autobahn / Bundesstrasse); follow the "Beschriftung" toggle.
   { id: "shields", toggledBy: "labels", defaultVisible: true, layers: shieldLayers },
+  // The pictogram kinds without a switch of their own (churches, stations, caves, springs, towers,
+  // crosses …); the others are the categories below.
   {
     id: "poi",
-    label: "Piktogramme",
+    label: "Weitere Symbole",
+    section: "symbols",
     defaultVisible: true,
-    layers: (v = {}) => poiLayers({ guidepostNames: isOn("guidepostnames", v) }),
+    layers: poiLayers,
   },
+  // One group per pictogram category (M6): own layers, switched by visibility.
+  ...POI_CATEGORIES.map((cat): LayerGroup => ({
+    id: cat.id,
+    label: cat.label,
+    section: "symbols",
+    defaultVisible: cat.defaultVisible,
+    layers: (v = {}) => poiCategoryLayers(cat, { guidepostNames: isOn("guidepostnames", v) }),
+  })),
   // Viewpoints (tourism=viewpoint) are off by default; view towers stay in "poi".
   {
     id: "viewpoints",
     label: "Aussichtspunkte",
+    section: "symbols",
     defaultVisible: false,
     layers: viewpointLayers,
   },
-  // Names of the guideposts (the flags are part of "poi" and always shown). Not a layer group: the
-  // switch only changes the text-field of poi-main.
+  // Names of the guideposts (the flags belong to the category "guideposts"). Not a layer group: the
+  // switch only changes the text-field of guideposts-main.
   {
     id: "guidepostnames",
     label: "Wegweisernamen",
+    section: "symbols",
+    parent: "guideposts",
     defaultVisible: false,
     layers: () => [],
     onToggle: setGuidepostNames,
@@ -102,14 +186,55 @@ export const GROUPS: LayerGroup[] = [
   {
     id: "busstops",
     label: "Bushaltestellen",
+    section: "symbols",
     defaultVisible: true,
     source: BUSSTOPS_SOURCE,
     layers: busstopLayers,
   },
-  { id: "labels", label: "Beschriftung", defaultVisible: true, layers: labelLayers },
-  // M3: waymark symbols on top, so they win collisions against all other labels.
-  { id: "waymarks", toggledBy: "routes", defaultVisible: true, layers: waymarkLayers },
+  {
+    id: "labels",
+    label: "Beschriftung",
+    section: "terrain",
+    defaultVisible: true,
+    layers: labelLayers,
+  },
+  // M3: waymark symbols on top, so they win collisions against all other labels. Own switch (M6).
+  {
+    id: "waymarks",
+    label: "Wegzeichen",
+    section: "routes",
+    defaultVisible: true,
+    layers: waymarkLayers,
+  },
 ];
+
+/**
+ * Order of the switches in the sidebar (draw order is GROUPS order). Sub-switches follow their
+ * parent in the order of this list; a labelled group missing here is a bug (style.test.ts).
+ */
+export const UI_ORDER: readonly string[] = [
+  "routes",
+  ...Object.values(NETWORK_GROUPS),
+  "waymarks",
+  "hillshade",
+  "contours",
+  "protected",
+  "buildings",
+  "labels",
+  ...POI_CATEGORIES.filter((c) => c.id !== "guideposts").map((c) => c.id),
+  "viewpoints",
+  "guideposts",
+  "guidepostnames",
+  "busstops",
+  "poi",
+];
+
+/** Labelled groups of a sidebar section in display order (sub-switches follow their parent). */
+export function uiGroups(section: LayerSection): LayerGroup[] {
+  return UI_ORDER.map((id) => GROUPS.find((g) => g.id === id)).filter(
+    (g): g is LayerGroup => g !== undefined && g.section === section && g.label !== undefined,
+  );
+}
 
 export type GroupVisibility = Record<string, boolean>;
 
@@ -135,6 +260,8 @@ export interface StyleOptions {
   /** Tile URLs of hillshade and contour sources (from maplibre-contour's DemSource, see tiles.ts). */
   relief: ReliefUrls;
   visibility: GroupVisibility;
+  /** The GPX track (lines and start/end points); empty source without it. */
+  gpx?: FeatureCollection;
 }
 
 export function buildStyle(opts: StyleOptions): StyleSpecification {
@@ -142,6 +269,7 @@ export function buildStyle(opts: StyleOptions): StyleSpecification {
     [OSM_SOURCE]: osmSource(opts.pmtilesUrl),
     [DEM_SOURCE]: demSource(opts.relief.dem),
     [CONTOUR_SOURCE]: contourSource(opts.relief.contours),
+    [GPX_SOURCE]: gpxSource(opts.gpx),
   };
   if (opts.busstopsUrl) sources[BUSSTOPS_SOURCE] = busstopsSource(opts.busstopsUrl);
   const layers = GROUPS.flatMap((g) => {
@@ -167,8 +295,13 @@ export function buildStyle(opts: StyleOptions): StyleSpecification {
 }
 
 /** Switches a toggle: the group itself and every group that follows it (`toggledBy`). */
-export function setGroupVisible(map: MapLibreMap, groupId: string, visible: boolean): void {
-  GROUPS.find((g) => g.id === groupId)?.onToggle?.(map, visible);
+export function setGroupVisible(
+  map: MapLibreMap,
+  groupId: string,
+  visible: boolean,
+  visibility: GroupVisibility = defaultVisibility(),
+): void {
+  GROUPS.find((g) => g.id === groupId)?.onToggle?.(map, visible, visibility);
   const prefixes = GROUPS.filter((g) => g.id === groupId || g.toggledBy === groupId).map(
     (g) => `${g.id}-`,
   );

@@ -1,5 +1,6 @@
 // Minimal observable app state (no framework).
 import { type Area, computeLayout, type PrintMode, type SheetLayout } from "./print/layout";
+import type { Track } from "./gpx";
 import type { Orientation } from "./print/paper";
 import { defaultVisibility, type GroupVisibility } from "./style";
 
@@ -18,6 +19,8 @@ export interface AppState {
   /** Map is locked to the exact print zoom. */
   printView: boolean;
   visibility: GroupVisibility;
+  /** The loaded GPX track (not persisted, like the area). */
+  gpx: Track | null;
 }
 
 type Listener = (state: AppState, prev: AppState) => void;
@@ -26,6 +29,7 @@ let state: AppState = {
   print: { mode: "scale", scale: 25000, pages: 6, orientation: "portrait", area: null },
   printView: false,
   visibility: defaultVisibility(),
+  gpx: null,
 };
 const listeners = new Set<Listener>();
 

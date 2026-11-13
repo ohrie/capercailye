@@ -2,7 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { type StyleSpecification, validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
 import "../icons";
 import { buildStyle, defaultVisibility } from "../style";
-import { BUSSTOP_PRIORITY, busstopLayers, PRIORITY, poiLayers } from "../style/poi";
+import {
+  BUSSTOP_PRIORITY,
+  busstopLayers,
+  POI_CATEGORIES,
+  poiCategoryLayers,
+  PRIORITY,
+  poiLayers,
+} from "../style/poi";
 import {
   estimateTextBox,
   evaluateLayer,
@@ -68,7 +75,13 @@ describe("withPlacementLayers", () => {
       pmtilesUrl: "https://example.invalid/x.pmtiles",
       glyphsUrl: "https://example.invalid/{fontstack}/{range}.pbf",
       relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
-      visibility: { ...defaultVisibility(), poi: false, viewpoints: false, busstops: false },
+      visibility: {
+        ...defaultVisibility(),
+        ...Object.fromEntries(POI_CATEGORIES.map((c) => [c.id, false])),
+        poi: false,
+        viewpoints: false,
+        busstops: false,
+      },
     });
     expect(vis(withPlacementLayers(none, true).style, "placement-icons")).toBe("none");
   });
@@ -158,6 +171,8 @@ const managedIds = new Set(managedLayers(base().layers).map((m) => m.id));
 
 describe("evaluateLayer", () => {
   const [minor, main] = managedLayers(poiLayers());
+  const category = (id: string) =>
+    managedLayers(poiCategoryLayers(POI_CATEGORIES.find((c) => c.id === id)!));
   const f = (id: number, kind: string, props: Record<string, unknown> = {}): SourceFeature => ({
     id,
     properties: { kind, ...props },
@@ -165,18 +180,33 @@ describe("evaluateLayer", () => {
   });
 
   test("filters and minzoom match the style (1:25 000 vs 1:50 000)", () => {
-    const feats = [f(1, "castle"), f(2, "wayside_cross"), f(3, "guidepost")];
+    // Castles and guideposts belong to categories (own layers), not to poi-main / poi-minor.
+    const feats = [f(1, "church"), f(2, "wayside_cross"), f(3, "castle"), f(4, "guidepost")];
     expect(evaluateLayer(main!, feats, 12.95).map((c) => c.feature.id)).toEqual([1]);
-    expect(evaluateLayer(minor!, feats, 12.95).map((c) => c.feature.id)).toEqual([2, 3]);
+    expect(evaluateLayer(minor!, feats, 12.95).map((c) => c.feature.id)).toEqual([2]);
     expect(evaluateLayer(minor!, feats, 11.95)).toEqual([]);
+    const [heritageMinor, heritageMain] = category("heritage");
+    expect(evaluateLayer(heritageMain!, feats, 12.95).map((c) => c.feature.id)).toEqual([3]);
+    expect(evaluateLayer(heritageMinor!, feats, 12.95)).toEqual([]);
+    // Named guideposts: main layer; unnamed: small flag from 1:25 000 only.
+    const [gMinor, gMain] = category("guideposts");
+    const posts = [f(5, "guidepost", { name: "Hadeck" }), f(6, "guidepost")];
+    expect(evaluateLayer(gMain!, posts, 12.95).map((c) => c.feature.id)).toEqual([5]);
+    expect(evaluateLayer(gMinor!, posts, 12.95).map((c) => c.feature.id)).toEqual([6]);
+    expect(evaluateLayer(gMinor!, posts, 11.95)).toEqual([]);
   });
 
   test("icon boxes follow image size, anchor and offset; priority is the sort key", () => {
-    const [castle] = evaluateLayer(main!, [f(1, "castle", { name: "Burg" })], 12.95);
+    const heritageMain = category("heritage")[1]!;
+    const [castle] = evaluateLayer(heritageMain, [f(1, "castle", { name: "Burg" })], 12.95);
     expect(castle!.item.box.maxX - castle!.item.box.minX).toBeCloseTo(3.4, 5);
     expect(castle!.item.box.minX).toBeCloseTo(-1.7, 5);
     expect(castle!.item.priority).toBe(PRIORITY.castle);
-    const [post] = evaluateLayer(main!, [f(2, "guidepost", { name: "Hadeck" })], 12.95);
+    const [post] = evaluateLayer(
+      category("guideposts")[1]!,
+      [f(2, "guidepost", { name: "Hadeck" })],
+      12.95,
+    );
     // Flag: pole foot on the point, so the box lies above and mostly right of it.
     expect(post!.item.box.maxY).toBeGreaterThan(0);
     expect(post!.item.box.maxY).toBeLessThan(0.5);
@@ -185,7 +215,7 @@ describe("evaluateLayer", () => {
   });
 
   test("placement data: displaced points, leaders and anchors on the true location", () => {
-    const feats = [f(1, "castle"), f(2, "restaurant")];
+    const feats = [f(1, "church"), f(2, "chapel")];
     const cands = evaluateLayer(main!, feats, 13);
     const placements = placeSymbols(cands.map((c) => c.item));
     const data = placementData(cands, placements, 13);
@@ -195,9 +225,9 @@ describe("evaluateLayer", () => {
     const anchor = data.features.find((x) => x.properties!._role === "anchor")!;
     expect(anchor.geometry).toEqual({ type: "Point", coordinates: [9.2, 48.18] });
     const sym = data.features.find(
-      (x) => x.properties!._role === "symbol" && x.properties!.kind === "restaurant",
+      (x) => x.properties!._role === "symbol" && x.properties!.kind === "chapel",
     )!;
-    expect(sym.properties!.kind).toBe("restaurant");
+    expect(sym.properties!.kind).toBe("chapel");
     expect(sym.properties!._layer).toBe("poi-main");
   });
 });

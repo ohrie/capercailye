@@ -13,7 +13,17 @@ import {
   WAYMARK_TIER,
 } from "./hierarchy";
 import { buildStyle, defaultVisibility, GROUPS } from "./index";
-import { MINOR_KINDS, poiLayers, PRIORITY, poiNameField, viewpointLayers } from "./poi";
+import {
+  MINOR_KINDS,
+  POI_CATEGORIES,
+  poiCategoryLayers,
+  poiLayers,
+  PRIORITY,
+  poiNameField,
+  viewpointLayers,
+} from "./poi";
+
+const CATEGORY = (id: string) => POI_CATEGORIES.find((c) => c.id === id)!;
 
 const style = (visibility = defaultVisibility()) =>
   buildStyle({
@@ -137,7 +147,9 @@ describe("importance hierarchy", () => {
       expect(key({ kind: k, name: "x" })).toBe(RANKS[k]);
     }
     expect(key({ kind: "unknown_kind" })).toBe(FALLBACK_PRIORITY + 0.5);
-    const minor = poiLayers().find((l) => l.id === "poi-minor")!;
+    const minor = poiCategoryLayers(CATEGORY("guideposts")).find(
+      (l) => l.id === "guideposts-minor",
+    )!;
     expect(
       evaluate((minor.layout as Record<string, unknown>)["symbol-sort-key"], "symbol-sort-key", {
         kind: "guidepost",
@@ -157,12 +169,12 @@ describe("importance hierarchy", () => {
     const station = sortKey("poi-main", { kind: "railway_station", name: "Bf" });
     const halt = sortKey("poi-main", { kind: "railway_halt", name: "Hp" });
     const stop = sortKey("busstops-main", { name: "Markt" });
-    const hut = sortKey("poi-main", { kind: "alpine_hut", name: "Hütte" });
+    const hut = sortKey("food-main", { kind: "alpine_hut", name: "Hütte" });
     const view = sortKey("viewpoints-main", { kind: "viewpoint", name: "Blick" });
-    const restaurant = sortKey("poi-main", { kind: "restaurant", name: "Gasthaus" });
+    const restaurant = sortKey("food-main", { kind: "restaurant", name: "Gasthaus" });
     const church = sortKey("poi-main", { kind: "church" });
     const cross = sortKey("poi-minor", { kind: "wayside_cross" });
-    const flagUnnamed = sortKey("poi-minor", { kind: "guidepost" });
+    const flagUnnamed = sortKey("guideposts-minor", { kind: "guidepost" });
     const order = [station, halt, stop, hut, view, restaurant, church, cross, flagUnnamed];
     for (let i = 1; i < order.length; i++) expect(order[i - 1]!).toBeGreaterThan(order[i]!);
     // Image, anchor and offset follow the source layer.
@@ -170,12 +182,12 @@ describe("importance hierarchy", () => {
       evaluate((icons.layout as Record<string, unknown>)[key], key, { _layer: layer, ...props });
     const imageOf = (v: unknown) => (typeof v === "string" ? v : (v as { name: string }).name);
     expect(imageOf(prop("busstops-main", "icon-image", {}))).toBe("poi:busstop");
-    expect(imageOf(prop("poi-main", "icon-image", { kind: "castle" }))).toBe("poi:castle");
-    expect(imageOf(prop("poi-minor", "icon-image", { kind: "guidepost" }))).toBe(
+    expect(imageOf(prop("heritage-main", "icon-image", { kind: "castle" }))).toBe("poi:castle");
+    expect(imageOf(prop("guideposts-minor", "icon-image", { kind: "guidepost" }))).toBe(
       "poi:guidepost_small",
     );
     expect(prop("busstops-main", "icon-anchor", {})).toBe("center");
-    expect(prop("poi-main", "icon-anchor", { kind: "guidepost" })).toBe("bottom-left");
+    expect(prop("guideposts-main", "icon-anchor", { kind: "guidepost" })).toBe("bottom-left");
   });
 
   test("waymarks (tier 0) stay above everything", () => {
@@ -245,7 +257,7 @@ describe("switches: viewpoints and guidepost names", () => {
           active,
         ).style.layers.find((l) => l.id === id)!.layout as Record<string, unknown>
       )["text-field"];
-    for (const id of ["poi-main", "placement-poi-main-name"]) {
+    for (const id of ["guideposts-main", "placement-guideposts-main-name"]) {
       expect(field({}, id, true)).toEqual(poiNameField(false));
       expect(field({ guidepostnames: true }, id, true)).toEqual(poiNameField(true));
     }
@@ -254,7 +266,7 @@ describe("switches: viewpoints and guidepost names", () => {
       JSON.stringify(
         (
           withPlacementLayers(style({ ...defaultVisibility(), ...v }), true).style.layers.find(
-            (l) => l.id === "poi-main",
+            (l) => l.id === "guideposts-main",
           ) as { filter?: unknown }
         ).filter,
       );

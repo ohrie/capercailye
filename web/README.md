@@ -1,7 +1,7 @@
 # capercailye – Web-App
 
-Bun + Vite + TypeScript (ohne Framework), MapLibre GL JS, PMTiles, jsPDF. Stand: Meilenstein M5
-(Blattschnitt in beiden Modi, mehrseitiger PDF-Export).
+Bun + Vite + TypeScript (ohne Framework), MapLibre GL JS, PMTiles, jsPDF. Stand: Meilenstein M6
+(Schalter, Photon-Suche, GPX-Upload, Feinschliff der Oberfläche).
 
 ## Befehle
 
@@ -37,12 +37,14 @@ Kacheldatei.
 ```
 src/
 ├── main.ts          Karte, Zustand, Export-Ablauf (Fortschritt, Abbruch), window.__capercailye
-├── sidebar.ts       Druck-Einstellungen (Modus, Seiten/Maßstab, Ausrichtung), Ebenen-Schalter, Einklappen
-├── state.ts         kleiner beobachtbarer App-Zustand
+├── sidebar.ts       Suche, Druck-Einstellungen, GPX-Panel, Ebenen-Schalter (Abschnitte, Unterschalter), Einklappen
+├── search.ts        Photon-Suche (photonUrl, parsePhoton rein und getestet; initSearch: Feld, Liste, Sprung)
+├── gpx.ts           GPX-Upload (normalizeTrack, areaForTrack, trackLengthKm rein und getestet; Datei, Drag-and-drop)
+├── state.ts         kleiner beobachtbarer App-Zustand (Druck, Druckansicht, Sichtbarkeit, GPX-Track)
 ├── tiles.ts         MapLibre-Worker, pmtiles://-Protokoll, DemSource (maplibre-contour), Kachel-Log
 ├── config.ts        Startansicht, Pfade, Quellenangabe
 ├── style/           Stil als TS-Module, je Feature-Gruppe ein Baustein (index.ts setzt zusammen;
-│                    palette.ts Farben, units.ts mm/pt + Zoom-Skalierung, style.test.ts prüft
+│                    gpx.ts Track-Linie und Start/Ende; palette.ts Farben, units.ts mm/pt + Zoom-Skalierung, style.test.ts prüft
 │                    Spec, Layer-Ids und alle Attribute gegen ../tiles/SCHEMA.md)
 ├── osmc/            Wegzeichen (PLAN.md 3): parse.ts OSMC-Grammatik, shapes.ts Formen,
 │                    render.ts SVG je Zeichen, Rückfallkette ref/colour → ref → Namenskürzel und
@@ -167,24 +169,92 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   deren Sortierschlüssel der Rang ist: Die Zeichenreihenfolge folgt der Hierarchie auch über
   Ebenen und Quellen hinweg (Bahnhof über Bushaltestelle über Restaurant).
 
-  | Stufe     | Inhalt                                                                                                                                                              |
-  | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | 0         | Wegzeichen (Ebene `waymarks-line`, immer oben, Rolle `obstacle`)                                                                                                    |
-  | 1 (10–14) | Anreise und Schutz: Bahnhof, Haltepunkt, Bushaltestelle, Alpen-/Wildnishütte, Unterstand                                                                            |
-  | 2 (20–24) | Wasser: Trinkwasser, Quelle                                                                                                                                         |
-  | 3 (30–36) | Ziele: Aussichtsturm, Burg, Burgruine, Ruine, Höhle, Wasserfall, Aussichtspunkt                                                                                     |
-  | 4 (40–43) | Einkehr: Restaurant, Café                                                                                                                                           |
-  | 5 (50–55) | Wanderinfrastruktur: Parkplatz, benannter Wegweiser, Toiletten, Rastplatz, Grillstelle                                                                              |
-  | 6 (60–64) | Übernachtung: Campingplatz, Herberge, Caravanplatz, Hotel                                                                                                           |
-  | 7 (70–73) | Kirchen: Kirche, Kapelle, Gotteshaus, Denkmal                                                                                                                       |
-  | 8 (80–89) | Kleine Landmarken (`poi-minor`): Türme, Masten, Windräder, Wegkreuze, Bildstöcke, Gedenksteine, Brunnen, Felsen, Dolinen, Wehre; unbenannter Wegweiser zuletzt (89) |
+  | Stufe     | Inhalt                                                                                                                                                            |
+  | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | 0         | Wegzeichen (Ebene `waymarks-line`, immer oben, Rolle `obstacle`)                                                                                                  |
+  | 1 (10–14) | Anreise und Schutz: Bahnhof, Haltepunkt, Bushaltestelle, Alpen-/Wildnishütte, Unterstand                                                                          |
+  | 2 (20–24) | Wasser: Trinkwasser, Quelle                                                                                                                                       |
+  | 3 (30–36) | Ziele: Aussichtsturm, Burg, Burgruine, Ruine, Höhle, Wasserfall, Aussichtspunkt                                                                                   |
+  | 4 (40–43) | Einkehr: Restaurant, Café                                                                                                                                         |
+  | 5 (50–55) | Wanderinfrastruktur: Parkplatz, benannter Wegweiser, Toiletten, Rastplatz, Grillstelle                                                                            |
+  | 6 (60–64) | Übernachtung: Campingplatz, Herberge, Caravanplatz, Hotel                                                                                                         |
+  | 7 (70–73) | Kirchen: Kirche, Kapelle, Gotteshaus, Denkmal                                                                                                                     |
+  | 8 (80–89) | Kleine Landmarken (`*-minor`): Türme, Masten, Windräder, Wegkreuze, Bildstöcke, Gedenksteine, Brunnen, Felsen, Dolinen, Wehre; unbenannter Wegweiser zuletzt (89) |
 
   Gipfelpunkte und Ortsnamen bleiben `fixed`.
 
 - **Schalter mit Standard „aus“:** „Aussichtspunkte“ (`viewpoint`, eigene Ebene `viewpoints-main`;
   ausgeblendet nimmt er nicht an der Platzierung teil; Aussichtstürme sind immer da) und
   „Wegweisernamen“ (Gruppe `guidepostnames` ohne eigene Ebenen: sie setzt das `text-field` von
-  `poi-main` und seines Namensklons; die Fähnchen bleiben).
+  `guideposts-main` und seines Namensklons; die Fähnchen bleiben). „Wegweisernamen“ ist
+  Unterschalter von „Wegweiser“.
+
+### M6: Schalter, Suche, GPX, Oberfläche
+
+- **Schalter** (Panel „Ebenen“, drei klappbare `<details>`-Abschnitte, alle zunächst offen).
+  Jede beschriftete Gruppe in `GROUPS` (`style/index.ts`) trägt `section` (`routes`, `terrain`,
+  `symbols`) und optional `parent` (Unterschalter: eingerückt, bei ausgeschaltetem Elternschalter
+  `disabled`, sein Wert bleibt). Die Anzeigereihenfolge steht in `UI_ORDER` (die Zeichenreihenfolge
+  ist die Reihenfolge in `GROUPS`). `onToggle(map, visible, visibility)` bekommt die ganze
+  Sichtbarkeit.
+  - **Routen:** Wanderrouten (Unterschalter International, National, Regional, Lokal), Wegzeichen
+    (eigener Schalter, nicht mehr an die Routen gekoppelt).
+  - **Gelände und Karte:** Schummerung, Höhenlinien, Schutzgebiete, Gebäude, Beschriftung.
+  - **Symbole:** neun Kategorien (siehe unten), Aussichtspunkte (Standard aus), Wegweiser mit
+    Unterschalter Wegweisernamen (Standard aus), Bushaltestellen, „Weitere Symbole“ (Gruppe
+    `poi`: Bahnhöfe, Kirchen, Höhlen, Quellen, Türme, Kreuze …).
+- **POI-Kategorien** (`style/poi.ts`, Tabelle `POI_CATEGORIES`): Schutzhütten, Einkehr,
+  Wanderparkplätze, Rast- und Grillplätze, Unterkünfte, Toiletten, Trinkwasser/Brunnen,
+  Burgen/Ruinen/Denkmäler, Wegweiser. Jede Kategorie ist eine **eigene Gruppe mit eigenen Ebenen**
+  `<id>-main` (und `<id>-minor` für die kleinen Arten, z. B. Brunnen, Gedenkstein, unbenannter
+  Wegweiser). Grund: `placement/collect.ts` liest den Filter aus der ursprünglichen Spec; ein
+  Laufzeit-`setFilter` auf `poi-main` käme dort nicht an. Ein- und Ausschalten geht wie bei
+  `viewpoints` über die Sichtbarkeit. `poi-main` und `poi-minor` schließen alle Kategorie-Arten
+  (und die Aussichtspunkte) aus; unbekannte Arten bleiben in `poi-main`. Gruppen-IDs dürfen kein
+  Präfix fremder Ebenen-IDs sein (daher `drinking`).
+- **Netz-Filter** (B3): Der Tile-Layer `routes` hat nur `network` = _höchstes_ Netz des
+  Abschnitts (`iwn > nwn > rwn > lwn`, fehlt sonst). `routeNetworkFilter(visibility)` (`style/routes.ts`,
+  rein) liefert den Ausschluss (oder `null`, wenn alle an sind); er steckt beim Stilbau in
+  `routes-band` und `waymarks-line` (der Export stimmt also) und wird auf der Hauptkarte per
+  `setFilter` gesetzt (`setRouteNetworks`). „Lokal“ umfasst auch Abschnitte ohne `network`.
+  Wegzeichen sind Rolle `obstacle`: die Platzierung liest deren gesetzte Kästen, daher wirkt
+  `setFilter` dort. **Grenze:** gefiltert wird nach dem höchsten Netz. Ein Abschnitt mit
+  regionaler und lokaler Route verschwindet, wenn „Regional“ aus und „Lokal“ an ist, und ein
+  sichtbarer Abschnitt zeigt im Wegzeichenbild weiter alle Zeichen, auch die eines
+  ausgeschalteten Netzes. Sauber ginge es nur mit dem Netz je Route in den Tiles.
+- **Photon-Suche** (`src/search.ts`): Feld oben in der Seitenleiste, ab 3 Zeichen, 300 ms
+  Entprellung, laufende Anfrage wird abgebrochen. Anfrage:
+  `GET https://photon.komoot.io/api?q=…&lang=de&limit=8&lat=…&lon=…`, **nur diese Parameter**; `lat`/`lon`
+  sind die Kartenmitte auf drei Nachkommastellen (etwa 100 m) als Ortsbezug, kein Zoom, keine
+  IDs, `credentials: "omit"`, `referrerPolicy: "no-referrer"`. Datenschutz: komoot sieht also
+  Suchtext, grobe Kartenmitte und die IP-Adresse; nichts davon wird gespeichert oder an andere
+  weitergegeben. Ergebnisliste als `combobox`/`listbox` (↑/↓, Enter, Escape; `/` fokussiert das
+  Feld außerhalb von Eingabefeldern); Enter ohne Auswahl springt zum ersten Treffer. Sprung: mit
+  `extent` `fitBounds` (Rand 40 px, höchstens Zoom 15), sonst `flyTo` Zoom 14; in der
+  Druckansicht nur `setCenter`. Das Gebiet bleibt, wo es ist. Photon liefert `extent` als
+  `[minLon, maxLat, maxLon, minLat]`, `parsePhoton` dreht das um. Fehler (offline, HTTP-Fehler,
+  10 s ohne Antwort): „Suche nicht erreichbar – Internetverbindung prüfen“. Die Quelle steht in
+  der Fußzeile der Seitenleiste (nicht im PDF-Blattrand).
+- **GPX** (`src/gpx.ts`, `@tmcw/togeojson`): „GPX-Datei laden“ oder Datei auf die Karte ziehen.
+  Tracks und Routen (`trk`, `rte`) werden Linien, Wegpunkte werden ignoriert. Danach liegt das
+  **Gebiet auf dem Track** (Hülle plus 10 % je Seite, mindestens 300 m, `areaForTrack`) und die
+  Karte zeigt es (in der Druckansicht nur Mitte, Zoom bleibt gesperrt). Das Panel zeigt Name,
+  Länge (Haversine) und die Knöpfe „Gebiet auf Track setzen“ und „Track entfernen“. Der Track wird
+  nicht gespeichert (wie das Gebiet). Fehler: „Keine Spur in der Datei“, „Datei ist kein lesbares
+  GPX“.
+  - **Darstellung** (`style/gpx.ts`): Magenta `COLORS.gpx` (`#d4007f`, Aufdruckfarbe der
+    Orientierungslauf-Karten), Linie 0,7 mm bei 80 % Deckkraft, über den Straßen und unter den
+    Namen (Gruppe `gpx` ohne Schalter). Start: weißer Kreis mit magentafarbenem Rand, Ende:
+    derselbe Kreis mit magentafarbenem Punkt (2,4 mm außen, Rand 0,4 mm, Punkt 1,0 mm; Konstanten in
+    `style/sizes.ts`). Start und Ende sind Kreis-Ebenen der Rolle `fixed`: sie bewegen sich nie,
+    Piktogramme weichen aus. Die Linie ist kein Hindernis.
+  - **Datenfluss:** Die Quelle `gpx` (GeoJSON, Features mit `_kind` `line`/`start`/`end`) ist
+    immer im Stil (leer ohne Track), damit `withPlacementLayers` die `fixed`-Ebenen von Anfang an
+    kennt. `StyleOptions.gpx` füllt sie; `currentStyle()` in `main.ts` übergibt den Track an die
+    versteckte Export-Karte, die Hauptkarte bekommt ihn per `setData` (danach `placement.sync()`).
+- **Automationshaken:** `window.__capercailye.loadGpx(text)` verhält sich wie die Dateiauswahl
+  (Zustand, Gebiet, Kartenausschnitt; liefert `{ track }` oder `{ error }`),
+  `window.__capercailye.clearGpx()` entfernt den Track.
 - Der Export hat immer 300 dpi (kein Umschalter).
 - Beim Drucken „Tatsächliche Größe“ / 100 % wählen, nicht „An Seite anpassen“; die
   Kontrollstrecke (10 cm) auf dem Ausdruck nachmessen.

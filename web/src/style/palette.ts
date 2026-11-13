@@ -79,6 +79,9 @@ export const COLORS = {
 
   // --- Routes
   route: "#be2230",
+  // GPX track (M6): magenta, the overprint colour of orienteering maps; distinct from the route
+  // red, the cycleway violet, water blue and forest green.
+  gpx: "#d4007f",
 
   // --- Labels
   text: "#1f1f1f",

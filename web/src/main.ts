@@ -1,4 +1,9 @@
-import { Map as MapLibreMap, NavigationControl, ScaleControl } from "maplibre-gl";
+import {
+  type GeoJSONSource,
+  Map as MapLibreMap,
+  NavigationControl,
+  ScaleControl,
+} from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./app.css";
 import {
@@ -9,6 +14,7 @@ import {
   PMTILES_PATH,
 } from "./config";
 import { pmtilesExists } from "./data";
+import { areaForTrack, initGpxDrop, parseGpx, readGpxFile, type TrackResult } from "./gpx";
 import { installIcons } from "./icons";
 import { downloadBlob, exportLayout, type ExportResult, isAbortError } from "./print/export";
 import { PrintPlacement, rectAround, withPlacementLayers } from "./placement";
@@ -25,10 +31,17 @@ import {
 } from "./print/layout";
 import { BLEED_MM, EXPORT_DPI, type Orientation, printableArea } from "./print/paper";
 import { zoomForScale } from "./print/scale";
-import { initSidebar, setExportBusy, setStatus, updatePrintInfo } from "./sidebar";
+import { initSearch } from "./search";
+import { initSidebar, setExportBusy, setGpxStatus, setStatus, updatePrintInfo } from "./sidebar";
 import { currentLayout, getState, setState, subscribe } from "./state";
 import { buildStyle, GROUPS, setGroupVisible } from "./style";
-import { applyVectorTileZoom, VECTOR_TILE_ZOOM, type VectorTileZoomMode } from "./style/sources";
+import {
+  applyVectorTileZoom,
+  EMPTY_GPX,
+  GPX_SOURCE,
+  VECTOR_TILE_ZOOM,
+  type VectorTileZoomMode,
+} from "./style/sources";
 import { reliefUrls, setupMapLibre, tileLog, tileZoomHistogram } from "./tiles";
 
 setupMapLibre();
@@ -46,6 +59,8 @@ function currentStyle() {
     glyphsUrl: `${appUrl("fonts/")}{fontstack}/{range}.pbf`,
     relief: reliefUrls(),
     visibility: getState().visibility,
+    // The hidden export map renders the track, too.
+    gpx: getState().gpx?.data,
   });
 }
 
@@ -149,14 +164,66 @@ subscribe((state, prev) => {
   if (state.visibility !== prev.visibility) {
     for (const g of GROUPS) {
       if (state.visibility[g.id] !== prev.visibility[g.id]) {
-        setGroupVisible(map, g.id, state.visibility[g.id] ?? g.defaultVisible);
+        setGroupVisible(map, g.id, state.visibility[g.id] ?? g.defaultVisible, state.visibility);
       }
     }
     placement.sync();
   }
   // Sheets, scale or zoom changed: region and visibility of the placement follow.
   if (state.print !== prev.print) placement.sync();
+  if (state.gpx !== prev.gpx) applyGpxData();
 });
+
+/** Puts the loaded track (or nothing) on the map's `gpx` source; the fixed markers re-place. */
+function applyGpxData(): void {
+  const apply = () => {
+    map.getSource<GeoJSONSource>(GPX_SOURCE)?.setData(getState().gpx?.data ?? EMPTY_GPX);
+    placement.sync();
+  };
+  if (map.getSource(GPX_SOURCE)) apply();
+  else map.once("load", apply);
+}
+
+/** Shows the area (the track plus margin) with the sidebar's padding; print view only re-centres. */
+function fitArea(area: Area): void {
+  if (getState().printView) {
+    map.setCenter([(area.west + area.east) / 2, (area.south + area.north) / 2]);
+  } else {
+    map.fitBounds(
+      [
+        [area.west, area.south],
+        [area.east, area.north],
+      ],
+      { padding: 40, duration: 600 },
+    );
+  }
+}
+
+/** Takes over a parsed track: state, print area on the track, map fitted to it. */
+function useTrack(result: TrackResult): TrackResult {
+  if ("error" in result) {
+    setGpxStatus(result.error);
+    return result;
+  }
+  const area = areaForTrack(result.track.bounds);
+  setState({ gpx: result.track });
+  setArea(area);
+  fitArea(area);
+  return result;
+}
+
+function gpxToArea(): void {
+  const gpx = getState().gpx;
+  if (!gpx) return;
+  const area = areaForTrack(gpx.bounds);
+  setArea(area);
+  fitArea(area);
+}
+
+function clearGpx(): void {
+  setState({ gpx: null });
+  setGpxStatus("");
+}
 
 export interface ExportCallOptions {
   /** These override `state.print` for this export only. */
@@ -271,12 +338,17 @@ initSidebar({
     const area = getState().print.area;
     if (area) setArea(recenterArea(area, [c.lng, c.lat]));
   },
+  onGpxFile: (file) => void readGpxFile(file).then(useTrack),
+  onGpxArea: gpxToArea,
+  onGpxRemove: clearGpx,
   onCollapseChange: () => {
     map.resize();
     frame.update();
   },
 });
 updatePrintInfo(layout());
+initSearch(map);
+initGpxDrop(document.getElementById("map")!, (file) => void readGpxFile(file).then(useTrack));
 
 // Automation hook (browser tests, headless export).
 declare global {
@@ -292,6 +364,9 @@ declare global {
       vectorTileZoom: typeof VECTOR_TILE_ZOOM;
       setState: typeof setState;
       busstopsAvailable: boolean;
+      /** Loads GPX text like the file chooser does (state, area, map); returns the parse result. */
+      loadGpx: (text: string) => TrackResult;
+      clearGpx: () => void;
     };
   }
 }
@@ -306,4 +381,6 @@ window.__capercailye = {
   vectorTileZoom: VECTOR_TILE_ZOOM,
   setState,
   busstopsAvailable,
+  loadGpx: (text) => useTrack(parseGpx(text, "GPX-Track")),
+  clearGpx,
 };

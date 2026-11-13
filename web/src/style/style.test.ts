@@ -2,10 +2,17 @@
 // source-layer / attribute / enumerated value used in expressions exists in tiles/SCHEMA.md.
 // A typo in any of these would not fail at runtime, it would silently render nothing.
 import { describe, expect, test } from "bun:test";
-import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
-import { buildStyle, defaultVisibility, GROUPS } from "./index";
+import { featureFilter, validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
+import type { Feature, FeatureCollection } from "geojson";
+import { POI_KINDS as REGISTRY_KINDS } from "../icons/registry";
+import { managedLayers, placementRole } from "../placement/layers";
+import { buildStyle, defaultVisibility, GROUPS, SECTIONS, UI_ORDER, uiGroups } from "./index";
+import { POI_CATEGORIES } from "./poi";
+import { NETWORK_GROUPS, routeNetworkFilter } from "./routes";
+import { COLORS } from "./palette";
+import { GPX_LINE_MM, GPX_MARKER_MM } from "./sizes";
 import { CONTOUR_OPTIONS } from "./sources";
-import { pt } from "./units";
+import { mm, pt } from "./units";
 
 /** Hand-maintained copy of tiles/SCHEMA.md: attributes per tile layer. */
 const SCHEMA: Record<string, string[]> = {
@@ -200,7 +207,13 @@ describe("style", () => {
   });
 
   test("the bus stop source and group exist only with a bus stop file", () => {
-    expect(Object.keys(style.sources).sort()).toEqual(["busstops", "contours", "dem", "osm"]);
+    expect(Object.keys(style.sources).sort()).toEqual([
+      "busstops",
+      "contours",
+      "dem",
+      "gpx",
+      "osm",
+    ]);
     expect(style.layers.some((l) => l.id.startsWith("busstops-"))).toBe(true);
     const without = buildStyle({
       pmtilesUrl: "http://localhost/data/test.pmtiles",
@@ -208,7 +221,7 @@ describe("style", () => {
       relief: RELIEF,
       visibility: defaultVisibility(),
     });
-    expect(Object.keys(without.sources).sort()).toEqual(["contours", "dem", "osm"]);
+    expect(Object.keys(without.sources).sort()).toEqual(["contours", "dem", "gpx", "osm"]);
     expect(without.layers.some((l) => l.id.startsWith("busstops-"))).toBe(false);
     expect(validateStyleMin(without).map((e) => e.message)).toEqual([]);
     // Every layer's source exists in either style.
@@ -341,5 +354,220 @@ describe("style", () => {
     for (const layer of style.layers) walk(layer.layout ?? {});
     expect(fonts.size).toBeGreaterThan(0);
     expect([...fonts].filter((f) => !bundled.includes(f))).toEqual([]);
+  });
+});
+
+describe("M6 switches", () => {
+  const layersOf = (id: string) => style.layers.filter((l) => l.id.startsWith(`${id}-`));
+  const poiFilters = style.layers
+    .filter((l) => "source-layer" in l && l["source-layer"] === "poi")
+    .map((l) => ({
+      id: l.id,
+      f: featureFilter((l as { filter?: unknown }).filter as never, l.id),
+    }));
+  const passing = (props: Record<string, unknown>) =>
+    poiFilters
+      .filter((x) => x.f.filter({ zoom: 13 } as never, { type: 1, properties: props } as never))
+      .map((x) => x.id);
+
+  test("every POI kind lands in exactly one layer (category, viewpoints or poi-main/minor)", () => {
+    for (const k of REGISTRY_KINDS) {
+      // Parking needs hiking=yes to be shown at all; every other kind is unconditional.
+      for (const props of [
+        { kind: k, name: "x", hiking: true },
+        { kind: k, hiking: true },
+      ]) {
+        expect(passing(props), JSON.stringify(props)).toHaveLength(1);
+      }
+    }
+    // Hidden car parks are the only kind in no layer.
+    expect(passing({ kind: "parking", name: "x" })).toEqual([]);
+  });
+
+  test("category kinds are disjoint and their layers belong to their own group", () => {
+    const seen = new Set<string>();
+    for (const cat of POI_CATEGORIES) {
+      for (const k of cat.kinds) {
+        expect(seen.has(k), k).toBe(false);
+        seen.add(k);
+        expect(passing({ kind: k, name: "x", hiking: true })[0]!.startsWith(`${cat.id}-`)).toBe(
+          true,
+        );
+      }
+      expect(GROUPS.find((g) => g.id === cat.id)?.label).toBe(cat.label);
+      expect(layersOf(cat.id).length).toBeGreaterThan(0);
+    }
+    // The block sits directly after "poi".
+    const ids = GROUPS.map((g) => g.id);
+    expect(
+      ids.slice(ids.indexOf("poi") + 1, ids.indexOf("poi") + 1 + POI_CATEGORIES.length),
+    ).toEqual(POI_CATEGORIES.map((c) => c.id));
+    expect(GROUPS.find((g) => g.id === "poi")?.label).toBe("Weitere Symbole");
+  });
+
+  test("small kinds of a category keep their minor layer, guideposts split by name", () => {
+    expect(passing({ kind: "fountain", name: "x" })).toEqual(["drinking-minor"]);
+    expect(passing({ kind: "drinking_water" })).toEqual(["drinking-main"]);
+    expect(passing({ kind: "memorial" })).toEqual(["heritage-minor"]);
+    expect(passing({ kind: "guidepost", name: "Hadeck" })).toEqual(["guideposts-main"]);
+    expect(passing({ kind: "guidepost" })).toEqual(["guideposts-minor"]);
+    expect(passing({ kind: "parking", hiking: true })).toEqual(["parking-main"]);
+    expect(passing({ kind: "parking", area_m2: 4000, access: "customers" })).toEqual([]);
+    expect(passing({ kind: "wayside_cross" })).toEqual(["poi-minor"]);
+    expect(passing({ kind: "church" })).toEqual(["poi-main"]);
+  });
+
+  test("category layers take part in the placement like poi-main did", () => {
+    for (const cat of POI_CATEGORIES) {
+      for (const l of layersOf(cat.id)) expect(placementRole(l), l.id).toBe("displace");
+    }
+    const ids = new Set(managedLayers(style.layers).map((m) => m.id));
+    expect(ids.has("guideposts-main")).toBe(true);
+    expect(ids.has("heritage-minor")).toBe(true);
+  });
+
+  test("routeNetworkFilter: all on = no exclusion; only Lokal = lwn and missing", () => {
+    expect(routeNetworkFilter({})).toBeNull();
+    expect(routeNetworkFilter(defaultVisibility())).toBeNull();
+    const pass = (vis: Record<string, boolean>, network?: string) => {
+      const f = featureFilter(routeNetworkFilter(vis) as never, "net");
+      const properties = network === undefined ? {} : { network };
+      return f.filter({ zoom: 13 } as never, { type: 2, properties } as never);
+    };
+    const onlyLokal = {
+      [NETWORK_GROUPS.iwn]: false,
+      [NETWORK_GROUPS.nwn]: false,
+      [NETWORK_GROUPS.rwn]: false,
+    };
+    expect(pass(onlyLokal, "iwn")).toBe(false);
+    expect(pass(onlyLokal, "nwn")).toBe(false);
+    expect(pass(onlyLokal, "rwn")).toBe(false);
+    expect(pass(onlyLokal, "lwn")).toBe(true);
+    expect(pass(onlyLokal)).toBe(true);
+    const noLokal = { [NETWORK_GROUPS.lwn]: false };
+    expect(pass(noLokal, "lwn")).toBe(false);
+    expect(pass(noLokal)).toBe(false);
+    expect(pass(noLokal, "rwn")).toBe(true);
+    const none = { ...onlyLokal, ...noLokal };
+    for (const n of ["iwn", "nwn", "rwn", "lwn", undefined]) expect(pass(none, n)).toBe(false);
+  });
+
+  test("the network switches reach routes-band and waymarks-line of the built style", () => {
+    const build = (visibility: Record<string, boolean>) =>
+      buildStyle({
+        pmtilesUrl: "http://localhost/data/test.pmtiles",
+        glyphsUrl: "http://localhost/fonts/{fontstack}/{range}.pbf",
+        relief: RELIEF,
+        visibility: { ...defaultVisibility(), ...visibility },
+      });
+    const filterOf = (s: typeof style, id: string) =>
+      (s.layers.find((l) => l.id === id) as { filter?: unknown }).filter;
+    expect(filterOf(build({}), "routes-band")).toBeUndefined();
+    const off = build({ [NETWORK_GROUPS.iwn]: false });
+    expect(JSON.stringify(filterOf(off, "routes-band"))).toContain("iwn");
+    expect(JSON.stringify(filterOf(off, "waymarks-line"))).toContain("iwn");
+    expect(JSON.stringify(filterOf(off, "waymarks-line"))).toContain("symbols");
+    expect(validateStyleMin(off).map((e) => e.message)).toEqual([]);
+  });
+
+  test("sub-switches point at existing, labelled parents; every labelled group has a section", () => {
+    for (const g of GROUPS) {
+      if (g.parent) {
+        const parent = GROUPS.find((p) => p.id === g.parent);
+        expect(parent?.label, g.id).toBeDefined();
+        expect(parent?.parent).toBeUndefined();
+        expect(parent?.section).toBe(g.section);
+      }
+      if (g.label) {
+        expect(g.section, g.id).toBeDefined();
+        expect(UI_ORDER.includes(g.id), g.id).toBe(true);
+      }
+    }
+    expect(
+      Object.values(NETWORK_GROUPS).every(
+        (id) => GROUPS.find((g) => g.id === id)?.parent === "routes",
+      ),
+    ).toBe(true);
+    expect(GROUPS.find((g) => g.id === "guidepostnames")?.parent).toBe("guideposts");
+    // Every group of UI_ORDER exists, once; the sections cover all labelled groups.
+    expect(new Set(UI_ORDER).size).toBe(UI_ORDER.length);
+    const shown = SECTIONS.flatMap((s) => uiGroups(s.id).map((g) => g.id));
+    expect(shown.sort()).toEqual(
+      GROUPS.filter((g) => g.label)
+        .map((g) => g.id)
+        .sort(),
+    );
+  });
+
+  test("waymarks have their own label and are no longer part of the route toggle", () => {
+    const g = GROUPS.find((x) => x.id === "waymarks")!;
+    expect(g.label).toBe("Wegzeichen");
+    expect(g.toggledBy).toBeUndefined();
+    expect(GROUPS.find((x) => x.id === "routes")?.label).toBe("Wanderrouten");
+  });
+});
+
+describe("gpx layers", () => {
+  const track: FeatureCollection = {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { _kind: "line" },
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [7.7, 49.1],
+            [7.71, 49.11],
+          ],
+        },
+      } as Feature,
+    ],
+  };
+
+  test("the source exists without a track, and with one when given", () => {
+    expect(style.sources.gpx).toEqual({
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    const withTrack = buildStyle({
+      pmtilesUrl: "http://localhost/data/test.pmtiles",
+      glyphsUrl: "http://localhost/fonts/{fontstack}/{range}.pbf",
+      relief: RELIEF,
+      visibility: defaultVisibility(),
+      gpx: track,
+    });
+    expect((withTrack.sources.gpx as { data: unknown }).data).toBe(track);
+    expect(validateStyleMin(withTrack).map((e) => e.message)).toEqual([]);
+  });
+
+  test("magenta line in paper mm, between transport and names, start and end fixed", () => {
+    const ids = style.layers.map((l) => l.id);
+    expect(ids.indexOf("gpx-line")).toBeGreaterThan(
+      ids.map((id) => id.startsWith("transport-")).lastIndexOf(true),
+    );
+    expect(ids.indexOf("gpx-line")).toBeLessThan(ids.findIndex((id) => id.startsWith("names-")));
+    const line = style.layers.find((l) => l.id === "gpx-line") as {
+      paint: Record<string, unknown>;
+    };
+    expect(line.paint["line-color"]).toBe(COLORS.gpx);
+    expect(COLORS.gpx).toBe("#d4007f");
+    expect(GPX_LINE_MM).toBe(0.7);
+    expect(JSON.stringify(line.paint["line-width"])).toContain(String(mm(GPX_LINE_MM)));
+    expect(line.paint["line-opacity"]).toBe(0.8);
+    for (const id of ["gpx-start", "gpx-end"]) {
+      const l = style.layers.find((x) => x.id === id)!;
+      expect(placementRole(l)).toBe("fixed");
+      expect(l.type).toBe("circle");
+      const paint = (l as unknown as { paint: Record<string, number> }).paint;
+      // Outer diameter incl. rim = GPX_MARKER_MM.
+      expect((paint["circle-radius"]! + paint["circle-stroke-width"]!) * 2).toBeCloseTo(
+        mm(GPX_MARKER_MM),
+        9,
+      );
+    }
+    expect(placementRole(style.layers.find((l) => l.id === "gpx-line")!)).toBeUndefined();
+    const group = GROUPS.find((g) => g.id === "gpx")!;
+    expect(group.label).toBeUndefined();
   });
 });
