@@ -24,3 +24,18 @@ Das Modul `web/src/osmc/` als eigenständiges npm-Paket veröffentlichen, damit 
 ## Route-Marker nicht darstellen
 
 Route-Marker (die Wegzeichen-Schilder entlang der Wanderrouten) sollten nicht dargestellt werden. Die Routen blieben über die farbige Hinterlegung erkennbar. Zu klären: ganz entfernen oder als Schalter (Standard aus), und wie Routen ohne Zeichen dann zuzuordnen sind.
+
+## Wegzeichen einzeln und abwechselnd statt in einer Reihe
+
+Heute stehen die Zeichen mehrerer Routen auf einem gemeinsamen Wegabschnitt als horizontale Reihe in einem Bild (höchstens 4). Das ist auf dem Ausdruck unklar: Man sieht nicht, welche Route zu welchem Zeichen gehört, sobald sich die Routen trennen.
+
+Besser: Zeichen einzeln setzen, dafür häufiger, und auf gemeinsamen Abschnitten die verschiedenen Zeichen abwechselnd entlang der Linie. Damit entfällt auch die Grenze von 4 Zeichen.
+
+Dafür braucht es einen eigenen Platzierungs-Algorithmus, der für den festen Druckmaßstab sicherstellt, dass auf dem Blatt immer eindeutig ist, welche Route welches Zeichen hat. Mögliche Regeln:
+
+- Jedes Zeichen erscheint auf jedem Abschnitt seiner Route in einem Höchstabstand (z. B. alle 6 cm Papier), auch dort, wo es sich die Linie mit anderen teilt.
+- Wo sich Routen trennen oder zusammenlaufen, steht kurz nach der Gabelung auf jedem Ast das Zeichen der dort weiterlaufenden Route(n), damit die Zuordnung an jeder Verzweigung klar ist.
+- Auf gemeinsamen Abschnitten werden die Zeichen reihum gesetzt; jedes erscheint mindestens einmal zwischen zwei Gabelungen.
+- Kein Zeichen entfällt durch Kollision (siehe PLAN.md 4a).
+
+Voraussetzungen: Die Tiles müssten die Routen pro Abschnitt einzeln mit Relation-ID liefern (heute nur die deduplizierte, gekappte Liste), und die Platzierung liefe wie bei den Piktogrammen in der App statt über MapLibres `symbol-placement: line`.
