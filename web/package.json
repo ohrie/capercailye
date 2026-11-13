@@ -15,6 +15,7 @@
   "dependencies": {
     "@maplibre/maplibre-gl-style-spec": "^26.6.0",
     "jspdf": "^4.2.1",
+    "maplibre-contour": "^0.1.1",
     "maplibre-gl": "^6.18.0",
     "pmtiles": "^4.5.0"
   },

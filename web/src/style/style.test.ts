@@ -4,9 +4,13 @@
 import { describe, expect, test } from "bun:test";
 import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
 import { buildStyle, defaultVisibility, GROUPS } from "./index";
+import { CONTOUR_OPTIONS } from "./sources";
+import { pt } from "./units";
 
 /** Hand-maintained copy of tiles/SCHEMA.md: attributes per tile layer. */
 const SCHEMA: Record<string, string[]> = {
+  // Contour lines: generated client-side by maplibre-contour (CONTOUR_OPTIONS), not in tiles/SCHEMA.md.
+  contours: ["ele", "level"],
   transport: [
     "kind",
     "link",
@@ -132,10 +136,16 @@ const VALUES: Record<string, Record<string, string[]>> = {
   poi: { kind: POI_KINDS },
 };
 
+const RELIEF = {
+  dem: "dem-shared://{z}/{x}/{y}",
+  contours: "dem-contour://{z}/{x}/{y}?test",
+};
+
 const style = buildStyle({
   pmtilesUrl: "http://localhost/data/test.pmtiles",
   busstopsUrl: "http://localhost/data/busstops.pmtiles",
   glyphsUrl: "http://localhost/fonts/{fontstack}/{range}.pbf",
+  relief: RELIEF,
   visibility: defaultVisibility(),
 });
 
@@ -190,14 +200,15 @@ describe("style", () => {
   });
 
   test("the bus stop source and group exist only with a bus stop file", () => {
-    expect(Object.keys(style.sources).sort()).toEqual(["busstops", "dem", "osm"]);
+    expect(Object.keys(style.sources).sort()).toEqual(["busstops", "contours", "dem", "osm"]);
     expect(style.layers.some((l) => l.id.startsWith("busstops-"))).toBe(true);
     const without = buildStyle({
       pmtilesUrl: "http://localhost/data/test.pmtiles",
       glyphsUrl: "http://localhost/fonts/{fontstack}/{range}.pbf",
+      relief: RELIEF,
       visibility: defaultVisibility(),
     });
-    expect(Object.keys(without.sources).sort()).toEqual(["dem", "osm"]);
+    expect(Object.keys(without.sources).sort()).toEqual(["contours", "dem", "osm"]);
     expect(without.layers.some((l) => l.id.startsWith("busstops-"))).toBe(false);
     expect(validateStyleMin(without).map((e) => e.message)).toEqual([]);
     // Every layer's source exists in either style.
@@ -215,6 +226,42 @@ describe("style", () => {
       else expect((l as { source?: string }).source).not.toBe("busstops");
     }
     expect(JSON.stringify(style.layers)).not.toContain('bus_stop"]');
+  });
+
+  test("the contour group has a toggle and its layers sit between hillshade and water", () => {
+    const g = GROUPS.find((x) => x.id === "contours");
+    expect(g?.label).toBe("Höhenlinien");
+    expect(g?.source).toBe("contours");
+    const ids = style.layers.map((l) => l.id);
+    const contourIds = ids.filter((id) => id.startsWith("contours-"));
+    expect(contourIds).toEqual(["contours-line", "contours-index", "contours-label"]);
+    for (const l of style.layers.filter((x) => x.id.startsWith("contours-"))) {
+      expect((l as { source: string }).source).toBe("contours");
+      expect((l as { "source-layer": string })["source-layer"]).toBe("contours");
+    }
+    expect(ids.indexOf("contours-line")).toBeGreaterThan(ids.indexOf("hillshade-relief"));
+    expect(ids.indexOf("contours-label")).toBeLessThan(
+      ids.findIndex((id) => id.startsWith("water-")),
+    );
+  });
+
+  test("contour numbers stay out of the print placement and are legible", () => {
+    const label = style.layers.find((l) => l.id === "contours-label");
+    expect(label?.metadata).toBeUndefined();
+    const size = (label as { layout: { "text-size": number } }).layout["text-size"];
+    expect(size).toBeGreaterThanOrEqual(pt(6.5));
+  });
+
+  test("contour options: thresholds, overzoom and attribute names match the layers", () => {
+    expect(CONTOUR_OPTIONS.thresholds).toEqual({ 11: [50, 250], 12: [20, 100], 13: [10, 50] });
+    expect(CONTOUR_OPTIONS.overzoom).toBe(1);
+    const json = JSON.stringify(style.layers.filter((l) => l.id.startsWith("contours-")));
+    expect(json).toContain(`"source-layer":"${CONTOUR_OPTIONS.contourLayer}"`);
+    expect(json).toContain(`["get","${CONTOUR_OPTIONS.levelKey}"]`);
+    expect(json).toContain(`["get","${CONTOUR_OPTIONS.elevationKey}"]`);
+    expect(CONTOUR_OPTIONS.contourLayer).toBe("contours");
+    expect(CONTOUR_OPTIONS.elevationKey).toBe("ele");
+    expect(CONTOUR_OPTIONS.levelKey).toBe("level");
   });
 
   test("layer ids are unique and carry their group prefix", () => {

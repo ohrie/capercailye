@@ -24,6 +24,7 @@ const base = () =>
     pmtilesUrl: "https://example.invalid/x.pmtiles",
     busstopsUrl: "https://example.invalid/busstops.pmtiles",
     glyphsUrl: "https://example.invalid/{fontstack}/{range}.pbf",
+    relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
     visibility: defaultVisibility(),
   });
 
@@ -54,6 +55,7 @@ describe("waymarks layer", () => {
     const off = buildStyle({
       pmtilesUrl: "x",
       glyphsUrl: "y",
+      relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
       visibility: { ...defaultVisibility(), routes: false },
     });
     const vis = (off.layers.find((l) => l.id === "waymarks-line")!.layout as { visibility: string })

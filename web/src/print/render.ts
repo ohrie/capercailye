@@ -3,7 +3,12 @@ import { type ErrorEvent, Map as MapLibreMap } from "maplibre-gl";
 import type { StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
 import { installIcons } from "../icons";
 import { PLACEMENT_SOURCE, placeForExport, rectAround, withPlacementLayers } from "../placement";
-import { applyVectorTileZoom, type VectorTileZoomMode } from "../style/sources";
+import {
+  applyVectorTileZoom,
+  CONTOUR_SOURCE,
+  DEM_SOURCE,
+  type VectorTileZoomMode,
+} from "../style/sources";
 import { BLEED_MM, mmToCssPx, type SizeMm } from "./paper";
 
 export interface RenderRequest {
@@ -36,6 +41,8 @@ export interface RenderResult {
   /** True if the browser or MapLibre reduced the resolution. */
   reduced: boolean;
   renderMs: number;
+  /** Errors of the DEM / contour sources (offline, timeout, 404); the render went on without them. */
+  reliefErrors: number;
 }
 
 function waitForIdle(map: MapLibreMap, timeoutMs: number, sourceId?: string): Promise<void> {
@@ -92,8 +99,13 @@ export async function renderMapImage(req: RenderRequest): Promise<RenderResult> 
   installIcons(map);
   applyVectorTileZoom(map, req.vectorTileZoom);
 
+  let reliefErrors = 0;
   try {
-    map.on("error", (e: ErrorEvent) => console.warn("Export-Karte:", e.error?.message ?? e));
+    map.on("error", (e: ErrorEvent) => {
+      const sourceId = (e as { sourceId?: string }).sourceId;
+      if (sourceId === DEM_SOURCE || sourceId === CONTOUR_SOURCE) reliefErrors++;
+      console.warn("Export-Karte:", e.error?.message ?? e);
+    });
     await waitForIdle(map, req.timeoutMs ?? 120_000);
     if (placement && managed.length > 0) {
       // Same region as the preview: sheet + bleed around the centre (= this map's viewport).
@@ -150,6 +162,7 @@ export async function renderMapImage(req: RenderRequest): Promise<RenderResult> 
       effectiveDpi: ratio * 96,
       reduced,
       renderMs: performance.now() - t0,
+      reliefErrors,
     };
   } finally {
     map.remove();

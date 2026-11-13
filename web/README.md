@@ -25,7 +25,12 @@ Die PMTiles werden nicht ins Repo kopiert. Der Dev-Server liefert `/data/*` aus
 `src/data.ts` prüft beim Start per Range-Request auf die PMTiles-Kennung; fehlt die Datei, wird
 weder Quelle noch Gruppe `busstops` in den Stil aufgenommen (sonst würde MapLibre nie `idle`
 melden und Platzierung und Export hingen), und der Schalter „Bushaltestellen“ ist deaktiviert.
-Die Quellenangabe der Haltestellen steht als `BUSSTOPS_ATTRIBUTION` in `src/config.ts`. Die Schummerung kommt online vom Mapterhorn-Kacheldienst.
+Die Quellenangabe der Haltestellen steht als `BUSSTOPS_ATTRIBUTION` in `src/config.ts`.
+
+Das Relief (Schummerung und Höhenlinien) kommt online vom Mapterhorn-Kacheldienst (Terrarium-DEM,
+512-px-WebP) und wird über [maplibre-contour](https://github.com/onthegomap/maplibre-contour)
+(BSD-3-Clause) verarbeitet. Die Höhenlinien entstehen clientseitig im Browser, es gibt dafür keine
+Kacheldatei.
 
 ## Aufbau
 
@@ -34,7 +39,7 @@ src/
 ├── main.ts          Karte, Zustand, Export-Ablauf, window.__capercailye
 ├── sidebar.ts       Druck-Einstellungen, Ebenen-Schalter, Einklappen
 ├── state.ts         kleiner beobachtbarer App-Zustand
-├── tiles.ts         MapLibre-Worker, pmtiles://-Protokoll, Kachel-Log
+├── tiles.ts         MapLibre-Worker, pmtiles://-Protokoll, DemSource (maplibre-contour), Kachel-Log
 ├── config.ts        Startansicht, Pfade, Quellenangabe
 ├── style/           Stil als TS-Module, je Feature-Gruppe ein Baustein (index.ts setzt zusammen;
 │                    palette.ts Farben, units.ts mm/pt + Zoom-Skalierung, style.test.ts prüft
@@ -59,6 +64,24 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
 - Stilgrößen sind in Papier-Millimetern gedacht (`style/units.ts`): beim Druckzoom ist 1 CSS-px
   = 0,2646 mm. Zwischen z11,5 und z14,5 (alle Druckmaßstäbe 1:10 000–1:50 000) gelten die Werte
   exakt, darunter werden Linien dünner, darüber (nur Bildschirm) breiter.
+- **Höhenlinien** (M4, `style/hillshade.ts`, Gruppe `contours`, Schalter „Höhenlinien“): Es gibt
+  genau eine `DemSource` von maplibre-contour (`src/tiles.ts`, Worker; nicht in `src/style/` oder
+  Tests erzeugen, sie startet einen Worker; eine zweite Instanz bekäme ein anderes
+  Protokoll-Präfix). Sie registriert `dem-shared://` (Schummerung, Quelle `dem`) und
+  `dem-contour://` (Vektorquelle `contours`, Layer `contours` mit `ele` und `level`), beide teilen
+  den DEM-Cache. Die Schwellen `CONTOUR_OPTIONS.thresholds` (`style/sources.ts`) hängen vom
+  gerundeten Kachelzoom ab: z13/z14 (1:15 000–1:25 000) 10 m mit Zähllinien alle 50 m, z12
+  (1:50 000, Grenze bei etwa 1:35 000) 20 m / 100 m, z11 50 m / 250 m. Deshalb setzt
+  `applyVectorTileZoom` für die Quelle `contours` immer `roundZoom = true`. `overzoom: 1`
+  (Höhenlinien-Kachel z nutzt DEM z−1) ergibt ruhigere Linien und besser platzierbare Zahlen. Die
+  Zahlen (6,5 pt, Zähllinien, ohne Tausenderpunkt) nehmen nicht an der Druck-Platzierung teil: sie
+  sind die unterste Symbolebene, MapLibre setzt sie zuletzt, und Wegzeichen, Namen und Piktogramme
+  verdrängen sie.
+- **Relief-Fehler:** Die DemSource hat ein eigenes Fetch-Timeout (`RELIEF_TIMEOUT_MS`, 15 s). Danach
+  ist die Kachel `errored`, MapLibre zählt sie als fertig, und `idle` kommt (ein hängender Request
+  direkt gegen den Kachelserver ließe den Export sonst bis zum 120-s-Limit warten). Offline oder
+  bei DEM-Fehlern läuft der Export weiter; `render.ts` zählt die Fehler der Quellen `dem` und
+  `contours` (`meta.reliefErrors`), und die Statuszeile warnt, dass das Relief unvollständig ist.
 - Ändert sich `../tiles/SCHEMA.md`, die Liste in `style/style.test.ts` mitziehen.
 - `VECTOR_TILE_ZOOM` in `style/sources.ts` steuert, welche Kachelstufe MapLibre beim gebrochenen
   Druckzoom lädt (`"round"`: 1:25 000 → z13, 1:50 000 → z12).

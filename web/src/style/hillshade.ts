@@ -1,8 +1,11 @@
 // Hillshade from the Mapterhorn DEM (C7), tuned for print: the "igor" method shades slopes only
 // and leaves flat land untouched, so the map does not get darker overall and the forest green
 // stays clean. No highlights (they would wash out the pale landcover tints on paper).
-import type { LayerSpecification } from "@maplibre/maplibre-gl-style-spec";
-import { DEM_SOURCE } from "./sources";
+import type { ExpressionSpecification, LayerSpecification } from "@maplibre/maplibre-gl-style-spec";
+import { COLORS } from "./palette";
+import { halo, FONT_REGULAR } from "./fonts";
+import { CONTOUR_OPTIONS, CONTOUR_SOURCE, DEM_SOURCE } from "./sources";
+import { lineWidth, mm, pt } from "./units";
 
 export function hillshadeLayers(): LayerSpecification[] {
   return [
@@ -25,9 +28,55 @@ export function hillshadeLayers(): LayerSpecification[] {
 }
 
 /**
- * Slot for M4: contour lines (10 m, index lines every 50 m, labelled) from maplibre-contour.
- * The group is registered in index.ts without a sidebar label until it has layers.
+ * Contour lines from maplibre-contour (M4): 10 m with index lines every 50 m at 1:15 000-1:25 000,
+ * 20 m / 100 m from about 1:35 000 (CONTOUR_OPTIONS). Index lines are heavier and labelled.
+ * The numbers do not take part in the print placement: they are the lowest symbol layer, placed
+ * last by MapLibre, and yield to waymarks, names and pictograms (like names, PLAN.md 4a).
  */
 export function contourLayers(): LayerSpecification[] {
-  return [];
+  const { contourLayer, elevationKey, levelKey } = CONTOUR_OPTIONS;
+  const common = { source: CONTOUR_SOURCE, "source-layer": contourLayer } as const;
+  const normal: ExpressionSpecification = ["==", ["get", levelKey], 0];
+  const index: ExpressionSpecification = [">", ["get", levelKey], 0];
+  return [
+    {
+      id: "contours-line",
+      type: "line",
+      ...common,
+      minzoom: 10.5,
+      filter: normal,
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": COLORS.contour, "line-width": lineWidth(0.12) },
+    },
+    {
+      id: "contours-index",
+      type: "line",
+      ...common,
+      minzoom: 10.5,
+      filter: index,
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": COLORS.contourIndex, "line-width": lineWidth(0.22) },
+    },
+    {
+      id: "contours-label",
+      type: "symbol",
+      ...common,
+      minzoom: 11,
+      filter: index,
+      layout: {
+        "symbol-placement": "line",
+        "symbol-spacing": mm(60),
+        // to-string, not number-format: that would give "1.493" in de-DE.
+        "text-field": ["to-string", ["get", elevationKey]],
+        "text-font": FONT_REGULAR,
+        "text-size": pt(6.5),
+        // The DEM's small zigzags make MapLibre drop most numbers below ~90 degrees.
+        "text-max-angle": 90,
+        "text-padding": mm(1),
+        "text-keep-upright": true,
+        "text-rotation-alignment": "map",
+      },
+      paint: { "text-color": COLORS.contourText, ...halo(0.25) },
+    },
+  ];
 }

@@ -19,7 +19,7 @@ import { initSidebar, setExportBusy, setStatus, updatePrintInfo } from "./sideba
 import { getState, setState, subscribe } from "./state";
 import { buildStyle, GROUPS, setGroupVisible } from "./style";
 import { applyVectorTileZoom, VECTOR_TILE_ZOOM, type VectorTileZoomMode } from "./style/sources";
-import { setupMapLibre, tileLog, tileZoomHistogram } from "./tiles";
+import { reliefUrls, setupMapLibre, tileLog, tileZoomHistogram } from "./tiles";
 
 setupMapLibre();
 
@@ -34,6 +34,7 @@ function currentStyle() {
     pmtilesUrl: appUrl(PMTILES_PATH),
     busstopsUrl: busstopsAvailable ? busstopsUrl : undefined,
     glyphsUrl: `${appUrl("fonts/")}{fontstack}/{range}.pbf`,
+    relief: reliefUrls(),
     visibility: getState().visibility,
   });
 }
@@ -155,12 +156,19 @@ async function runExport(options: ExportCallOptions = {}): Promise<ExportResult>
     });
     const m = result.meta;
     const mb = (result.blob.size / 1e6).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+    const reliefWarning =
+      m.reliefErrors > 0
+        ? `Relief (Schummerung/Höhenlinien) unvollständig: ${m.reliefErrors} Kacheln nicht geladen (offline?).`
+        : "";
     if (m.reduced) {
       setStatus(
         `Achtung: Der Browser hat die Auflösung reduziert (${Math.round(m.effectiveDpi)} statt ${m.dpi} dpi, ` +
-          `${m.actualCanvasPx.join(" × ")} px). Der Maßstab stimmt trotzdem.`,
+          `${m.actualCanvasPx.join(" × ")} px). Der Maßstab stimmt trotzdem.` +
+          (reliefWarning ? ` ${reliefWarning}` : ""),
         "warn",
       );
+    } else if (reliefWarning) {
+      setStatus(`Fertig, aber ${reliefWarning}`, "warn");
     } else {
       setStatus(`Fertig: ${m.imagePx.join(" × ")} px, ${m.dpi} dpi, ${mb} MB.`);
     }

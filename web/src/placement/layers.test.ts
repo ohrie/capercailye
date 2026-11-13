@@ -19,6 +19,7 @@ const base = () =>
     pmtilesUrl: "https://example.invalid/x.pmtiles",
     busstopsUrl: "https://example.invalid/busstops.pmtiles",
     glyphsUrl: "https://example.invalid/{fontstack}/{range}.pbf",
+    relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
     visibility: defaultVisibility(),
   });
 
@@ -112,6 +113,7 @@ describe("withPlacementLayers", () => {
       pmtilesUrl: "https://example.invalid/x.pmtiles",
       busstopsUrl: "https://example.invalid/busstops.pmtiles",
       glyphsUrl: "https://example.invalid/{fontstack}/{range}.pbf",
+      relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
       visibility: { ...defaultVisibility(), busstops: false },
     });
     expect(vis(withPlacementLayers(hidden, true).style, "placement-busstops-main-source")).toBe(
@@ -125,6 +127,7 @@ describe("withPlacementLayers", () => {
     const style = buildStyle({
       pmtilesUrl: "https://example.invalid/x.pmtiles",
       glyphsUrl: "https://example.invalid/{fontstack}/{range}.pbf",
+      relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
       visibility: defaultVisibility(),
     });
     const { style: out, managed } = withPlacementLayers(style, true);

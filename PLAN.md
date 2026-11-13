@@ -177,7 +177,7 @@ Große Dateien (PMTiles, `planetiler.jar`) liegen unter `$CAPERCAILYE_DATA/` und
 
 Summe: etwa 7–10 Arbeitstage. M2 ist der größte und am wenigsten planbare Block; M0 kommt zuerst, weil er die technischen Risiken aus Abschnitt 7 klärt.
 
-**Arbeitsweise:** Die Umsetzung läuft über Subagents (Opus für komplexe Aufgaben, Sonnet für klar umrissene). Nach jedem Meilenstein gibt es einen kurzen Statusbericht, und es geht erst nach deiner Freigabe weiter.
+**Arbeitsweise:** Die Umsetzung läuft über Subagents. Seit 2026-11-13 setzen nur Sonnet-Agents um, jeweils mit klar umrissener Aufgabe; bei komplexen Aufgaben bereitet ein Opus-Agent die Aufgabe vor (Klärung, Entscheidungen, Auftragsbeschreibung) und setzt selbst nichts um. Nach jedem Meilenstein gibt es einen kurzen Statusbericht, und es geht erst nach deiner Freigabe weiter.
 
 ## 7. Risiken und offene Annahmen
 

@@ -19,6 +19,13 @@ export const DEM_TILES = "https://tiles.mapterhorn.com/{z}/{x}/{y}.webp";
 export const DEM_MAXZOOM = 14;
 
 /**
+ * Fetch timeout per DEM tile (maplibre-contour DemSource, shared by hillshade and contour lines).
+ * After it the tile is `errored`, which MapLibre counts as finished, so `idle` still comes and the
+ * export does not hang on a stalled connection.
+ */
+export const RELIEF_TIMEOUT_MS = 15_000;
+
+/**
  * Credit line of the GTFS bus stops (map attribution, sidebar footer, PDF sheet margin).
  * Provisional wording: adjust the text here once the data source and its licence text are final.
  */

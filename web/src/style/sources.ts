@@ -1,16 +1,39 @@
 import type { Map as MapLibreMap, VectorTileSource } from "maplibre-gl";
 import type { SourceSpecification } from "@maplibre/maplibre-gl-style-spec";
-import {
-  BUSSTOPS_ATTRIBUTION,
-  DEM_MAXZOOM,
-  DEM_TILES,
-  OSM_ATTRIBUTION,
-  RELIEF_ATTRIBUTION,
-} from "../config";
+import { BUSSTOPS_ATTRIBUTION, DEM_MAXZOOM, OSM_ATTRIBUTION, RELIEF_ATTRIBUTION } from "../config";
 
 export const OSM_SOURCE = "osm";
 export const BUSSTOPS_SOURCE = "busstops";
 export const DEM_SOURCE = "dem";
+export const CONTOUR_SOURCE = "contours";
+
+/**
+ * Contour options for maplibre-contour (the DemSource itself lives in tiles.ts, browser only).
+ * Thresholds are keyed by the rounded tile zoom: z13/z14 (1:15 000-1:25 000) 10 m with index
+ * lines every 50 m, z12 (1:50 000, boundary ~1:35 000) 20 m / 100 m, z11 50 m / 250 m. Below
+ * z10.5 the layers are hidden (minzoom) and the source returns empty tiles without loading DEM.
+ * overzoom 1 (contour tile z uses DEM z-1) is calmer: fewer stair steps and slivers in flat land,
+ * steep slopes stay resolved, numbers are placed far better, fewer fetches.
+ * `level` is 0 for normal and 1+ for index lines.
+ */
+export const CONTOUR_OPTIONS = {
+  thresholds: { 11: [50, 250], 12: [20, 100], 13: [10, 50] },
+  overzoom: 1,
+  multiplier: 1,
+  buffer: 1,
+  extent: 4096,
+  contourLayer: "contours",
+  elevationKey: "ele",
+  levelKey: "level",
+} as const;
+
+/** Tile URLs of the relief sources (protocols registered by maplibre-contour in tiles.ts). */
+export interface ReliefUrls {
+  /** Shared DEM tiles (hillshade): `dem-shared://{z}/{x}/{y}`. */
+  dem: string;
+  /** Contour vector tiles: `dem-contour://{z}/{x}/{y}?...`. */
+  contours: string;
+}
 
 /**
  * How MapLibre picks the vector tile zoom for a fractional map zoom.
@@ -41,13 +64,23 @@ export function busstopsSource(pmtilesUrl: string): SourceSpecification {
   };
 }
 
-export function demSource(): SourceSpecification {
+export function demSource(url: string): SourceSpecification {
   return {
     type: "raster-dem",
-    tiles: [DEM_TILES],
+    tiles: [url],
     tileSize: 512,
     encoding: "terrarium",
     maxzoom: DEM_MAXZOOM,
+    attribution: RELIEF_ATTRIBUTION,
+  };
+}
+
+/** Contour lines, generated client-side from the DEM (maplibre-contour). */
+export function contourSource(url: string): SourceSpecification {
+  return {
+    type: "vector",
+    tiles: [url],
+    maxzoom: DEM_MAXZOOM + 1,
     attribution: RELIEF_ATTRIBUTION,
   };
 }
@@ -67,6 +100,13 @@ export function applyVectorTileZoom(
         (src as { roundZoom?: boolean }).roundZoom = round;
         map.triggerRepaint();
       }
+    }
+    // The contour thresholds are keyed by the rounded tile zoom (1:25 000 -> z13 -> 10/50 m,
+    // 1:50 000 -> z12 -> 20/100 m), so this source always rounds, whatever `mode` says.
+    const contours = map.getSource<VectorTileSource>(CONTOUR_SOURCE);
+    if (contours && !(contours as { roundZoom?: boolean }).roundZoom) {
+      (contours as { roundZoom?: boolean }).roundZoom = true;
+      map.triggerRepaint();
     }
     return true;
   };

@@ -54,7 +54,12 @@ describe("shields", () => {
     const i = GROUPS.findIndex((g) => g.id === "shields");
     expect(GROUPS[i]?.toggledBy).toBe("labels");
     expect(i).toBeGreaterThan(GROUPS.findIndex((g) => g.id === "names"));
-    const style = buildStyle({ pmtilesUrl: "x", glyphsUrl: "y", visibility: defaultVisibility() });
+    const style = buildStyle({
+      pmtilesUrl: "x",
+      glyphsUrl: "y",
+      relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
+      visibility: defaultVisibility(),
+    });
     expect(style.layers.some((l) => l.id === "shields-road")).toBe(true);
   });
 

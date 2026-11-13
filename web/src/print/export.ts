@@ -34,6 +34,8 @@ export interface ExportMeta {
   /** Vector tile requests by zoom during the export render. */
   tileZooms: Record<number, number>;
   renderMs: number;
+  /** DEM / contour tiles that failed to load (offline, timeout): the PDF has incomplete relief. */
+  reliefErrors: number;
   totalMs: number;
 }
 
@@ -79,6 +81,7 @@ export async function exportPdf(opts: ExportOptions): Promise<ExportResult> {
       imageFormat: IMAGE_FORMAT,
       tileZooms,
       renderMs: render.renderMs,
+      reliefErrors: render.reliefErrors,
       totalMs: performance.now() - t0,
     },
   };

@@ -39,6 +39,10 @@ export const COLORS = {
 
   // --- Terrain lines
   cliff: "#4a423b",
+  // Contour lines (M4): opaque browns, index lines darker; the numbers sit on a white halo.
+  contour: "#b5845c",
+  contourIndex: "#9c6b45",
+  contourText: "#8b5d38",
 
   // --- Buildings
   building: "#cf8b72",

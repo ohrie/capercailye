@@ -13,9 +13,12 @@ import { routeLayers, waymarkLayers } from "./routes";
 import { shieldLayers, withoutShieldRefs } from "./shields";
 import {
   BUSSTOPS_SOURCE,
+  CONTOUR_SOURCE,
   DEM_SOURCE,
   OSM_SOURCE,
+  type ReliefUrls,
   busstopsSource,
+  contourSource,
   demSource,
   osmSource,
 } from "./sources";
@@ -43,8 +46,15 @@ export const GROUPS: LayerGroup[] = [
   { id: "base", defaultVisible: true, layers: backgroundLayers },
   { id: "landcover", defaultVisible: true, layers: landcoverLayers },
   { id: "hillshade", label: "Schummerung", defaultVisible: true, layers: hillshadeLayers },
-  // M4: contour lines; gets the label "Höhenlinien" once it has layers.
-  { id: "contours", defaultVisible: true, layers: contourLayers },
+  // M4: contour lines and elevation numbers (maplibre-contour). Above the hillshade, below all
+  // other lines and symbols: the numbers are placed last and yield to waymarks, names and icons.
+  {
+    id: "contours",
+    label: "Höhenlinien",
+    defaultVisible: true,
+    source: CONTOUR_SOURCE,
+    layers: contourLayers,
+  },
   { id: "protected", label: "Schutzgebiete", defaultVisible: true, layers: protectedLayers },
   { id: "water", defaultVisible: true, layers: waterLayers },
   { id: "cliffs", defaultVisible: true, layers: cliffLayers },
@@ -92,13 +102,16 @@ export interface StyleOptions {
   /** GTFS bus stop PMTiles; without it the style has no bus stop source and no `busstops` layers. */
   busstopsUrl?: string;
   glyphsUrl: string;
+  /** Tile URLs of hillshade and contour sources (from maplibre-contour's DemSource, see tiles.ts). */
+  relief: ReliefUrls;
   visibility: GroupVisibility;
 }
 
 export function buildStyle(opts: StyleOptions): StyleSpecification {
   const sources: StyleSpecification["sources"] = {
     [OSM_SOURCE]: osmSource(opts.pmtilesUrl),
-    [DEM_SOURCE]: demSource(),
+    [DEM_SOURCE]: demSource(opts.relief.dem),
+    [CONTOUR_SOURCE]: contourSource(opts.relief.contours),
   };
   if (opts.busstopsUrl) sources[BUSSTOPS_SOURCE] = busstopsSource(opts.busstopsUrl);
   const layers = GROUPS.flatMap((g) => {
