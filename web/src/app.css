@@ -2,11 +2,11 @@
   --sidebar-width: 300px;
   --bg: #ffffff;
   --bg-muted: #f6f6f4;
-  --fg: #1b1b1b;
+  --fg: #1f1f1f;
   --fg-muted: #6b6b68;
-  --line: #e2e2de;
+  --line: #e4e1dc;
   --line-strong: #c9c9c4;
-  --accent: #c8102e;
+  --accent: #be2230;
   --accent-fg: #ffffff;
   --warn: #9a5b00;
   --error: #b00020;
@@ -85,11 +85,12 @@ body {
 .brand::before {
   content: "";
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 20px;
+  height: 20px;
   margin-right: var(--space-2);
-  background: var(--accent);
-  vertical-align: 1px;
+  background: url(/logo.svg) center / contain no-repeat;
+  image-rendering: pixelated;
+  vertical-align: -4px;
 }
 
 .panel {
@@ -182,11 +183,28 @@ summary:focus-visible,
 }
 
 .segmented span {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   padding: 6px var(--space-2);
   cursor: pointer;
   user-select: none;
+}
+
+/* Step number in a circle; follows the text colour, so it inverts when selected. */
+.step {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .segmented input:checked + span {
@@ -197,6 +215,20 @@ summary:focus-visible,
 .segmented label.is-disabled span {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Three labelled segments with a step circle each must fit into the sidebar without wrapping. */
+.panel--mode .segmented {
+  margin-inline: calc(-1 * var(--space-2));
+}
+
+.panel--mode .segmented label {
+  flex: 1 1 auto;
+}
+
+.panel--mode .segmented span {
+  padding: 6px 2px;
+  white-space: nowrap;
 }
 
 /* Mode panel: just the switch and a grey line under it, no title. */

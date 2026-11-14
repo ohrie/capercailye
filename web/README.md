@@ -104,8 +104,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   nummerierte Rahmen auf der Karte (zeilenweise von links oben; Nachbarn nur über die vier
   Kanten). Die Griffe verschieben immer das ganze Raster samt Gebiet; einzelne Blätter lassen
   sich nicht verschieben, sonst wäre die Überlappung kaputt. Während des Ziehens zeichnet nur der
-  Rahmen neu, `setState` kommt erst bei `pointerup`. „Gebiet zur Kartenmitte“ verschiebt das Gebiet
-  (Größe bleibt).
+  Rahmen neu, `setState` kommt erst bei `pointerup`.
   - **Kartenfeld** = druckbare Fläche minus Legendenstreifen (Hochformat 194 × 270 mm). Die
     Überlappung (`OVERLAP_MM` = 10 mm) wird zwischen den Kartenfeldern gerechnet: der Streifen
     deckt die unteren 11 mm des Kartenbilds ab, mit Überlappung auf der druckbaren Fläche gäbe es
@@ -304,7 +303,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
 ### Modi, Legende, Datenstand
 
 - **Drei Modi** (`AppState.mode`, `src/mode.ts`; nicht zu verwechseln mit `print.mode` = Seitenzahl
-  oder Maßstab führend). Segmentschalter unter der Suche, Start: Erkunden.
+  oder Maßstab führend). Segmentschalter unter der Suche mit Schrittnummern 1 bis 3 in Kreisen, Start: Erkunden.
   - **Erkunden:** Karte normal, kein Blattrahmen, keine Maske, keine Griffe, kein Druck-Panel. Das
     Gebiet bleibt im Zustand (beim Start das Vorgabegebiet, damit `currentLayout()` nie `null` ist).
   - **Zeichnen:** Fadenkreuz; Ziehen mit der primären Taste (Maus, Finger, Stift) zeichnet ein
@@ -315,7 +314,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
     `pointercancel` verwirft. **Esc** bricht ab und kehrt in den Modus vor dem Zeichnen zurück (nicht
     in Textfeldern und Auswahllisten; auf dem Modusschalter selbst gilt es).
   - **Seiten:** Blattschnitt, Nummern, Griffe, Maske und das Panel „Druck“ (Vorgabe
-    „Seitenzahl | Maßstab“, Ausrichtung, Schalter „Druckansicht“, „Gebiet zur Kartenmitte“,
+    „Seitenzahl | Maßstab“, Ausrichtung, Schalter „Druckansicht“,
     „PDF exportieren“). Der Wechsel von Erkunden hierher setzt das Gebiet auf die Kartenmitte, wenn
     es ganz außerhalb des Ausschnitts liegt (`areaOutside`), sonst bleibt es. Nur der Schalter
     in der Seitenleiste tut das; `setState({ mode })` von außen nicht.

@@ -454,11 +454,6 @@ initSidebar({
       if (!isAbortError(e)) console.error(e);
     }),
   onCancel: cancelExport,
-  onRecenter: () => {
-    const c = map.getCenter();
-    const area = getState().print.area;
-    if (area) setArea(recenterArea(area, [c.lng, c.lat]));
-  },
   onGpxFile: (file) => void readGpxFile(file).then(useTrack),
   onGpxArea: gpxToArea,
   onGpxRemove: clearGpx,

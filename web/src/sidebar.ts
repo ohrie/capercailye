@@ -31,8 +31,6 @@ export interface SidebarHooks {
   onExport: () => void;
   /** The same button while an export runs ("Abbrechen"). */
   onCancel: () => void;
-  /** Button "Gebiet zur Kartenmitte". */
-  onRecenter: () => void;
   /** A GPX file was chosen in the panel. */
   onGpxFile: (file: File) => void;
   /** Button "Gebiet auf Track setzen". */
@@ -95,7 +93,6 @@ export function initSidebar(hooks: SidebarHooks): void {
     printView.checked = s.printView;
   });
   exportButton.addEventListener("click", () => (exportBusy ? hooks.onCancel() : hooks.onExport()));
-  el("area-recenter").addEventListener("click", () => hooks.onRecenter());
 
   // Controls follow the print settings (also when they are changed from outside).
   const syncControls = () => {
