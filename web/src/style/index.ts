@@ -3,6 +3,8 @@
 import type { LayerSpecification, StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
+import { BUSSTOPS_CREDIT, OSM_CREDIT, RELIEF_CREDIT } from "../config";
+import { creditText } from "../credits";
 import { buildingLayers } from "./buildings";
 import { cliffLayers } from "./cliffs";
 import { contourLayers, hillshadeLayers } from "./hillshade";
@@ -262,16 +264,33 @@ export interface StyleOptions {
   visibility: GroupVisibility;
   /** The GPX track (lines and start/end points); empty source without it. */
   gpx?: FeatureCollection;
+  /** Attribution text per source (map attribution); default: the sources without data dates. */
+  credits?: SourceCredits;
 }
 
+/** Texts of the map attribution, one per source (the relief text serves DEM and contours). */
+export interface SourceCredits {
+  osm: string;
+  relief: string;
+  busstops: string;
+}
+
+const DEFAULT_CREDITS: SourceCredits = {
+  osm: creditText(OSM_CREDIT),
+  relief: creditText({ ...RELIEF_CREDIT, stand: undefined }),
+  busstops: creditText(BUSSTOPS_CREDIT),
+};
+
 export function buildStyle(opts: StyleOptions): StyleSpecification {
+  const credits = opts.credits ?? DEFAULT_CREDITS;
   const sources: StyleSpecification["sources"] = {
-    [OSM_SOURCE]: osmSource(opts.pmtilesUrl),
-    [DEM_SOURCE]: demSource(opts.relief.dem),
-    [CONTOUR_SOURCE]: contourSource(opts.relief.contours),
+    [OSM_SOURCE]: osmSource(opts.pmtilesUrl, credits.osm),
+    [DEM_SOURCE]: demSource(opts.relief.dem, credits.relief),
+    [CONTOUR_SOURCE]: contourSource(opts.relief.contours, credits.relief),
     [GPX_SOURCE]: gpxSource(opts.gpx),
   };
-  if (opts.busstopsUrl) sources[BUSSTOPS_SOURCE] = busstopsSource(opts.busstopsUrl);
+  if (opts.busstopsUrl)
+    sources[BUSSTOPS_SOURCE] = busstopsSource(opts.busstopsUrl, credits.busstops);
   const layers = GROUPS.flatMap((g) => {
     if (g.source && !sources[g.source]) return [];
     const visible = groupVisible(g, opts.visibility);

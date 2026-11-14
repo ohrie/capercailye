@@ -194,6 +194,20 @@ summary:focus-visible,
   color: var(--bg);
 }
 
+.segmented label.is-disabled span {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mode panel: just the switch and a grey line under it, no title. */
+.panel--mode {
+  gap: var(--space-2);
+}
+
+.panel--mode .hint {
+  text-wrap: balance;
+}
+
 .switch {
   display: flex;
   align-items: center;
@@ -205,6 +219,28 @@ summary:focus-visible,
 .switch--disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Legend symbol between the track and the label: a 40 x 18 px cell, symbol left-aligned and
+   centred vertically (the <img> brings its own size and a margin up to the cell width; sub-switches
+   have an empty cell so the labels line up). */
+.switch__legend {
+  flex: 0 0 auto;
+  display: block;
+}
+
+span.switch__legend {
+  width: 40px;
+  height: 18px;
+}
+
+.switch__legend {
+  align-self: center;
+}
+
+/* Text of a switch may wrap; the track and the legend stay centred on the first row. */
+.switch {
+  min-height: 18px;
 }
 
 .switch input {
@@ -302,6 +338,10 @@ summary:focus-visible,
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font: inherit;
   height: 36px;
   border-radius: var(--radius);
@@ -309,6 +349,15 @@ summary:focus-visible,
   background: var(--bg);
   color: var(--fg);
   cursor: pointer;
+}
+
+.button__icon {
+  flex: 0 0 auto;
+}
+
+/* While the export button cancels, only the word is shown. */
+.button--cancel .button__icon {
+  display: none;
 }
 
 .button--primary {
@@ -551,4 +600,26 @@ summary:focus-visible,
   top: 0;
   visibility: hidden;
   pointer-events: none;
+}
+
+/* Mode "draw": crosshair instead of MapLibre's grab cursor (the selector must beat
+   `.maplibregl-canvas-container.maplibregl-interactive`, also its :active state). */
+.map--draw .maplibregl-canvas-container.maplibregl-interactive,
+.map--draw .maplibregl-canvas-container.maplibregl-interactive:active,
+.map--draw .maplibregl-canvas-container.maplibregl-interactive canvas {
+  cursor: crosshair;
+}
+
+.map--draw .maplibregl-canvas-container,
+.map--draw .maplibregl-canvas-container canvas {
+  touch-action: none;
+  user-select: none;
+}
+
+/* Rectangle being drawn (same look as the print frame's area outline). */
+.area-draw {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
 }

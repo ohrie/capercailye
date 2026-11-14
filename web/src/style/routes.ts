@@ -16,8 +16,11 @@ import { lineWidth, mm, PRINT_MIN_ZOOM } from "./units";
 
 /** Long-distance and regional networks are wider and stronger than local ones (or unknown). */
 const major = attrIn("network", "iwn", "nwn", "rwn");
-const BAND_MAJOR_MM = 1.45;
+export const BAND_MAJOR_MM = 1.45;
 const BAND_LOCAL_MM = 1.15;
+/** Opacity of the major and the local route band. */
+export const BAND_MAJOR_OPACITY = 0.72;
+const BAND_LOCAL_OPACITY = 0.58;
 
 // ---------------------------------------------------------------------------------------------
 // Network switches (B3)
@@ -92,7 +95,7 @@ export function routeLayers(visibility?: Readonly<Record<string, boolean>>): Lay
       paint: {
         "line-color": COLORS.route,
         "line-width": lineWidth(["case", major, BAND_MAJOR_MM, BAND_LOCAL_MM], 0.5, 1.4),
-        "line-opacity": ["case", major, 0.72, 0.58],
+        "line-opacity": ["case", major, BAND_MAJOR_OPACITY, BAND_LOCAL_OPACITY],
       },
     },
   ];

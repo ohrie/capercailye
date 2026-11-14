@@ -272,7 +272,8 @@ const pathColor = cases(
   COLORS.path,
 );
 
-const PATH_MM = 0.25;
+/** Width of a standard path signature in paper mm (also the legend symbol). */
+export const PATH_MM = 0.25;
 const DOT_MM = 0.34;
 const SHARED_UNDERLAY_MM = 0.75;
 

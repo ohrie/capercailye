@@ -2,6 +2,7 @@
 import { type Area, computeLayout, type PrintMode, type SheetLayout } from "./print/layout";
 import type { Track } from "./gpx";
 import type { Orientation } from "./print/paper";
+import type { MapMode } from "./mode";
 import { defaultVisibility, type GroupVisibility } from "./style";
 
 export interface PrintSettings {
@@ -15,8 +16,10 @@ export interface PrintSettings {
 }
 
 export interface AppState {
+  /** What the map is used for: explore, draw an area, or look at the sheets (see mode.ts). */
+  mode: MapMode;
   print: PrintSettings;
-  /** Map is locked to the exact print zoom. */
+  /** Map is locked to the exact print zoom. Only ever true in mode "sheets" (see main.ts). */
   printView: boolean;
   visibility: GroupVisibility;
   /** The loaded GPX track (not persisted, like the area). */
@@ -26,6 +29,7 @@ export interface AppState {
 type Listener = (state: AppState, prev: AppState) => void;
 
 let state: AppState = {
+  mode: "explore",
   print: { mode: "scale", scale: 25000, pages: 6, orientation: "portrait", area: null },
   printView: false,
   visibility: defaultVisibility(),
@@ -40,6 +44,8 @@ export function getState(): AppState {
 export function setState(patch: Partial<AppState>): void {
   const prev = state;
   state = { ...state, ...patch };
+  // Invariant: print view only exists in mode "sheets"; leaving it switches the view off.
+  if (state.printView && state.mode !== "sheets") state = { ...state, printView: false };
   for (const l of listeners) l(state, prev);
 }
 

@@ -50,15 +50,36 @@
           <p class="hint" id="search-state" role="status" aria-live="polite" hidden></p>
         </section>
 
-        <section class="panel" aria-labelledby="print-heading">
+        <section class="panel panel--mode" aria-label="Modus">
+          <div class="segmented" role="radiogroup" aria-label="Modus">
+            <label
+              ><input type="radio" name="map-mode" value="explore" checked /><span
+                >Erkunden</span
+              ></label
+            >
+            <label title="Gebiet zeichnen"
+              ><input type="radio" name="map-mode" value="draw" /><span>Zeichnen</span></label
+            >
+            <label><input type="radio" name="map-mode" value="sheets" /><span>Seiten</span></label>
+          </div>
+          <p class="hint" id="mode-hint"></p>
+        </section>
+
+        <section class="panel" id="print-panel" aria-labelledby="print-heading" hidden>
           <h2 class="panel__title" id="print-heading">Druck</h2>
 
           <div class="field">
             <span class="field__label">Vorgabe</span>
             <div class="segmented" role="radiogroup" aria-label="Vorgabe">
-              <label><input type="radio" name="mode" value="pages" /><span>Seiten</span></label>
               <label
-                ><input type="radio" name="mode" value="scale" checked /><span>Maßstab</span></label
+                ><input type="radio" name="print-mode" value="pages" /><span
+                  >Seitenzahl</span
+                ></label
+              >
+              <label
+                ><input type="radio" name="print-mode" value="scale" checked /><span
+                  >Maßstab</span
+                ></label
               >
             </div>
           </div>
@@ -73,7 +94,7 @@
           </label>
 
           <label class="field" id="field-pages" hidden>
-            <span class="field__label">Seiten</span>
+            <span class="field__label">Seitenzahl</span>
             <select id="print-pages">
               <option value="1">1</option>
               <option value="2">2</option>
@@ -111,7 +132,21 @@
           <button class="button" id="area-recenter" type="button">Gebiet zur Kartenmitte</button>
 
           <button class="button button--primary" id="export-pdf" type="button">
-            PDF exportieren
+            <svg
+              class="button__icon"
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M8 2v7.5M4.75 6.5 8 9.75l3.25-3.25M2.5 10.5v3h11v-3" />
+            </svg>
+            <span class="button__label">PDF exportieren</span>
           </button>
           <p class="status" id="export-status" role="status" aria-live="polite"></p>
         </section>
@@ -119,7 +154,23 @@
         <section class="panel" aria-labelledby="gpx-heading">
           <h2 class="panel__title" id="gpx-heading">GPX-Track</h2>
           <input id="gpx-file" type="file" accept=".gpx,application/gpx+xml,text/xml" hidden />
-          <button class="button" id="gpx-load" type="button">GPX-Datei laden</button>
+          <button class="button" id="gpx-load" type="button">
+            <svg
+              class="button__icon"
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M8 9.5V2M4.75 5.25 8 2l3.25 3.25M2.5 10.5v3h11v-3" />
+            </svg>
+            <span class="button__label">GPX-Datei laden</span>
+          </button>
           <p class="hint" id="gpx-hint">Oder eine Datei auf die Karte ziehen.</p>
           <div class="track" id="gpx-info" hidden>
             <p class="track__name" id="gpx-name"></p>
@@ -137,10 +188,8 @@
           <div id="layer-toggles" class="layers"></div>
         </section>
 
-        <footer class="sidebar__footer" id="attribution">
-          © OpenStreetMap-Mitwirkende · Relief: Mapterhorn, LGL-BW (dl-de/by-2-0) · Suche: Photon
-          (komoot)
-        </footer>
+        <!-- Filled by main.ts (credits with the data dates). -->
+        <footer class="sidebar__footer" id="attribution"></footer>
       </aside>
 
       <main class="map" id="map">

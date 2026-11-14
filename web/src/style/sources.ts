@@ -1,7 +1,7 @@
 import type { Map as MapLibreMap, VectorTileSource } from "maplibre-gl";
 import type { SourceSpecification } from "@maplibre/maplibre-gl-style-spec";
 import type { FeatureCollection } from "geojson";
-import { BUSSTOPS_ATTRIBUTION, DEM_MAXZOOM, OSM_ATTRIBUTION, RELIEF_ATTRIBUTION } from "../config";
+import { DEM_MAXZOOM } from "../config";
 
 export const OSM_SOURCE = "osm";
 export const BUSSTOPS_SOURCE = "busstops";
@@ -52,20 +52,20 @@ export interface ReliefUrls {
 export type VectorTileZoomMode = "floor" | "round";
 export const VECTOR_TILE_ZOOM: VectorTileZoomMode = "round";
 
-export function osmSource(pmtilesUrl: string): SourceSpecification {
+export function osmSource(pmtilesUrl: string, credit: string): SourceSpecification {
   return {
     type: "vector",
     url: `pmtiles://${pmtilesUrl}`,
-    attribution: OSM_ATTRIBUTION,
+    attribution: credit,
   };
 }
 
 /** GTFS bus stops (separate PMTiles file, layer `bus_stop`). */
-export function busstopsSource(pmtilesUrl: string): SourceSpecification {
+export function busstopsSource(pmtilesUrl: string, credit: string): SourceSpecification {
   return {
     type: "vector",
     url: `pmtiles://${pmtilesUrl}`,
-    attribution: BUSSTOPS_ATTRIBUTION,
+    attribution: credit,
   };
 }
 
@@ -74,24 +74,24 @@ export function gpxSource(data: FeatureCollection = EMPTY_GPX): SourceSpecificat
   return { type: "geojson", data };
 }
 
-export function demSource(url: string): SourceSpecification {
+export function demSource(url: string, credit: string): SourceSpecification {
   return {
     type: "raster-dem",
     tiles: [url],
     tileSize: 512,
     encoding: "terrarium",
     maxzoom: DEM_MAXZOOM,
-    attribution: RELIEF_ATTRIBUTION,
+    attribution: credit,
   };
 }
 
 /** Contour lines, generated client-side from the DEM (maplibre-contour). */
-export function contourSource(url: string): SourceSpecification {
+export function contourSource(url: string, credit: string): SourceSpecification {
   return {
     type: "vector",
     tiles: [url],
     maxzoom: DEM_MAXZOOM + 1,
-    attribution: RELIEF_ATTRIBUTION,
+    attribution: credit,
   };
 }
 

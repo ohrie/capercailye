@@ -1,3 +1,5 @@
+import { PMTiles } from "pmtiles";
+
 // Optional data files. MapLibre treats a vector source whose PMTiles file cannot be loaded as
 // "never loaded": `idle` would not fire any more and the placement and the PDF export (both wait
 // for it) would hang. Optional sources are therefore only added to the style when the file exists.
@@ -26,5 +28,17 @@ export async function pmtilesExists(url: string): Promise<boolean> {
     return false;
   } finally {
     abort.abort();
+  }
+}
+
+/**
+ * Metadata of a PMTiles archive (TileJSON fields plus the producer's extras, e.g. Planetiler's
+ * OSM data date); undefined if it cannot be read. Two small range requests.
+ */
+export async function pmtilesMetadata(url: string): Promise<unknown> {
+  try {
+    return await new PMTiles(url).getMetadata();
+  } catch {
+    return undefined;
   }
 }

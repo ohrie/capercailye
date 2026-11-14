@@ -12,6 +12,8 @@ import { formatScale } from "./scale";
 export interface ExportOptions {
   style: StyleSpecification;
   dpi: number;
+  /** Source credits for the sheet margin (credits.ts `line`). */
+  credits: string;
   vectorTileZoom?: VectorTileZoomMode;
   /** Checked before each sheet; the running sheet is finished first. */
   signal?: AbortSignal;
@@ -107,6 +109,7 @@ export async function exportLayout(
         image: render.canvas,
         orientation: layout.orientation,
         scale: layout.scale,
+        credits: opts.credits,
         sheet:
           total > 1
             ? {

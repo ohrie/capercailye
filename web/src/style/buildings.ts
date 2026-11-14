@@ -6,6 +6,9 @@ import { COLORS } from "./palette";
 import { OSM_SOURCE } from "./sources";
 import { lineWidth } from "./units";
 
+/** Outline width in paper mm (also the legend symbol). */
+export const BUILDING_OUTLINE_MM = 0.08;
+
 const industrial = flag("industrial");
 
 function byIndustrial(normal: string, grey: string): ExpressionSpecification {
@@ -34,7 +37,7 @@ export function buildingLayers(): LayerSpecification[] {
       layout: { "line-join": "miter" },
       paint: {
         "line-color": byIndustrial(COLORS.buildingOutline, COLORS.buildingIndustrialOutline),
-        "line-width": lineWidth(0.08, 0.5, 1.5),
+        "line-width": lineWidth(BUILDING_OUTLINE_MM, 0.5, 1.5),
       },
     },
   ];

@@ -65,6 +65,8 @@ export class PrintFrame {
   private readonly corners = new Map<Corner, SVGCircleElement>();
   private readonly mover: SVGCircleElement;
   private settings: PrintSettings;
+  /** Shown only in mode "sheets"; hidden, nothing is drawn and no handle catches events. */
+  private visible = true;
   /** Area while a handle is being dragged. */
   private draft: Area | null = null;
 
@@ -99,6 +101,13 @@ export class PrintFrame {
     this.update();
   }
 
+  setVisible(visible: boolean): void {
+    if (visible === this.visible) return;
+    this.visible = visible;
+    this.draft = null;
+    this.update();
+  }
+
   setSettings(settings: PrintSettings): void {
     this.settings = settings;
     this.draft = null;
@@ -123,7 +132,7 @@ export class PrintFrame {
     this.svg.setAttribute("width", String(W));
     this.svg.setAttribute("height", String(H));
 
-    const layout = this.layout();
+    const layout = this.visible ? this.layout() : null;
     this.svg.toggleAttribute("hidden", !layout);
     if (!layout) return;
     const zoom = layout.zoom;

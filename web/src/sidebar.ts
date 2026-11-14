@@ -1,9 +1,11 @@
-// Sidebar wiring: print settings, GPX panel, layer toggles (sections, sub-switches), collapse.
+// Sidebar wiring: mode switch, print settings, GPX panel, layer toggles with legend symbols
+// (sections, sub-switches), collapse.
+import { legendDataUrl, legendSvg, LEGEND_CELL, LEGEND_SCALE } from "./legend";
+import { MAP_MODES, type MapMode } from "./mode";
 import { MAX_SHEETS, type PrintMode, type SheetLayout } from "./print/layout";
 import type { Orientation } from "./print/paper";
 import { formatScale } from "./print/scale";
 import { getState, setState, subscribe } from "./state";
-import { SIDEBAR_ATTRIBUTION_TEXT } from "./config";
 import type { Track } from "./gpx";
 import { type LayerGroup, SECTIONS, uiGroups } from "./style";
 
@@ -13,7 +15,16 @@ function el<T extends HTMLElement>(id: string): T {
   return node as T;
 }
 
+/** Grey line under the mode switch; none in mode "sheets". */
+const MODE_HINTS: Record<MapMode, string> = {
+  explore: "Zum Drucken ein Gebiet zeichnen.",
+  draw: "Rechteck auf der Karte aufziehen · Esc bricht ab",
+  sheets: "",
+};
+
 export interface SidebarHooks {
+  /** The mode was chosen in the switch. */
+  onMode: (mode: MapMode) => void;
   /** Groups without data: their switch is shown disabled. */
   unavailableGroups?: readonly string[];
   /** Button "PDF exportieren". */
@@ -37,13 +48,35 @@ export function initSidebar(hooks: SidebarHooks): void {
   const printView = el<HTMLInputElement>("print-view");
   const exportButton = el<HTMLButtonElement>("export-pdf");
 
+  const modeInputs = document.querySelectorAll<HTMLInputElement>('input[name="map-mode"]');
+  for (const input of modeInputs) {
+    input.addEventListener("change", () => {
+      if (input.checked && MAP_MODES.includes(input.value as MapMode)) {
+        hooks.onMode(input.value as MapMode);
+      }
+    });
+  }
+  // The switch, the hint and the print panel follow the mode (also when it is set from outside).
+  const syncMode = () => {
+    const mode = getState().mode;
+    for (const input of modeInputs) input.checked = input.value === mode;
+    const hint = el("mode-hint");
+    hint.textContent = MODE_HINTS[mode];
+    hint.hidden = MODE_HINTS[mode] === "";
+    el("print-panel").hidden = mode !== "sheets";
+  };
+  syncMode();
+  subscribe((s, prev) => {
+    if (s.mode !== prev.mode) syncMode();
+  });
+
   scaleSelect.addEventListener("change", () => {
     setState({ print: { ...getState().print, scale: Number(scaleSelect.value) } });
   });
   pagesSelect.addEventListener("change", () => {
     setState({ print: { ...getState().print, pages: Number(pagesSelect.value) } });
   });
-  for (const input of document.querySelectorAll<HTMLInputElement>('input[name="mode"]')) {
+  for (const input of document.querySelectorAll<HTMLInputElement>('input[name="print-mode"]')) {
     input.addEventListener("change", () => {
       if (input.checked) {
         setState({ print: { ...getState().print, mode: input.value as PrintMode } });
@@ -67,7 +100,7 @@ export function initSidebar(hooks: SidebarHooks): void {
   // Controls follow the print settings (also when they are changed from outside).
   const syncControls = () => {
     const p = getState().print;
-    for (const input of document.querySelectorAll<HTMLInputElement>('input[name="mode"]')) {
+    for (const input of document.querySelectorAll<HTMLInputElement>('input[name="print-mode"]')) {
       input.checked = input.value === p.mode;
     }
     for (const input of document.querySelectorAll<HTMLInputElement>('input[name="orientation"]')) {
@@ -100,8 +133,6 @@ export function initSidebar(hooks: SidebarHooks): void {
   });
 
   initLayerToggles(hooks.unavailableGroups ?? []);
-
-  el("attribution").textContent = SIDEBAR_ATTRIBUTION_TEXT;
 
   const setCollapsed = (collapsed: boolean) => {
     document.body.classList.toggle("sidebar-collapsed", collapsed);
@@ -146,7 +177,21 @@ let exportAllowed = true;
 function refreshExportButton(): void {
   const button = el<HTMLButtonElement>("export-pdf");
   button.disabled = !exportBusy && !exportAllowed;
-  button.textContent = exportBusy ? "Abbrechen" : "PDF exportieren";
+  // Only the label changes; the download icon stays except while the button cancels.
+  el("export-pdf").querySelector(".button__label")!.textContent = exportBusy
+    ? "Abbrechen"
+    : "PDF exportieren";
+  button.classList.toggle("button--cancel", exportBusy);
+  // The mode cannot be changed while an export runs.
+  for (const input of document.querySelectorAll<HTMLInputElement>('input[name="map-mode"]')) {
+    input.disabled = exportBusy;
+    input.closest("label")?.classList.toggle("is-disabled", exportBusy);
+  }
+}
+
+/** Sidebar footer: the credits of the sources (with their data dates). */
+export function setAttribution(text: string): void {
+  el("attribution").textContent = text;
 }
 
 /** While an export runs the button turns into "Abbrechen". */
@@ -182,6 +227,30 @@ export function setGpxStatus(text: string): void {
 
 // ---------------------------------------------------------------------------------------------
 // Layer switches
+
+/**
+ * Legend symbol of a switch (an <img> from the same sources as the map), or an empty cell of the
+ * same width so the labels line up (sub-switches have no symbol).
+ */
+function legendCell(groupId: string): HTMLElement {
+  const image = legendSvg(groupId);
+  if (!image) {
+    const empty = document.createElement("span");
+    empty.className = "switch__legend";
+    empty.setAttribute("aria-hidden", "true");
+    return empty;
+  }
+  const img = document.createElement("img");
+  img.className = "switch__legend";
+  img.alt = "";
+  img.src = legendDataUrl(image);
+  const width = image.width * LEGEND_SCALE;
+  img.style.width = `${width}px`;
+  img.style.height = `${image.height * LEGEND_SCALE}px`;
+  // Left-aligned in the fixed cell: the margin makes up the rest of the cell width.
+  img.style.marginRight = `${Math.max(0, LEGEND_CELL.width - width)}px`;
+  return img;
+}
 
 /**
  * One switch per labelled style group, in the sections of the panel "Ebenen" (collapsible
@@ -225,7 +294,7 @@ function initLayerToggles(unavailable: readonly string[]): void {
       track.setAttribute("aria-hidden", "true");
       const text = document.createElement("span");
       text.textContent = group.label!;
-      label.append(input, track, text);
+      label.append(input, track, legendCell(group.id), text);
       body.append(label);
       entries.push({ group, input, label });
     }

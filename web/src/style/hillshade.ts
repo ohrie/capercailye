@@ -7,6 +7,13 @@ import { halo, FONT_REGULAR } from "./fonts";
 import { CONTOUR_OPTIONS, CONTOUR_SOURCE, DEM_SOURCE } from "./sources";
 import { lineWidth, mm, pt } from "./units";
 
+/** Shadow colour of the hillshade (also the legend symbol). */
+export const HILLSHADE_SHADOW = "rgba(62, 56, 70, 0.62)";
+
+/** Contour line widths in paper mm (normal, index; also the legend symbol). */
+export const CONTOUR_MM = 0.12;
+export const CONTOUR_INDEX_MM = 0.22;
+
 export function hillshadeLayers(): LayerSpecification[] {
   return [
     {
@@ -17,7 +24,7 @@ export function hillshadeLayers(): LayerSpecification[] {
         "hillshade-method": "igor",
         // Stronger in overview zooms (coarser DEM), gentler at print and detail zooms.
         "hillshade-exaggeration": ["interpolate", ["linear"], ["zoom"], 9, 0.6, 12, 0.5, 15, 0.4],
-        "hillshade-shadow-color": "rgba(62, 56, 70, 0.62)",
+        "hillshade-shadow-color": HILLSHADE_SHADOW,
         "hillshade-highlight-color": "rgba(255, 255, 255, 0)",
         "hillshade-accent-color": "rgba(0, 0, 0, 0)",
         "hillshade-illumination-direction": 315,
@@ -46,7 +53,7 @@ export function contourLayers(): LayerSpecification[] {
       minzoom: 10.5,
       filter: normal,
       layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-color": COLORS.contour, "line-width": lineWidth(0.12) },
+      paint: { "line-color": COLORS.contour, "line-width": lineWidth(CONTOUR_MM) },
     },
     {
       id: "contours-index",
@@ -55,7 +62,7 @@ export function contourLayers(): LayerSpecification[] {
       minzoom: 10.5,
       filter: index,
       layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-color": COLORS.contourIndex, "line-width": lineWidth(0.22) },
+      paint: { "line-color": COLORS.contourIndex, "line-width": lineWidth(CONTOUR_INDEX_MM) },
     },
     {
       id: "contours-label",

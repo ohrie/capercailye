@@ -25,7 +25,7 @@ Die PMTiles werden nicht ins Repo kopiert. Der Dev-Server liefert `/data/*` aus
 `src/data.ts` prüft beim Start per Range-Request auf die PMTiles-Kennung; fehlt die Datei, wird
 weder Quelle noch Gruppe `busstops` in den Stil aufgenommen (sonst würde MapLibre nie `idle`
 melden und Platzierung und Export hingen), und der Schalter „Bushaltestellen“ ist deaktiviert.
-Die Quellenangabe der Haltestellen steht als `BUSSTOPS_ATTRIBUTION` in `src/config.ts`.
+Die Quellenangabe der Haltestellen steht als `BUSSTOPS_CREDIT` in `src/config.ts` (Datenstand siehe „Modi, Legende, Datenstand“).
 
 Das Relief (Schummerung und Höhenlinien) kommt online vom Mapterhorn-Kacheldienst (Terrarium-DEM,
 512-px-WebP) und wird über [maplibre-contour](https://github.com/onthegomap/maplibre-contour)
@@ -36,11 +36,14 @@ Kacheldatei.
 
 ```
 src/
-├── main.ts          Karte, Zustand, Export-Ablauf (Fortschritt, Abbruch), window.__capercailye
-├── sidebar.ts       Suche, Druck-Einstellungen, GPX-Panel, Ebenen-Schalter (Abschnitte, Unterschalter), Einklappen
+├── main.ts          Karte, Zustand, Modi, Export-Ablauf (Fortschritt, Abbruch), window.__capercailye
+├── sidebar.ts       Suche, Modusschalter, Druck-Einstellungen, GPX-Panel, Ebenen-Schalter mit Legende (Abschnitte, Unterschalter), Einklappen
+├── mode.ts          Modi Erkunden/Zeichnen/Seiten (rein): interactionFor, dragRect, areaOutside
+├── legend.ts        Legenden-Symbole der Schalter (rein): legendSvg(groupId)
+├── credits.ts       Quellenangaben mit Datenstand (rein): formatStand, osmStand, gtfsStand, buildCredits
 ├── search.ts        Photon-Suche (photonUrl, parsePhoton rein und getestet; initSearch: Feld, Liste, Sprung)
 ├── gpx.ts           GPX-Upload (normalizeTrack, areaForTrack, trackLengthKm rein und getestet; Datei, Drag-and-drop)
-├── state.ts         kleiner beobachtbarer App-Zustand (Druck, Druckansicht, Sichtbarkeit, GPX-Track)
+├── state.ts         kleiner beobachtbarer App-Zustand (Modus, Druck, Druckansicht, Sichtbarkeit, GPX-Track)
 ├── tiles.ts         MapLibre-Worker, pmtiles://-Protokoll, DemSource (maplibre-contour), Kachel-Log
 ├── config.ts        Startansicht, Pfade, Quellenangabe
 ├── style/           Stil als TS-Module, je Feature-Gruppe ein Baustein (index.ts setzt zusammen;
@@ -55,7 +58,7 @@ src/
 │                    rendered.ts gesetzte Wegzeichen als Hindernisse, index.ts Steuerung für
 │                    Vorschau (Druckansicht) und Export
 └── print/           scale.ts (Maßstab↔Zoom), paper.ts, layout.ts (Blattschnitt, rein, getestet),
-                     frame.ts (Gebiet, Griffe, Blattrahmen), render.ts (versteckte Karte),
+                     frame.ts (Gebiet, Griffe, Blattrahmen), draw.ts (Gebiet aufziehen), render.ts (versteckte Karte),
                      pdf.ts (jsPDF, Blattrand), export.ts (Schleife über die Blätter)
 public/fonts/        Noto Sans Regular/Italic/Medium als Glyph-PBF (Bereiche 0–511, 8192–8447;
                      aus protomaps/basemaps-assets, Lizenz OFL 1.1, siehe OFL.txt)
@@ -256,5 +259,54 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   (Zustand, Gebiet, Kartenausschnitt; liefert `{ track }` oder `{ error }`),
   `window.__capercailye.clearGpx()` entfernt den Track.
 - Der Export hat immer 300 dpi (kein Umschalter).
+
+### Modi, Legende, Datenstand
+
+- **Drei Modi** (`AppState.mode`, `src/mode.ts`; nicht zu verwechseln mit `print.mode` = Seitenzahl
+  oder Maßstab führend). Segmentschalter unter der Suche, Start: Erkunden.
+  - **Erkunden:** Karte normal, kein Blattrahmen, keine Maske, keine Griffe, kein Druck-Panel. Das
+    Gebiet bleibt im Zustand (beim Start das Vorgabegebiet, damit `currentLayout()` nie `null` ist).
+  - **Zeichnen:** Fadenkreuz; Ziehen mit der primären Taste (Maus, Finger, Stift) zeichnet ein
+    gestricheltes Rechteck (`print/draw.ts`, `AreaDrawer`, Pointer-Capture auf dem Canvas-Container).
+    `dragPan`, `boxZoom`, `doubleClickZoom`, `touchZoomRotate` sind aus (ein zweiter Finger bricht
+    das Ziehen ab), Mausrad und Tastatur bleiben. Loslassen mit mindestens 12 px je Seite setzt
+    `print.area` und wechselt zu **Seiten**; ein Klick oder ein schmaler Streifen tut nichts,
+    `pointercancel` verwirft. **Esc** bricht ab und kehrt in den Modus vor dem Zeichnen zurück (nicht
+    in Textfeldern und Auswahllisten; auf dem Modusschalter selbst gilt es).
+  - **Seiten:** Blattschnitt, Nummern, Griffe, Maske und das Panel „Druck“ (Vorgabe
+    „Seitenzahl | Maßstab“, Ausrichtung, Schalter „Druckansicht“, „Gebiet zur Kartenmitte“,
+    „PDF exportieren“). Der Wechsel von Erkunden hierher setzt das Gebiet auf die Kartenmitte, wenn
+    es ganz außerhalb des Ausschnitts liegt (`areaOutside`), sonst bleibt es. Nur der Schalter
+    in der Seitenleiste tut das; `setState({ mode })` von außen nicht.
+  - Invariante (in `setState`): `printView` ist nur in „Seiten“ wahr; jeder Wechsel weg von Seiten
+    schaltet es aus, beim Zurückkehren bleibt es aus.
+  - GPX laden (Knopf, Ablegen, `loadGpx`) und „Gebiet auf Track setzen“ setzen das Gebiet und
+    schalten zu „Seiten“. Die Suche arbeitet in allen Modi gleich. Während eines Exports ist der
+    Modusschalter gesperrt; `__capercailye.exportPdf` ist modusunabhängig.
+  - Welche MapLibre-Handler an sind, entscheidet die reine Funktion `interactionFor(mode, printView)`.
+- **Legende:** Die Seitenleiste ist die Legende. `legendSvg(groupId)` (`src/legend.ts`) liefert ein
+  Bild je beschrifteter Gruppe (außer den Unterschaltern `net-*`, `guidepostnames`, die eine leere
+  Zelle behalten), angezeigt als `<img class="switch__legend">` mit `LEGEND_SCALE = 1.25` in einer
+  Zelle von 40 × 18 px. Alle Bilder kommen aus den Quellen der Karte: Piktogramme aus `poiIconSvg`
+  (höchstens zwei Arten je Gruppe, `PoiCategory.legend`), das Wegzeichen aus `osmcToSvg`, Farben
+  aus `COLORS`, Breiten aus den exportierten Konstanten der Stilmodule (`BAND_MAJOR_MM`,
+  `CONTOUR_MM`, `HILLSHADE_SHADOW`, `PROTECTED_BANDS`, `BUILDING_OUTLINE_MM`, `PATH_MM`). Die
+  Signaturen (Routenband, Höhenlinien, Schummerung, Schutzgebiet, Gebäude, „Aa“) zeichnet
+  `legend.ts` in einem Feld von 40 × 16 Einheiten, Breiten über `mm()`, mindestens 1 px. Keine
+  Legende im PDF.
+- **Datenstand:** Muster je Quelle `<Quelle> (<Lizenz>, Stand <Datum>)` (`src/credits.ts`), Datum
+  `TT.MM.JJJJ` aus dem UTC-Datumsteil; ohne bekannten Stand entfällt nur „, Stand …“. Der Stand
+  erscheint **nur auf der Website** (Sidebar-Fuß, Karten-Attribution), **nicht im PDF-Blattrand**: der
+  trägt dieselben Quellen mit Lizenz, aber ohne Stand (`credits.line`).
+  - **OSM:** `planetiler:osm:osmosisreplicationtime` aus den PMTiles-Metadaten
+    (`pmtilesMetadata` in `src/data.ts`, `new PMTiles(url).getMetadata()`; kein Tile-Neubau).
+  - **GTFS:** `transit/build.sh` schreibt `feed_date=YYYY-MM-DD` (aus dem Feed-Verzeichnis
+    `de_full-YYYYMMDD`) in die Beschreibung der Busstops-Datei; die App liest es per Regex.
+  - **Relief:** Mapterhorn liefert keinen abfragbaren Datenstand, deshalb steht das Jahr
+    **statisch** je Gebiet in `RELIEF_CREDITS` (`src/config.ts`; Herkunft: `access_year` in
+    `attribution.json`, abgerufen 2026-11-14). Unbekanntes Gebiet: ohne Stand.
+  - Datenfluss: `buildStyle({ credits })` (Standard: ohne Stand) für die Karten-Attribution,
+    `setAttribution(credits.sidebar)` für den Fuß, `ExportOptions.credits` für das PDF.
+    `window.__capercailye.credits` enthält die gebauten Texte.
 - Beim Drucken „Tatsächliche Größe“ / 100 % wählen, nicht „An Seite anpassen“; die
   Kontrollstrecke (10 cm) auf dem Ausdruck nachmessen.

@@ -26,37 +26,54 @@ export const DEM_MAXZOOM = 14;
 export const RELIEF_TIMEOUT_MS = 15_000;
 
 /**
- * Credit line of the GTFS bus stops (map attribution, sidebar footer, PDF sheet margin).
- * Provisional wording: adjust the text here once the data source and its licence text are final.
+ * Source credits. Pattern per source: `<name> (<licence>, Stand <date>)`; the date part is added
+ * by src/credits.ts (OSM and GTFS: read from the data files, relief: static, see below).
+ * Provisional wording of the GTFS credit: adjust here once the licence text is final.
  */
-export const BUSSTOPS_ATTRIBUTION = "Fahrplandaten: DELFI e.V. / gtfs.de, CC BY 4.0";
+export interface SourceCredit {
+  name: string;
+  license?: string;
+  /** Static data date (relief only); the others are read at runtime. */
+  stand?: string;
+}
 
-export const OSM_ATTRIBUTION = "© OpenStreetMap-Mitwirkende";
+export const OSM_CREDIT: SourceCredit = { name: "© OpenStreetMap-Mitwirkende", license: "ODbL" };
+export const BUSSTOPS_CREDIT: SourceCredit = {
+  name: "Fahrplandaten: DELFI e.V. / gtfs.de",
+  license: "CC BY 4.0",
+};
+
 /**
  * Elevation sources inside the Mapterhorn tiles, per area (key = `<area>` of
- * `capercailye-<area>.pmtiles`). Producer texts from https://mapterhorn.com/attribution
- * (attribution.json, "producer"); both are licensed dl-de/by-2-0.
+ * `capercailye-<area>.pmtiles`). Mapterhorn offers no queryable data date (the TileJSON has none,
+ * the tiles' Last-Modified is the tile build, download.mapterhorn.com/attribution.json has no
+ * CORS), so the date is static: `access_year` of the producers in attribution.json (retrieved
+ * 2026-11-14): derlp 2025 (rp); debw 2025 and debw025 (DGM ALS_3) 2026 (bw). Producer texts as
+ * given there; both licensed dl-de/by-2-0.
  */
-const RELIEF_SOURCES: Record<string, string> = {
-  bw: "LGL, www.lgl-bw.de (dl-de/by-2-0)",
-  rp: "©GeoBasis-DE / LVermGeoRP (dl-de/by-2-0)",
+const RELIEF_CREDITS: Record<string, SourceCredit> = {
+  bw: {
+    name: "Relief: Mapterhorn, LGL, www.lgl-bw.de",
+    license: "dl-de/by-2-0",
+    stand: "2025/2026",
+  },
+  rp: {
+    name: "Relief: Mapterhorn, ©GeoBasis-DE / LVermGeoRP",
+    license: "dl-de/by-2-0",
+    stand: "2025",
+  },
 };
 
 /** Area key of the loaded PMTiles file, e.g. "rp" for data/capercailye-rp.pmtiles. */
 export const AREA = /capercailye-([^/]+)\.pmtiles$/.exec(PMTILES_PATH)?.[1] ?? "";
 
-/** Relief credit for the loaded area; unknown areas point to Mapterhorn's full source list. */
-export const RELIEF_ATTRIBUTION = `Relief: Mapterhorn, ${
-  RELIEF_SOURCES[AREA] ?? "Quellen: mapterhorn.com/attribution"
-}`;
-
-export const ATTRIBUTION_TEXT = [OSM_ATTRIBUTION, RELIEF_ATTRIBUTION, BUSSTOPS_ATTRIBUTION].join(
-  " · ",
-);
+/** Relief credit for the loaded area; unknown areas point to Mapterhorn's full source list, no date. */
+export const RELIEF_CREDIT: SourceCredit = RELIEF_CREDITS[AREA] ?? {
+  name: "Relief: Mapterhorn, Quellen: mapterhorn.com/attribution",
+};
 
 /** Place search; named in the sidebar footer only (the sheet margin lists what is printed on it). */
 export const SEARCH_ATTRIBUTION = "Suche: Photon (komoot)";
-export const SIDEBAR_ATTRIBUTION_TEXT = `${ATTRIBUTION_TEXT} · ${SEARCH_ATTRIBUTION}`;
 
 /** Absolute URL relative to the app base (MapLibre needs absolute URLs for glyphs and pmtiles). */
 export function appUrl(path: string): string {

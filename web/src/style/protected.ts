@@ -8,7 +8,7 @@ import { OSM_SOURCE } from "./sources";
 import { lineWidth, mm, pt } from "./units";
 
 /** Band width in paper mm by kind; national park strongest, other (LSG, Naturpark, …) faint. */
-const BAND: [string, number, string][] = [
+export const PROTECTED_BANDS: [string, number, string][] = [
   ["national_park", 1.6, COLORS.protectedNational],
   ["nature_reserve", 1.1, COLORS.protectedReserve],
   ["protected_area", 0.7, COLORS.protectedOther],
@@ -16,7 +16,7 @@ const BAND: [string, number, string][] = [
 
 const bandWidth = matchAttr(
   "kind",
-  BAND.map(([k, w]) => [k, w]),
+  PROTECTED_BANDS.map(([k, w]) => [k, w]),
   0.7,
 );
 
@@ -32,7 +32,7 @@ export function protectedLayers(): LayerSpecification[] {
       paint: {
         "line-color": matchAttr(
           "kind",
-          BAND.map(([k, , c]) => [k, c]),
+          PROTECTED_BANDS.map(([k, , c]) => [k, c]),
           COLORS.protectedOther,
         ),
         "line-width": lineWidth(bandWidth, 0.5, 1.3),

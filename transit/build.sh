@@ -41,16 +41,27 @@ if [[ $REFRESH -eq 1 || -z "$FEED_DIR" ]]; then
 fi
 echo "GTFS-Verzeichnis: $FEED_DIR/data" >&2
 
+# Stand des Feeds (Datum aus dem Verzeichnisnamen de_full-YYYYMMDD) fuer die Quellenangabe der App;
+# fehlt das Muster, bleibt FEED_DATE leer und der Stand entfaellt.
+FEED_DATE=""
+if [[ "$(basename "$FEED_DIR")" =~ ^de_full-([0-9]{4})([0-9]{2})([0-9]{2})$ ]]; then
+  FEED_DATE="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]}"
+fi
+
 GEOJSONL="$DATA_DIR/capercailye-busstops.geojsonl"
 OUT="$DATA_DIR/capercailye-busstops.pmtiles"
 
 bun "$SCRIPT_DIR/busstops.ts" --gtfs "$FEED_DIR/data" --out "$GEOJSONL" \
   --stats "$DATA_DIR/tmp/busstops-stats.json" "$@"
 
+# Beschreibung (tippecanoe -N) mit dem Stand; die App liest `feed_date=YYYY-MM-DD` daraus.
+DESC_ARGS=()
+[[ -n "$FEED_DATE" ]] && DESC_ARGS=(-N "capercailye bus stops; feed_date=$FEED_DATE")
+
 # Schema (fest, mit dem Stil abgestimmt): Layer bus_stop, Punkte, z10-14, keine Ausduennung.
 tippecanoe -q --force -o "$OUT" -l bus_stop -Z10 -z14 -r1 \
   --no-feature-limit --no-tile-size-limit \
-  -n "capercailye bus stops" \
+  -n "capercailye bus stops" "${DESC_ARGS[@]}" \
   -A "Fahrplandaten: DELFI e.V. / gtfs.de, CC BY 4.0" \
   "$GEOJSONL" >&2
 ls -l "$OUT" >&2

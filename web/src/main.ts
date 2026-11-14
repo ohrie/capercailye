@@ -13,11 +13,14 @@ import {
   INITIAL_ZOOM,
   PMTILES_PATH,
 } from "./config";
-import { pmtilesExists } from "./data";
+import { buildCredits, gtfsStand, osmStand } from "./credits";
+import { pmtilesExists, pmtilesMetadata } from "./data";
 import { areaForTrack, initGpxDrop, parseGpx, readGpxFile, type TrackResult } from "./gpx";
 import { installIcons } from "./icons";
+import { areaOutside, interactionFor, type MapMode } from "./mode";
 import { downloadBlob, exportLayout, type ExportResult, isAbortError } from "./print/export";
 import { PrintPlacement, rectAround, withPlacementLayers } from "./placement";
+import { AreaDrawer } from "./print/draw";
 import { PrintFrame } from "./print/frame";
 import {
   type Area,
@@ -32,7 +35,14 @@ import {
 import { BLEED_MM, EXPORT_DPI, type Orientation, printableArea } from "./print/paper";
 import { zoomForScale } from "./print/scale";
 import { initSearch } from "./search";
-import { initSidebar, setExportBusy, setGpxStatus, setStatus, updatePrintInfo } from "./sidebar";
+import {
+  initSidebar,
+  setAttribution,
+  setExportBusy,
+  setGpxStatus,
+  setStatus,
+  updatePrintInfo,
+} from "./sidebar";
 import { currentLayout, getState, setState, subscribe } from "./state";
 import { buildStyle, GROUPS, setGroupVisible } from "./style";
 import {
@@ -48,16 +58,30 @@ setupMapLibre();
 
 // The GTFS bus stop file is optional: without it no source is added, and the app (placement, PDF
 // export) works as before, only without bus stops. Probed once; the export reuses the result.
+// The data dates of OSM and GTFS come from the PMTiles metadata, read in parallel with the probe.
+const pmtilesUrl = appUrl(PMTILES_PATH);
 const busstopsUrl = appUrl(BUSSTOPS_PMTILES_PATH);
-const busstopsAvailable = await pmtilesExists(busstopsUrl);
+const [busstopsAvailable, osmMeta, busstopsMeta] = await Promise.all([
+  pmtilesExists(busstopsUrl),
+  pmtilesMetadata(pmtilesUrl),
+  pmtilesMetadata(busstopsUrl),
+]);
 if (!busstopsAvailable) console.info(`Keine Bushaltestellen-Datei (${BUSSTOPS_PMTILES_PATH}).`);
+
+/** Source credits, built once: map attribution and sidebar with data dates, PDF line without. */
+const credits = buildCredits({
+  osm: osmStand(osmMeta),
+  gtfs: busstopsAvailable ? gtfsStand(busstopsMeta) : undefined,
+  busstopsAvailable,
+});
 
 function currentStyle() {
   return buildStyle({
-    pmtilesUrl: appUrl(PMTILES_PATH),
+    pmtilesUrl,
     busstopsUrl: busstopsAvailable ? busstopsUrl : undefined,
     glyphsUrl: `${appUrl("fonts/")}{fontstack}/{range}.pbf`,
     relief: reliefUrls(),
+    credits,
     visibility: getState().visibility,
     // The hidden export map renders the track, too.
     gpx: getState().gpx?.data,
@@ -106,6 +130,55 @@ function setArea(area: Area): void {
 }
 
 const frame = new PrintFrame(map, getState().print, setArea);
+// Mode "explore" (the start): no frame, no mask, no handles.
+frame.setVisible(false);
+
+/** Mode before drawing started: Escape returns there. */
+let modeBeforeDraw: MapMode = "explore";
+
+/** Drawing: a drawn rectangle becomes the print area and the app shows the sheets. */
+const drawer = new AreaDrawer(
+  map,
+  (area) => setState({ mode: "sheets", print: { ...getState().print, area } }),
+  () => setState({ mode: modeBeforeDraw }),
+);
+
+function viewBounds(): Area {
+  const b = map.getBounds();
+  return { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+}
+
+/**
+ * Mode switch from the sidebar. From "explore" to "sheets" the area is moved to the map centre if
+ * it lies completely outside the view (you print where you are looking); otherwise it stays.
+ */
+function selectMode(mode: MapMode): void {
+  const s = getState();
+  if (mode === s.mode) return;
+  const area = s.print.area;
+  if (mode === "sheets" && s.mode === "explore" && area && areaOutside(area, viewBounds())) {
+    const c = map.getCenter();
+    setState({ mode, print: { ...s.print, area: recenterArea(area, [c.lng, c.lat]) } });
+  } else {
+    setState({ mode });
+  }
+}
+
+/** Handler enablement follows the mode and the print view (see interactionFor in mode.ts). */
+function syncInteraction(): void {
+  const { mode, printView } = getState();
+  const i = interactionFor(mode, printView);
+  for (const [handler, on] of [
+    [map.dragPan, i.dragPan],
+    [map.scrollZoom, i.scrollZoom],
+    [map.doubleClickZoom, i.doubleClickZoom],
+    [map.boxZoom, i.boxZoom],
+    [map.touchZoomRotate, i.touchZoomRotate],
+  ] as const) {
+    if (on) handler.enable();
+    else handler.disable();
+  }
+}
 
 /** Toggle state of the group owning a layer (same rule as style/index.ts). */
 function layerWanted(layerId: string): boolean {
@@ -140,13 +213,9 @@ function printZoom(): number {
   return layout().zoom;
 }
 
-/** In print view the zoom is the layout zoom exactly and user zooming is disabled. */
+/** In print view the zoom is the layout zoom exactly (user zooming is off, see syncInteraction). */
 function syncPrintView(): void {
   const on = getState().printView;
-  for (const h of [map.scrollZoom, map.doubleClickZoom, map.boxZoom, map.touchZoomRotate]) {
-    if (on) h.disable();
-    else h.enable();
-  }
   if (on && Math.abs(map.getZoom() - printZoom()) > 1e-9) map.jumpTo({ zoom: printZoom() });
   if (placement.isActive() !== on) placement.setActive(on);
 }
@@ -156,6 +225,14 @@ map.on("moveend", () => {
 });
 
 subscribe((state, prev) => {
+  if (state.mode !== prev.mode) {
+    if (state.mode === "draw") modeBeforeDraw = prev.mode === "draw" ? modeBeforeDraw : prev.mode;
+    frame.setVisible(state.mode === "sheets");
+    if (state.mode === "draw") drawer.enable();
+    else drawer.disable();
+    map.getContainer().classList.toggle("map--draw", state.mode === "draw");
+  }
+  if (state.mode !== prev.mode || state.printView !== prev.printView) syncInteraction();
   if (state.print !== prev.print) {
     frame.setSettings(state.print);
     updatePrintInfo(layout());
@@ -206,8 +283,8 @@ function useTrack(result: TrackResult): TrackResult {
     return result;
   }
   const area = areaForTrack(result.track.bounds);
-  setState({ gpx: result.track });
-  setArea(area);
+  // The track sets the area and shows the sheets, in one step.
+  setState({ gpx: result.track, mode: "sheets", print: { ...getState().print, area } });
   fitArea(area);
   return result;
 }
@@ -216,7 +293,7 @@ function gpxToArea(): void {
   const gpx = getState().gpx;
   if (!gpx) return;
   const area = areaForTrack(gpx.bounds);
-  setArea(area);
+  setState({ mode: "sheets", print: { ...getState().print, area } });
   fitArea(area);
 }
 
@@ -281,6 +358,7 @@ async function runExport(options: ExportCallOptions = {}): Promise<ExportResult>
     const result = await exportLayout(l, {
       style: currentStyle(),
       dpi: options.dpi ?? EXPORT_DPI,
+      credits: credits.line,
       vectorTileZoom: options.vectorTileZoom,
       signal: controller.signal,
       onProgress: (n, total) => {
@@ -327,6 +405,7 @@ async function runExport(options: ExportCallOptions = {}): Promise<ExportResult>
 }
 
 initSidebar({
+  onMode: selectMode,
   unavailableGroups: busstopsAvailable ? [] : ["busstops"],
   onExport: () =>
     void runExport().catch((e) => {
@@ -347,6 +426,8 @@ initSidebar({
   },
 });
 updatePrintInfo(layout());
+setAttribution(credits.sidebar);
+syncInteraction();
 initSearch(map);
 initGpxDrop(document.getElementById("map")!, (file) => void readGpxFile(file).then(useTrack));
 
@@ -364,6 +445,8 @@ declare global {
       vectorTileZoom: typeof VECTOR_TILE_ZOOM;
       setState: typeof setState;
       busstopsAvailable: boolean;
+      /** Built source credits (map attribution and sidebar with dates, `line` for the PDF without). */
+      credits: ReturnType<typeof buildCredits>;
       /** Loads GPX text like the file chooser does (state, area, map); returns the parse result. */
       loadGpx: (text: string) => TrackResult;
       clearGpx: () => void;
@@ -381,6 +464,7 @@ window.__capercailye = {
   vectorTileZoom: VECTOR_TILE_ZOOM,
   setState,
   busstopsAvailable,
+  credits,
   loadGpx: (text) => useTrack(parseGpx(text, "GPX-Track")),
   clearGpx,
 };

@@ -102,6 +102,8 @@ export interface PoiCategory {
   /** German label for the sidebar. */
   label: string;
   kinds: PoiKind[];
+  /** One or two kinds (subset of `kinds`) shown next to the sidebar switch as its legend. */
+  legend: PoiKind[];
   defaultVisible: boolean;
 }
 
@@ -114,41 +116,65 @@ export const POI_CATEGORIES: readonly PoiCategory[] = [
     id: "shelters",
     label: "Schutzhütten",
     kinds: ["shelter", "wilderness_hut"],
+    legend: ["shelter", "wilderness_hut"],
     defaultVisible: true,
   },
   {
     id: "food",
     label: "Einkehr",
     kinds: ["alpine_hut", "restaurant", "cafe"],
+    legend: ["restaurant", "alpine_hut"],
     defaultVisible: true,
   },
-  { id: "parking", label: "Wanderparkplätze", kinds: ["parking"], defaultVisible: true },
+  {
+    id: "parking",
+    label: "Wanderparkplätze",
+    kinds: ["parking"],
+    legend: ["parking"],
+    defaultVisible: true,
+  },
   {
     id: "picnic",
     label: "Rast- und Grillplätze",
     kinds: ["picnic_site", "bbq"],
+    legend: ["picnic_site", "bbq"],
     defaultVisible: true,
   },
   {
     id: "lodging",
     label: "Unterkünfte",
     kinds: ["camp_site", "caravan_site", "hostel", "hotel"],
+    legend: ["hotel", "camp_site"],
     defaultVisible: true,
   },
-  { id: "toilets", label: "Toiletten", kinds: ["toilets"], defaultVisible: true },
+  {
+    id: "toilets",
+    label: "Toiletten",
+    kinds: ["toilets"],
+    legend: ["toilets"],
+    defaultVisible: true,
+  },
   {
     id: "drinking",
     label: "Trinkwasser, Brunnen",
     kinds: ["drinking_water", "fountain"],
+    legend: ["drinking_water", "fountain"],
     defaultVisible: true,
   },
   {
     id: "heritage",
     label: "Burgen, Ruinen, Denkmäler",
     kinds: ["castle", "castle_ruins", "ruins", "monument", "memorial"],
+    legend: ["castle", "ruins"],
     defaultVisible: true,
   },
-  { id: "guideposts", label: "Wegweiser", kinds: ["guidepost"], defaultVisible: true },
+  {
+    id: "guideposts",
+    label: "Wegweiser",
+    kinds: ["guidepost"],
+    legend: ["guidepost"],
+    defaultVisible: true,
+  },
 ];
 
 /** Kinds of the categories (they leave poi-main / poi-minor). */

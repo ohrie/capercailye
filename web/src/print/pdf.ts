@@ -1,6 +1,5 @@
 // Composes an A4 PDF page: map image placed in millimetres, sheet furniture as vectors.
 import { jsPDF } from "jspdf";
-import { ATTRIBUTION_TEXT } from "../config";
 import {
   LEGEND_STRIP_MM,
   MARGIN_MM,
@@ -32,6 +31,8 @@ export interface PdfPageInput {
   scale: number;
   /** Sheet number and neighbours; without it (one sheet) only the north arrow is drawn. */
   sheet?: SheetInfo;
+  /** Source credits for the sheet margin (without data dates, see credits.ts `line`). */
+  credits: string;
 }
 
 export interface PdfPageResult {
@@ -70,7 +71,7 @@ export function addSheetPage(doc: jsPDF, input: PdfPageInput, first: boolean): P
     doc.addImage(input.image, "PNG", x0, y0, area.width, area.height, undefined, "FAST");
   }
 
-  drawLegendStrip(doc, x0, y0, area, input.scale, input.sheet);
+  drawLegendStrip(doc, x0, y0, area, input.scale, input.credits, input.sheet);
 
   doc.setDrawColor(0);
   doc.setLineWidth(FRAME_LINE_MM);
@@ -109,6 +110,7 @@ function drawLegendStrip(
   y0: number,
   area: SizeMm,
   scale: number,
+  credits: string,
   sheet?: SheetInfo,
 ): void {
   const top = y0 + area.height - LEGEND_STRIP_MM;
@@ -195,18 +197,31 @@ function drawLegendStrip(
   doc.line(cx1, cy - 1.2, cx1, cy + 1.2);
   doc.text("Kontrollstrecke 10 cm", (cx0 + cx1) / 2, cy + 2.8, { align: "center" });
 
-  // Attribution (OSM, relief, GTFS bus stops; see config.ts) and print hint. The credits are
+  // Attribution (OSM, relief, GTFS bus stops; see credits.ts) and print hint. The credits are
   // shrunk if they would run into the hint on a narrow sheet.
   const hint = "Drucken mit 100 % (nicht „An Seite anpassen“)";
   doc.setFontSize(5.5);
   doc.setTextColor(70);
   const hintWidth = doc.getTextWidth(hint);
-  const creditWidth = doc.getTextWidth(ATTRIBUTION_TEXT);
+  const creditWidth = doc.getTextWidth(credits);
   const creditRoom = right - left - hintWidth - 4;
-  if (creditWidth > creditRoom) doc.setFontSize(Math.max(4, (5.5 * creditRoom) / creditWidth));
-  doc.text(ATTRIBUTION_TEXT, left, top + LEGEND_STRIP_MM - 1.4);
+  doc.setFontSize(creditFontSize(creditWidth, creditRoom));
+  doc.text(credits, left, top + LEGEND_STRIP_MM - 1.4);
   doc.setFontSize(5.5);
   doc.text(hint, right, top + LEGEND_STRIP_MM - 1.4, { align: "right" });
+}
+
+/** Font size of the credits line in pt. */
+export const CREDIT_PT = 5.5;
+/** The credits are never shrunk below this size. */
+export const CREDIT_MIN_PT = 4;
+
+/**
+ * Font size of the credits line: CREDIT_PT, shrunk (down to CREDIT_MIN_PT) if the line, measured
+ * at CREDIT_PT as `width` mm, does not fit into `room` mm beside the print hint.
+ */
+export function creditFontSize(width: number, room: number): number {
+  return width > room ? Math.max(CREDIT_MIN_PT, (CREDIT_PT * room) / width) : CREDIT_PT;
 }
 
 interface GridBox {

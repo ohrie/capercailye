@@ -44,6 +44,15 @@ Attribute: `name` (string), `sat` (int, Abfahrten Samstag), `sun` (int, Abfahrte
   ausgewertet**. Kurzform: `Fahrplandaten: DELFI e.V. / gtfs.de, CC BY 4.0`. (Die Auswahl ist eine Bearbeitung, das
   ist bei CC BY zu kennzeichnen; der Zusatz „ausgewertet“ erfüllt das.)
 
+## Stand des Feeds in den Tiles
+
+`build.sh` leitet das Datum des Feeds aus dem Verzeichnisnamen `de_full-YYYYMMDD` ab (das Datum kommt
+aus `Last-Modified` des Downloads) und schreibt es als `feed_date=YYYY-MM-DD` in die
+PMTiles-Beschreibung (`tippecanoe -N "capercailye bus stops; feed_date=…"`, Feld `description`). Die
+Web-App zeigt daraus „Stand TT.MM.JJJJ“ in Seitenleiste und Karten-Attribution (nicht im PDF). Passt der
+Verzeichnisname nicht zum Muster, entfällt `-N` und damit der Stand. Prüfen: in der App
+`__capercailye.credits.busstops`.
+
 ## Regeln
 
 1. **Nur Bus:** `route_type` 3 sowie 700–799. Im Feed kommt nur Typ 3 vor (23 124 Linien); 7xx gibt es nicht
