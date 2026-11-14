@@ -5,7 +5,7 @@ app at `/app/`, vector tiles for Germany (`capercailye-de.pmtiles`) plus bus sto
 **Tuesday at 02:23 (Europe/Berlin)** a fresh OSM extract and GTFS feed are downloaded, the tiles are
 rebuilt and swapped in without downtime. Keep it simple; the updater's memory use is capped in `.env`.
 
-Status: Phase 1 and 2 done (2026-11-14, Phase 2 tested locally with compose.local.yaml); Phase 3 next. Replaces the "nur lokal" line in PLAN.md once done.
+Status: Phase 1 and 2 done (2026-11-14, Phase 2 tested locally with compose.local.yaml); Phase 3 written and tested outside Docker (Bremen extract), first Germany run in Docker pending. Replaces the "nur lokal" line in PLAN.md once done.
 
 ## 1. Facts this plan builds on
 
@@ -87,11 +87,13 @@ deploy/
 │                             site/) → nginx:alpine with site/ at /, dist at /app/
 ├── web/nginx.conf
 └── updater/
-    ├── Dockerfile            temurin 21 JRE + curl unzip bun tippecanoe (built from source, pinned)
-    │                         + supercronic (pinned) + planetiler.jar (pinned) + tiles/ + transit/
-    ├── crontab               23 2 * * 2 /opt/capercailye/update.sh   (TZ=Europe/Berlin)
+    ├── Dockerfile            temurin 21 JDK (the profile runs as a source file, needs javac) + curl unzip
+    │                         bun tippecanoe (built from source, pinned) + supercronic (pinned)
+    │                         + planetiler.jar (pinned) + tiles/ + transit/
+    ├── crontab               23 2 * * 2 /opt/capercailye/update.sh   (CRON_TZ=Europe/Berlin)
     ├── update.sh
-    └── check.ts              validates a new PMTiles file before the swap
+    ├── check.ts              validates a new PMTiles file before the swap
+    └── package.json, bun.lock  (pmtiles, for check.ts)
 ```
 
 ### compose.yaml (shape)
@@ -122,8 +124,10 @@ deploy/
    verify `.md5`, `mv` into place. Generic user agent `capercailye-updater`.
 3. `nice -n 10 tiles/build.sh work/germany-latest.osm.pbf de` into `work/build/` with
    `JAVA_XMX=6g` (small change to `tiles/build.sh`: honour `PLANETILER_JAR` for the baked-in jar).
-4. `transit/build.sh --refresh` into `work/build/`; keep only the newest GTFS dir. On failure keep the
-   old bus stop file and continue.
+4. Bus stops: download a new GTFS feed only if none exists in `work/gtfs` or the newest is older
+   than the last 15 December (Fahrplanwechsel); rebuild the bus stop file only then or when it is
+   missing from `live/`. Keep only the newest GTFS dir. On failure keep the old bus stop file and
+   continue. Override: `GTFS_REFRESH=1` (always) / `0` (never).
 5. `check.ts`: file readable, `maxzoom == 14`, size > 70 % of the live file, OSM replication time
    newer than live.
 6. Swap per file: `ln -f live/X work/prev/X` (rollback copy), then `mv -f work/build/X live/X`

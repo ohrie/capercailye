@@ -1,0 +1,3 @@
+# Dienstag 02:23 Europe/Berlin (Sommer-/Winterzeit wechselt sonntags, der Termin fällt nie aus)
+CRON_TZ=Europe/Berlin
+23 2 * * 2 /opt/capercailye/update.sh

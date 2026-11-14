@@ -6,6 +6,7 @@
 #   area-name default: derived from the input file name (baden-wuerttemberg → bw, rheinland-pfalz → rp)
 # Output: $CAPERCAILYE_DATA/capercailye-<area>.pmtiles
 # Env:    JAVA_XMX (heap, default 4g), PLANETILER_VERSION (default: latest release),
+#         PLANETILER_JAR (fertige Jar benutzen, kein Download; z. B. im Updater-Image),
 #         extra Planetiler args may follow after "--", e.g. build.sh in.pbf de -- --threads=8
 set -euo pipefail
 
@@ -31,7 +32,7 @@ if [[ -z "$AREA" ]]; then
 fi
 
 OUTPUT="$DATA_DIR/capercailye-$AREA.pmtiles"
-JAR="$DATA_DIR/planetiler.jar"
+JAR="${PLANETILER_JAR:-$DATA_DIR/planetiler.jar}"
 TMP="$DATA_DIR/tmp"
 mkdir -p "$DATA_DIR" "$TMP"
 

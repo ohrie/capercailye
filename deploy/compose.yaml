@@ -23,7 +23,23 @@ services:
       - traefik.http.services.capercailye.loadbalancer.server.port=80
       # Keine Kompression-Middleware an diesem Router (würde Range-Antworten der PMTiles verändern).
 
-  # updater: folgt (Phase 3) – wöchentlicher Neuaufbau der Kacheln.
+  # Wöchentlicher Neuaufbau der Kacheln (Dienstag 02:23 Europe/Berlin), Tausch in live/. Kein Port,
+  # nicht im Traefik-Netzwerk. Rechte, Zeitplan und Handlauf: README.md.
+  updater:
+    build:
+      context: ..
+      dockerfile: deploy/updater/Dockerfile
+    image: capercailye-updater
+    restart: unless-stopped
+    mem_limit: 10g
+    cpus: ${UPDATER_CPUS:-4}
+    environment:
+      JAVA_XMX: ${JAVA_XMX:-6g}
+      THREADS: ${UPDATER_CPUS:-4}
+      TZ: Europe/Berlin
+      HEALTHCHECK_URL: ${HEALTHCHECK_URL:-}
+    volumes:
+      - ${DATA_ROOT:?DATA_ROOT fehlt in deploy/.env}:/srv/capercailye
 
 networks:
   proxy:
