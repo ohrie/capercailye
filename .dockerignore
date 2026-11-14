@@ -1,0 +1,11 @@
+# Build context = Repo-Wurzel (siehe deploy/compose.yaml). Das Image braucht nur web/ und site/.
+**/node_modules
+**/dist
+.git
+
+# Große Kartendaten gehören nie ins Image (sie liegen als Volume unter DATA_ROOT).
+# Achtung: nur *.osm.pbf ausschließen – web/public/fonts/**/*.pbf sind Schriftkacheln der App.
+**/*.pmtiles
+**/*.osm.pbf
+**/*.jar
+web/public/data

@@ -5,7 +5,7 @@ app at `/app/`, vector tiles for Germany (`capercailye-de.pmtiles`) plus bus sto
 **Tuesday at 02:23 (Europe/Berlin)** a fresh OSM extract and GTFS feed are downloaded, the tiles are
 rebuilt and swapped in without downtime. Keep it simple; the updater's memory use is capped in `.env`.
 
-Status: Phase 1 done (2026-11-14), Phase 2 next. Replaces the "nur lokal" line in PLAN.md once done.
+Status: Phase 1 and 2 done (2026-11-14, Phase 2 tested locally with compose.local.yaml); Phase 3 next. Replaces the "nur lokal" line in PLAN.md once done.
 
 ## 1. Facts this plan builds on
 
@@ -75,10 +75,11 @@ The `TODO: domain` placeholders in `site/` are replaced at image build time in P
 ## 5. Files (Phases 2–3)
 
 ```
-.dockerignore                 node_modules, dist, .git, *.pmtiles, *.pbf, *.jar
+.dockerignore                 node_modules, dist, .git, *.pmtiles, *.osm.pbf (nicht *.pbf: Schriftkacheln!), *.jar
 deploy/
 ├── README.md                 setup, first run, manual update, rollback
 ├── compose.yaml
+├── compose.local.yaml        Wegwerf-Traefik für lokale Tests (HTTP, Port 8080)
 ├── .env.example              DOMAIN, TRAEFIK_NETWORK, TRAEFIK_ENTRYPOINT, TRAEFIK_CERTRESOLVER,
 │                             DATA_ROOT=/srv/capercailye, JAVA_XMX=6g, TZ=Europe/Berlin,
 │                             HEALTHCHECK_URL (optional)

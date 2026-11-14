@@ -5,3 +5,5 @@ dist/
 *.osm.pbf
 web/public/data
 .DS_Store
+
+deploy/.env

@@ -1,0 +1,31 @@
+# Karten-App hinter Traefik. Einrichtung: README.md, Variablen: .env.
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web/Dockerfile
+      args:
+        DOMAIN: ${DOMAIN:?DOMAIN fehlt in deploy/.env}
+    image: capercailye-web
+    restart: unless-stopped
+    mem_limit: 256m
+    networks: [proxy]
+    volumes:
+      # PMTiles-Dateien; schreibt später nur der Updater
+      - ${DATA_ROOT:?DATA_ROOT fehlt in deploy/.env}/live:/usr/share/nginx/html/app/data:ro
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:?TRAEFIK_NETWORK fehlt in deploy/.env}
+      - traefik.http.routers.capercailye.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.capercailye.entrypoints=${TRAEFIK_ENTRYPOINT:?TRAEFIK_ENTRYPOINT fehlt in deploy/.env}
+      - traefik.http.routers.capercailye.tls=true
+      - traefik.http.routers.capercailye.tls.certresolver=${TRAEFIK_CERTRESOLVER:?TRAEFIK_CERTRESOLVER fehlt in deploy/.env}
+      - traefik.http.services.capercailye.loadbalancer.server.port=80
+      # Keine Kompression-Middleware an diesem Router (würde Range-Antworten der PMTiles verändern).
+
+  # updater: folgt (Phase 3) – wöchentlicher Neuaufbau der Kacheln.
+
+networks:
+  proxy:
+    external: true
+    name: ${TRAEFIK_NETWORK}

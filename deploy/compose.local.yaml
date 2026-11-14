@@ -1,0 +1,29 @@
+# Lokaler Test ohne Traefik des Zielsystems:
+#   docker compose -f compose.yaml -f compose.local.yaml up -d --build   (mit DOMAIN=localhost in .env)
+# Startet einen Wegwerf-Traefik mit HTTP auf Port 8080 und legt das Netzwerk an.
+services:
+  traefik:
+    image: traefik:v3.7
+    restart: "no"
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "8080:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [proxy]
+
+  web:
+    # Labels komplett ersetzen (!override): Klartext-HTTP ohne TLS und ohne Zertifikatsresolver
+    labels: !override
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.routers.capercailye.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.capercailye.entrypoints=web
+      - traefik.http.services.capercailye.loadbalancer.server.port=80
+
+networks:
+  proxy:
+    external: false
