@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { PLAN_DEFAULTS, planWaymarks, type PlacedSign, type PlanStretch } from "./plan";
+import {
+  PLAN_DEFAULTS,
+  planWaymarks,
+  planWithStats,
+  WAYMARK_SPACING_MM,
+  type PlacedSign,
+  type PlanEdge,
+} from "./plan";
 import type { SignSpec } from "./signs";
 
 const sign = (key: string, w = 3.4, h = 3.4, rank = 2): SignSpec => ({
@@ -10,11 +17,36 @@ const sign = (key: string, w = 3.4, h = 3.4, rank = 2): SignSpec => ({
   rank,
 });
 
-const line = (id: string, signs: SignSpec[], ...coords: [number, number][]): PlanStretch => ({
+/** Edge with one part. */
+const edge = (
+  id: string,
+  signs: SignSpec[],
+  start: string | null,
+  end: string | null,
+  ...coords: [number, number][]
+): PlanEdge => ({
   id,
   coords,
-  signs,
+  parts: [{ end: coords.length - 1, signs }],
   ring: false,
+  start,
+  end,
+});
+
+/** Edge with several parts: [end vertex index, signs]. */
+const multi = (
+  id: string,
+  parts: [number, SignSpec[]][],
+  start: string | null,
+  end: string | null,
+  ...coords: [number, number][]
+): PlanEdge => ({
+  id,
+  coords,
+  parts: parts.map(([e, signs]) => ({ end: e, signs })),
+  ring: false,
+  start,
+  end,
 });
 
 type Box = PlacedSign["box"];
@@ -35,44 +67,169 @@ function noOverlap(placed: PlacedSign[]): void {
   }
 }
 
-/** Largest distance between consecutive occurrences of a sign on a stretch (arc length). */
-function maxGap(placed: PlacedSign[], stretchId: string, key: string): number {
-  const ts = placed
-    .filter((p) => p.stretchId === stretchId && p.key === key)
+/** Sorted arc lengths of a sign on an edge. */
+const ts = (placed: PlacedSign[], edgeId: string, key: string): number[] =>
+  placed
+    .filter((p) => p.edgeId === edgeId && p.key === key)
     .map((p) => p.t)
     .sort((a, b) => a - b);
-  if (ts.length === 0) return Infinity;
-  let gap = 0;
-  for (let i = 1; i < ts.length; i++) gap = Math.max(gap, ts[i]! - ts[i - 1]!);
-  return gap;
-}
+
+/** Distances of consecutive occurrences. */
+const diffs = (v: number[]): number[] => v.slice(1).map((x, i) => x - v[i]!);
+
+/** Distances of consecutive occurrences of a sign along a straight route (x), over all edges. */
+const gaps = (placed: PlacedSign[], key: string): number[] =>
+  diffs(
+    placed
+      .filter((p) => p.key === key)
+      .map((p) => p.x)
+      .sort((a, b) => a - b),
+  );
+
+const mandatoryOf = (placed: PlacedSign[], edgeId: string) =>
+  placed.filter((p) => p.edgeId === edgeId && p.mandatory);
 
 describe("planWaymarks", () => {
-  test("straight line, one sign: near both ends, spacing at most 60 mm", () => {
-    const placed = planWaymarks([line("s", [sign("a")], [0, 0], [300, 0])]);
-    const ts = placed.map((p) => p.t);
-    expect(ts[0]).toBeCloseTo(1.5 + 1.7, 6);
-    expect(ts.at(-1)).toBeCloseTo(300 - 3.2, 6);
-    expect(maxGap(placed, "s", "a")).toBeLessThanOrEqual(60);
-    expect(placed.filter((p) => p.end)).toHaveLength(2);
+  test("exports the 6 cm spacing", () => {
+    expect(WAYMARK_SPACING_MM).toBe(60);
+    expect(PLAN_DEFAULTS.spacingMm).toBe(60);
+  });
+
+  test("straight 300 mm, one sign, dead ends: one mandatory in the middle, spread to both ends", () => {
+    const placed = planWaymarks([edge("s", [sign("a")], null, null, [0, 0], [300, 0])]);
+    const m = mandatoryOf(placed, "s");
+    expect(m).toHaveLength(1);
+    expect(m[0]!.t).toBeCloseTo(150, 6);
+    for (const g of gaps(placed, "a")) {
+      expect(g).toBeGreaterThanOrEqual(25);
+      expect(g).toBeLessThanOrEqual(60);
+    }
+    const t = ts(placed, "s", "a");
+    expect(t[0]!).toBeLessThanOrEqual(32);
+    expect(t.at(-1)!).toBeGreaterThanOrEqual(268);
+    for (const v of t) {
+      expect(v).toBeGreaterThanOrEqual(2 - 1e-9);
+      expect(v).toBeLessThanOrEqual(298 + 1e-9);
+    }
     noOverlap(placed);
   });
 
-  test("shared stretch with three signs: end blocks and round-robin inside", () => {
-    const signs = [sign("a"), sign("b"), sign("c")];
-    const placed = planWaymarks([line("s", signs, [0, 0], [200, 0])]);
-    const start = placed.filter((p) => p.end && p.t < 100);
-    const end = placed.filter((p) => p.end && p.t > 100);
-    expect(start.map((p) => p.key)).toEqual(["a", "b", "c"]);
-    expect(end.map((p) => p.key)).toEqual(["c", "b", "a"]);
-    const inner = placed.filter((p) => !p.end);
-    expect(inner.length).toBeGreaterThan(0);
-    inner.forEach((p, i) => expect(p.key).toBe(["a", "b", "c"][i % 3]!));
-    for (const k of ["a", "b", "c"]) expect(maxGap(placed, "s", k)).toBeLessThanOrEqual(60);
+  test("shared edge with three routes: signs take turns, no block, no sign in the fork gap", () => {
+    const [a, b, c] = [sign("a"), sign("b"), sign("c")];
+    const placed = planWaymarks([edge("s", [a, b, c], "N1", "N2", [0, 0], [160, 0])]);
+    const m = mandatoryOf(placed, "s");
+    expect(m.map((p) => [p.key, p.t])).toEqual([
+      ["a", 32],
+      ["b", 80],
+      ["c", 128],
+    ]);
+    for (const k of ["a", "b", "c"]) {
+      for (const g of diffs(ts(placed, "s", k))) expect(g).toBeGreaterThanOrEqual(25 - 1e-9);
+      for (const g of gaps(placed, k)) expect(g).toBeLessThanOrEqual(60 + 1e-9);
+    }
+    for (const p of placed) {
+      expect(p.t).toBeGreaterThanOrEqual(8 - 1e-9);
+      expect(p.t).toBeLessThanOrEqual(152 + 1e-9);
+    }
+    const seq = placed.map((p) => p.key);
+    for (let i = 2; i < seq.length; i++) {
+      expect(seq[i] === seq[i - 1] && seq[i] === seq[i - 2]).toBe(false);
+    }
     noOverlap(placed);
   });
 
-  test("fork at 120 degrees: every branch shows its signs near the fork", () => {
+  test("route end without fork does not pile up signs", () => {
+    const [a, b] = [sign("a"), sign("b")];
+    const placed = planWaymarks([
+      multi(
+        "s",
+        [
+          [1, [a, b]],
+          [2, [a]],
+        ],
+        null,
+        null,
+        [0, 0],
+        [150, 0],
+        [300, 0],
+      ),
+    ]);
+    expect(placed.filter((p) => Math.abs(p.x - 150) <= 10).length).toBeLessThanOrEqual(2);
+    for (const g of gaps(placed, "a")) {
+      expect(g).toBeGreaterThanOrEqual(25);
+      expect(g).toBeLessThanOrEqual(60);
+    }
+    for (const p of placed.filter((q) => q.key === "b")) expect(p.t).toBeLessThanOrEqual(148);
+    noOverlap(placed);
+  });
+
+  test("two forks close together: nothing on the short edge or near the forks", () => {
+    const A = sign("A");
+    const placed = planWaymarks([
+      edge("e1", [A], null, "F1", [0, 0], [100, 0]),
+      edge("e2", [A], "F1", "F2", [100, 0], [110, 0]),
+      edge("e3", [A], "F2", null, [110, 0], [300, 0]),
+      edge("b", [sign("B")], "F1", null, [100, 0], [100, 80]),
+      edge("c", [sign("C")], "F2", null, [110, 0], [110, -80]),
+    ]);
+    const as = placed.filter((p) => p.key === "A");
+    expect(as.some((p) => p.edgeId === "e2")).toBe(false);
+    for (const p of as) {
+      expect(Math.abs(p.x - 100)).toBeGreaterThanOrEqual(8 - 1e-9);
+      expect(Math.abs(p.x - 110)).toBeGreaterThanOrEqual(8 - 1e-9);
+    }
+    for (const g of gaps(placed, "A")) {
+      expect(g).toBeGreaterThanOrEqual(25 - 1e-9);
+      expect(g).toBeLessThanOrEqual(68 + 1e-9);
+    }
+    expect(mandatoryOf(placed, "b")).toHaveLength(1);
+    expect(mandatoryOf(placed, "c")).toHaveLength(1);
+    noOverlap(placed);
+  });
+
+  test("a route over three edges keeps its spacing across the forks", () => {
+    const A = sign("A");
+    const placed = planWaymarks([
+      edge("e1", [A], null, "F1", [0, 0], [100, 0]),
+      edge("e2", [A], "F1", "F2", [100, 0], [140, 0]),
+      edge("e3", [A], "F2", null, [140, 0], [300, 0]),
+      edge("b", [sign("B")], "F1", null, [100, 0], [100, -80]),
+      edge("c", [sign("C")], "F2", null, [140, 0], [140, 80]),
+    ]);
+    const m = ["e1", "e2", "e3"].map((id) => mandatoryOf(placed, id).filter((p) => p.key === "A"));
+    for (const list of m) expect(list).toHaveLength(1);
+    expect(m[0]![0]!.x).toBeCloseTo(47, 6);
+    expect(m[1]![0]!.x).toBeCloseTo(120, 6);
+    expect(m[2]![0]!.x).toBeCloseTo(223, 6);
+    for (const g of gaps(placed, "A")) {
+      expect(g).toBeGreaterThanOrEqual(25 - 1e-9);
+      expect(g).toBeLessThanOrEqual(60 + 1e-9);
+    }
+    for (const p of placed.filter((q) => q.key === "A")) {
+      expect(Math.abs(p.x - 100)).toBeGreaterThanOrEqual(8 - 1e-9);
+      expect(Math.abs(p.x - 140)).toBeGreaterThanOrEqual(8 - 1e-9);
+    }
+    noOverlap(placed);
+  });
+
+  test("edge below the minimum length gets no sign, the branches show it", () => {
+    const a = sign("a");
+    const r = 80 / Math.SQRT2;
+    const input = [
+      edge("short", [a], "L", "R", [0, 0], [20, 0]),
+      edge("l1", [a], "L", null, [0, 0], [-r, r]),
+      edge("l2", [a], "L", null, [0, 0], [-r, -r]),
+      edge("r1", [a], "R", null, [20, 0], [20 + r, r]),
+      edge("r2", [a], "R", null, [20, 0], [20 + r, -r]),
+    ];
+    const stats = planWithStats(input);
+    expect(stats.signs.some((p) => p.edgeId === "short")).toBe(false);
+    for (const id of ["l1", "l2", "r1", "r2"]) expect(mandatoryOf(stats.signs, id)).toHaveLength(1);
+    expect(stats.short).toBeGreaterThan(0);
+    noOverlap(stats.signs);
+  });
+
+  test("fork at 120 degrees: every branch shows its signs on the free stretch", () => {
     const A = sign("A");
     const B = sign("B");
     const dir = (deg: number): [number, number] => [
@@ -80,55 +237,72 @@ describe("planWaymarks", () => {
       100 * Math.sin((deg * Math.PI) / 180),
     ];
     const placed = planWaymarks([
-      line("trunk", [A, B], [0, 0], dir(90)),
-      line("a", [A], [0, 0], dir(210)),
-      line("b", [B], [0, 0], dir(330)),
+      edge("trunk", [A, B], "F", null, [0, 0], dir(90)),
+      edge("a", [A], "F", null, [0, 0], dir(210)),
+      edge("b", [B], "F", null, [0, 0], dir(330)),
     ]);
-    const near = (id: string, key: string) =>
-      placed.some((p) => p.stretchId === id && p.key === key && p.t <= 10);
-    expect(near("a", "A")).toBe(true);
-    expect(near("b", "B")).toBe(true);
-    expect(near("trunk", "A")).toBe(true);
-    expect(near("trunk", "B")).toBe(true);
+    const has = (id: string, key: string) =>
+      placed.some((p) => p.edgeId === id && p.key === key && p.mandatory);
+    expect(has("a", "A")).toBe(true);
+    expect(has("b", "B")).toBe(true);
+    expect(has("trunk", "A")).toBe(true);
+    expect(has("trunk", "B")).toBe(true);
+    for (const p of placed) expect(p.t).toBeGreaterThanOrEqual(8 - 1e-9);
     noOverlap(placed);
   });
 
-  test("short stretch between two forks gets no signs, long branches keep their blocks", () => {
-    const two = [sign("a"), sign("b")];
-    const placed = planWaymarks([
-      line("short", two, [0, 0], [3, 0]),
-      line("l1", two, [0, 0], [-56, 56]),
-      line("l2", two, [0, 0], [-56, -56]),
-      line("r1", two, [3, 0], [59, 56]),
-      line("r2", two, [3, 0], [59, -56]),
-    ]);
-    expect(placed.filter((p) => p.stretchId === "short")).toHaveLength(0);
-    for (const id of ["l1", "l2", "r1", "r2"]) {
-      expect(placed.filter((p) => p.stretchId === id && p.end).length).toBeGreaterThanOrEqual(2);
-    }
-    noOverlap(placed);
-  });
-
-  test("short stretch that takes one sign at most as many as fit", () => {
-    const placed = planWaymarks([line("s", [sign("a"), sign("b")], [0, 0], [6.5, 0])]);
-    expect(placed).toHaveLength(1);
-    expect(placed[0]!.key).toBe("a");
-    expect(placed[0]!.t).toBeCloseTo(3.25, 6);
-  });
-
-  test("ring: spacing at most 60 mm including across the start node", () => {
+  test("ring: spacing 25 to 60 mm including across the start node", () => {
     const n = 8;
     const r = 150 / (2 * n * Math.sin(Math.PI / n));
     const pts: [number, number][] = [];
     for (let i = 0; i <= n; i++) {
       pts.push([r * Math.cos((2 * Math.PI * i) / n), r * Math.sin((2 * Math.PI * i) / n)]);
     }
-    const ring: PlanStretch = { id: "ring", coords: pts, signs: [sign("a")], ring: true };
+    const ring: PlanEdge = {
+      id: "ring",
+      coords: pts,
+      parts: [{ end: n, signs: [sign("a")] }],
+      ring: true,
+      start: null,
+      end: null,
+    };
     const placed = planWaymarks([ring]);
-    const length = 150;
-    const ts = placed.map((p) => p.t).sort((a, b) => a - b);
-    for (let i = 1; i < ts.length; i++) expect(ts[i]! - ts[i - 1]!).toBeLessThanOrEqual(60);
-    expect(ts[0]! + length - ts.at(-1)!).toBeLessThanOrEqual(60);
+    expect(mandatoryOf(placed, "ring")).toHaveLength(1);
+    const t = ts(placed, "ring", "a");
+    for (const g of [...diffs(t), t[0]! + 150 - t.at(-1)!]) {
+      expect(g).toBeGreaterThanOrEqual(25 - 1e-6);
+      expect(g).toBeLessThanOrEqual(60 + 1e-6);
+    }
+    noOverlap(placed);
+  });
+
+  test("ring with parts: b only in its half, a keeps its spacing across the start", () => {
+    const n = 8;
+    const r = 150 / (2 * n * Math.sin(Math.PI / n));
+    const pts: [number, number][] = [];
+    for (let i = 0; i <= n; i++) {
+      pts.push([r * Math.cos((2 * Math.PI * i) / n), r * Math.sin((2 * Math.PI * i) / n)]);
+    }
+    const ring: PlanEdge = {
+      id: "ring",
+      coords: pts,
+      parts: [
+        { end: 4, signs: [sign("a"), sign("b")] },
+        { end: 8, signs: [sign("a")] },
+      ],
+      ring: true,
+      start: null,
+      end: null,
+    };
+    const placed = planWaymarks([ring]);
+    const tb = ts(placed, "ring", "b");
+    expect(tb.length).toBeGreaterThan(0);
+    for (const t of tb) expect(t).toBeLessThanOrEqual(75 + 1e-6);
+    const ta = ts(placed, "ring", "a");
+    for (const g of [...diffs(ta), ta[0]! + 150 - ta.at(-1)!]) {
+      expect(g).toBeGreaterThanOrEqual(25 - 1e-6);
+      expect(g).toBeLessThanOrEqual(60 + 1e-6);
+    }
     noOverlap(placed);
   });
 
@@ -139,44 +313,111 @@ describe("planWaymarks", () => {
       const [x, y] = pts.at(-1)!;
       pts.push([x + 10 * Math.cos(a), y + 10 * Math.sin(a)]);
     }
-    const placed = planWaymarks([line("z", [sign("a"), sign("b")], ...pts)]);
-    for (const k of ["a", "b"]) expect(maxGap(placed, "z", k)).toBeLessThanOrEqual(60);
+    const placed = planWaymarks([edge("z", [sign("a"), sign("b")], null, null, ...pts)]);
+    for (const k of ["a", "b"]) {
+      const v = ts(placed, "z", k);
+      expect(v.length).toBeGreaterThan(2);
+      for (const g of diffs(v)) expect(g).toBeLessThanOrEqual(60 + 1e-6);
+    }
     noOverlap(placed);
   });
 
-  test("precedence: the higher network keeps its place", () => {
+  test("collision: the higher network keeps its place, the lower one gives way", () => {
     const placed = planWaymarks([
-      line("lwn", [sign("l", 3.4, 3.4, 3)], [0, 2], [100, 2]),
-      line("rwn", [sign("r", 3.4, 3.4, 2)], [0, 0], [100, 0]),
+      edge("lwn", [sign("l", 3.4, 3.4, 3)], null, null, [0, 2], [100, 2]),
+      edge("rwn", [sign("r", 3.4, 3.4, 2)], null, null, [0, 0], [100, 0]),
     ]);
-    const r = placed.filter((p) => p.stretchId === "rwn" && p.end);
-    expect(r).toHaveLength(2);
-    expect(r[0]!.t).toBeCloseTo(3.2, 9);
-    expect(r[1]!.t).toBeCloseTo(100 - 3.2, 9);
+    const r = mandatoryOf(placed, "rwn");
+    const l = mandatoryOf(placed, "lwn");
+    expect(r).toHaveLength(1);
+    expect(r[0]!.t).toBeCloseTo(50, 9);
+    expect(l).toHaveLength(1);
+    const shift = Math.abs(l[0]!.t - 50);
+    expect(shift).toBeGreaterThanOrEqual(3.8 - 1e-9);
+    expect(shift).toBeLessThanOrEqual(10 + 1e-9);
     noOverlap(placed);
   });
 
-  test("deterministic regardless of input order", () => {
-    const stretches = [
-      line("s1", [sign("a"), sign("b")], [0, 0], [100, 0]),
-      line("s2", [sign("a")], [0, 0], [50, 50]),
-      line("s3", [sign("b", 3.4, 3.4, 3)], [0, 0], [0, 80]),
-    ];
-    const ref = JSON.stringify(planWaymarks(stretches));
-    expect(JSON.stringify(planWaymarks([stretches[2]!, stretches[0]!, stretches[1]!]))).toBe(ref);
+  test("collision: a mandatory sign beats a repeat of a higher network", () => {
+    const rwn = edge("rwn", [sign("r", 3.4, 3.4, 2)], null, null, [0, 0], [300, 0]);
+    const alone = planWaymarks([rwn]);
+    const X = alone.filter((p) => !p.mandatory).sort((a, b) => a.t - b.t)[0]!.t;
+    const lwn = edge("lwn", [sign("l", 3.4, 3.4, 3)], null, null, [X, -20], [X, 20]);
+    const placed = planWaymarks([rwn, lwn]);
+    const l = mandatoryOf(placed, "lwn");
+    expect(l).toHaveLength(1);
+    expect(l[0]!.t).toBeCloseTo(20, 9);
+    expect(l[0]!.x).toBeCloseTo(X, 9);
+    expect(placed.some((p) => p.edgeId === "rwn" && !p.mandatory && Math.abs(p.t - X) < 1e-9)).toBe(
+      false,
+    );
+    for (const p of placed.filter(
+      (q) => q.edgeId === "rwn" && !q.mandatory && Math.abs(q.t - X) <= 10,
+    )) {
+      expect(Math.abs(p.t - X)).toBeGreaterThan(0);
+    }
+    expect(mandatoryOf(placed, "rwn")).toHaveLength(1);
+    noOverlap(placed);
   });
 
-  test("wide sign: block spacing follows the half extent along the line", () => {
-    const wide = [sign("a", 8, 3.4), sign("b", 8, 3.4)];
-    const horizontal = planWaymarks([line("h", wide, [0, 0], [100, 0])]).filter(
-      (p) => p.end && p.t < 50,
-    );
-    expect(horizontal).toHaveLength(2);
-    expect(horizontal[1]!.t - horizontal[0]!.t).toBeCloseTo(4 + PLAN_DEFAULTS.gapMm + 4, 6);
-    const vertical = planWaymarks([line("v", wide, [0, 0], [0, 100])]).filter(
-      (p) => p.end && p.t < 50,
-    );
-    expect(vertical).toHaveLength(2);
-    expect(vertical[1]!.t - vertical[0]!.t).toBeCloseTo(1.7 + PLAN_DEFAULTS.gapMm + 1.7, 6);
+  test("deterministic: input order, edge direction", () => {
+    const [a, b] = [sign("a"), sign("b", 3.4, 3.4, 3)];
+    const input = [
+      edge("s1", [a, b], "F", null, [0, 0], [100, 0]),
+      edge("s2", [a], "F", null, [0, 0], [50, 50]),
+      edge("s3", [b], "F", null, [0, 0], [0, 80]),
+      multi(
+        "s4",
+        [
+          [1, [a, b]],
+          [2, [a]],
+        ],
+        null,
+        "G",
+        [0, 200],
+        [150, 200],
+        [300, 200],
+      ),
+      edge("s5", [b], "G", null, [300, 200], [300, 280]),
+    ];
+    const norm = (p: PlacedSign[]) =>
+      p
+        .map((q) => `${q.key}@${q.x.toFixed(6)},${q.y.toFixed(6)}`)
+        .sort()
+        .join("|");
+    const ref = JSON.stringify(planWaymarks(input));
+    const permuted = [input[2]!, input[4]!, input[0]!, input[3]!, input[1]!];
+    expect(JSON.stringify(planWaymarks(permuted))).toBe(ref);
+    // s4 handed over the other way round: parts mirrored, start/end swapped.
+    const flipped: PlanEdge = {
+      id: "s4",
+      coords: [
+        [300, 200],
+        [150, 200],
+        [0, 200],
+      ],
+      parts: [
+        { end: 1, signs: [a] },
+        { end: 2, signs: [a, b] },
+      ],
+      ring: false,
+      start: "G",
+      end: null,
+    };
+    const other = planWaymarks([input[0]!, input[1]!, input[2]!, flipped, input[4]!]);
+    expect(norm(other)).toBe(norm(planWaymarks(input)));
+  });
+
+  test("wide signs: the room test follows the half extent along the line", () => {
+    const wide = [sign("a", 8, 3.4), sign("b", 8, 3.4), sign("c", 8, 3.4)];
+    // Zone [8, 17] on a 25 mm edge between two forks.
+    const horizontal = planWithStats([edge("h", wide, "F1", "F2", [0, 0], [25, 0])]);
+    const vertical = planWithStats([edge("v", wide, "F1", "F2", [0, 0], [0, 25])]);
+    expect(horizontal.mandatory.wanted).toBe(2);
+    expect(vertical.mandatory.wanted).toBe(3);
+    expect(horizontal.short).toBe(1);
+    expect(vertical.short).toBe(0);
+    noOverlap(horizontal.signs);
+    noOverlap(vertical.signs);
   });
 });

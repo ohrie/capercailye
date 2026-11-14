@@ -19,7 +19,6 @@ import {
 } from "../placement/geo";
 import { thinGroup, type ThinItem } from "../placement/thin";
 import { clipLineToTile } from "./clip";
-import type { Piece } from "./graph";
 import { routesFromProperties, routeVisible, routesOn, type RouteInfo } from "./routes";
 
 export const WAYMARK_TILE_ZOOM = TILE_ZOOM;
@@ -41,6 +40,13 @@ export interface UrbanPoint {
   tags: number;
 }
 
+/** A line piece of the tiles with the ids of its visible routes (graph.ts joins them). */
+export interface RoutePiece {
+  coords: [number, number][];
+  /** Relation ids of the visible routes in tile order. */
+  routes: string[];
+}
+
 interface RawPiece {
   coords: [number, number][];
   routes: RouteInfo[];
@@ -53,7 +59,7 @@ interface DecodedTile {
 
 export interface RegionData {
   /** Pieces with the ids of their visible routes (tile order); empty while "Wanderrouten" is off. */
-  pieces: Piece[];
+  pieces: RoutePiece[];
   /** The visible routes by id. */
   routes: Map<string, RouteInfo>;
   /** Urban restaurants/cafés, toilets and hotels of all loaded tiles, deduplicated by id. */
@@ -188,7 +194,7 @@ export async function loadRegionData(
 
   const visible = new Map<string, boolean>();
   const routes = new Map<string, RouteInfo>();
-  const pieces: Piece[] = [];
+  const pieces: RoutePiece[] = [];
   const urban = new Map<string, UrbanPoint>();
   const showRoutes = routesOn(visibility);
   for (const t of loaded) {

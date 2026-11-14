@@ -1,16 +1,22 @@
-// Joins line pieces of the `routes` layer into stretches between forks. Pure.
+// Joins line pieces of the `routes` layer into edges between real forks. Pure.
 //
 // Input are pieces in global z12 tile units, already clipped to their tile (clip.ts), each with
-// the ids of its visible routes. Pieces of neighbouring tiles meet at the border within a few
-// units and Planetiler merges ways with equal route sets across junctions, so the graph is built
-// with tolerances:
+// the sign keys of its visible routes (signs.ts; the caller translates relation ids, so routes with
+// the same sign are one). Pieces of neighbouring tiles meet at the border within a few units and
+// Planetiler merges ways with equal route sets across junctions, so the graph is built with
+// tolerances:
 //
 //  1. piece endpoints closer than `snap` are one node (smallest point of the cluster),
 //  2. a node lying on the inside of another piece (T junction) splits that piece there,
-//  3. a node is a pass-through if exactly two pieces with the same route set meet; everything
-//     else (route change, branch, dead end) is a fork,
-//  4. stretches run from fork to fork over pass-throughs; pure rings (only pass-throughs) become
-//     one stretch with `ring: true`.
+//  3. dead-end stubs shorter than `stub` hanging on a fork (tile seam leftovers) are dropped,
+//  4. a node is a fork if at least three pieces (branches with visible signs) meet there; a node
+//     with exactly two pieces is always a pass-through, even if the signs change there (end of a
+//     route, gap, tile seam, parent/child relations with the same sign); a node with one piece is a
+//     dead end,
+//  5. edges run from fork/dead end to fork/dead end over pass-throughs; consecutive pieces with the
+//     same sign set are merged into one part of the edge, so an edge knows which signs run on
+//     which stretch of it. Pure rings (only pass-throughs) become one edge with `ring: true`,
+//     starting at the smallest node where the sign set changes (else the smallest node).
 //
 // The result does not depend on the input order or the direction of the pieces.
 
@@ -18,25 +24,40 @@ type Pt = [number, number];
 
 export interface Piece {
   coords: [number, number][];
-  /** Ids of the visible routes in tile order. */
-  routes: string[];
+  /** Sign keys of the visible routes (order does not matter). */
+  keys: string[];
 }
 
-export interface Stretch {
+export interface EdgePart {
+  /** The part ends at vertex index `end` of the edge (it starts where the previous part ends). */
+  end: number;
+  /** Sorted, distinct sign keys. */
+  keys: string[];
+}
+
+export interface Edge {
   id: string;
   coords: [number, number][];
-  routes: string[];
+  /** Part i covers the vertices [parts[i-1].end ?? 0, parts[i].end]; the last `end` is coords.length-1. */
+  parts: EdgePart[];
   ring: boolean;
+  /** Node id (`x,y`) of a real fork, else null (dead end, ring). */
+  start: string | null;
+  end: string | null;
 }
 
 /** About 5 m at z12. */
 export const SNAP_UNITS = 3;
+/** Dead-end stubs shorter than this (about 16 m at z12) that hang on a fork are dropped. */
+export const STUB_UNITS = 10;
 
 const SEGMENT_CELL = 64;
 
 interface Work {
   coords: Pt[];
-  routes: string[];
+  /** Sorted, distinct sign keys. */
+  keys: string[];
+  /** `keys` joined. */
   key: string;
 }
 
@@ -221,12 +242,12 @@ function splitAtNodes(works: Work[], snap: number): Work[] {
       cur.push(e.p);
       if (e.cut && i > 0 && i < exp.length - 1) {
         const d = dedupe(cur);
-        if (d.length >= 2) out.push({ coords: d, routes: w.routes, key: w.key });
+        if (d.length >= 2) out.push({ coords: d, keys: w.keys, key: w.key });
         cur = [e.p];
       }
     });
     const d = dedupe(cur);
-    if (d.length >= 2) out.push({ coords: d, routes: w.routes, key: w.key });
+    if (d.length >= 2) out.push({ coords: d, keys: w.keys, key: w.key });
   });
   return out;
 }
@@ -236,14 +257,47 @@ interface Attach {
   end: 0 | 1;
 }
 
-export function buildStretches(pieces: readonly Piece[], snap = SNAP_UNITS): Stretch[] {
+function pathLength(coords: readonly Pt[]): number {
+  let len = 0;
+  for (let i = 1; i < coords.length; i++) {
+    len += Math.hypot(coords[i]![0] - coords[i - 1]![0], coords[i]![1] - coords[i - 1]![1]);
+  }
+  return len;
+}
+
+/** Drops short dead-end pieces that hang on a fork (one pass, degrees of the input). */
+function dropStubs(works: Work[], stub: number): Work[] {
+  const deg = new Map<string, number>();
+  const bump = (p: Pt) => deg.set(pointKey(p), (deg.get(pointKey(p)) ?? 0) + 1);
+  for (const w of works) {
+    bump(w.coords[0]!);
+    bump(w.coords[w.coords.length - 1]!);
+  }
+  return works.filter((w) => {
+    const d0 = deg.get(pointKey(w.coords[0]!))!;
+    const d1 = deg.get(pointKey(w.coords[w.coords.length - 1]!))!;
+    const hangs = (d0 === 1 && d1 >= 3) || (d0 >= 3 && d1 === 1);
+    return !(hangs && pathLength(w.coords) < stub);
+  });
+}
+
+interface RawEdge {
+  coords: Pt[];
+  parts: EdgePart[];
+  ring: boolean;
+  start: string | null;
+  end: string | null;
+}
+
+export function buildEdges(pieces: readonly Piece[], snap = SNAP_UNITS, stub = STUB_UNITS): Edge[] {
   // 1. Clean input.
   let works: Work[] = [];
   for (const p of pieces) {
-    if (p.routes.length === 0) continue;
+    const keys = [...new Set(p.keys)].sort();
+    if (keys.length === 0) continue;
     const coords = dedupe(p.coords);
     if (coords.length < 2) continue;
-    works.push({ coords, routes: p.routes, key: [...p.routes].sort().join(",") });
+    works.push({ coords, keys, key: keys.join(",") });
   }
 
   // 2. Snap endpoints.
@@ -257,10 +311,11 @@ export function buildStretches(pieces: readonly Piece[], snap = SNAP_UNITS): Str
     return d.length >= 2 ? [{ ...w, coords: d }] : [];
   });
 
-  // 3. T junctions.
-  works = splitAtNodes(works, snap);
+  // 3. T junctions, 4. stubs.
+  works = dropStubs(splitAtNodes(works, snap), stub);
+  if (works.length === 0) return [];
 
-  // 4. Adjacency.
+  // 5. Adjacency.
   const adj = new Map<string, { node: Pt; list: Attach[] }>();
   const attach = (p: Pt, a: Attach) => {
     const k = pointKey(p);
@@ -272,13 +327,8 @@ export function buildStretches(pieces: readonly Piece[], snap = SNAP_UNITS): Str
     attach(w.coords[0]!, { piece: i, end: 0 });
     attach(w.coords[w.coords.length - 1]!, { piece: i, end: 1 });
   });
-
-  // 5. Fork or pass-through.
-  const isFork = (k: string): boolean => {
-    const e = adj.get(k)!;
-    if (e.list.length !== 2) return true;
-    return works[e.list[0]!.piece]!.key !== works[e.list[1]!.piece]!.key;
-  };
+  const degree = (k: string): number => adj.get(k)!.list.length;
+  const isFork = (k: string): boolean => degree(k) >= 3;
 
   const used = new Set<number>();
   const oriented = (piece: number, end: 0 | 1): Pt[] => {
@@ -286,77 +336,119 @@ export function buildStretches(pieces: readonly Piece[], snap = SNAP_UNITS): Str
     return end === 0 ? c : c.slice().reverse();
   };
 
-  /** Walks from `start` over pass-throughs to the next fork (or back to `stopAt`). */
-  const walk = (start: Attach, stopAt?: string): { coords: Pt[]; pieces: number[] } => {
-    const pieces = [start.piece];
+  interface Walk {
+    coords: Pt[];
+    /** Pieces in walking order with the vertex index where each ends. */
+    steps: { piece: number; end: number }[];
+    /** Node where each piece ends. */
+    nodes: Pt[];
+  }
+
+  /** Walks from `start` over pass-throughs to the next fork or dead end (or back to `stopAt`). */
+  const walk = (start: Attach, stopAt?: string): Walk => {
     let coords = oriented(start.piece, start.end).slice();
+    const steps = [{ piece: start.piece, end: coords.length - 1 }];
+    const nodes = [coords[coords.length - 1]!];
     let cur: Attach = start;
     for (;;) {
       const endNode = coords[coords.length - 1]!;
       const k = pointKey(endNode);
-      if (k === stopAt || isFork(k)) break;
+      if (k === stopAt || degree(k) !== 2) break;
       const list = adj.get(k)!.list;
       const reachedEnd: 0 | 1 = cur.end === 0 ? 1 : 0;
       const next = list.find((a) => !(a.piece === cur.piece && a.end === reachedEnd));
-      if (!next || pieces.includes(next.piece)) break;
-      pieces.push(next.piece);
+      if (!next || steps.some((s) => s.piece === next.piece)) break;
       coords = coords.concat(oriented(next.piece, next.end).slice(1));
+      steps.push({ piece: next.piece, end: coords.length - 1 });
+      nodes.push(coords[coords.length - 1]!);
       cur = next;
     }
-    return { coords, pieces };
+    return { coords, steps, nodes };
   };
 
-  const raw: { coords: Pt[]; routes: string[]; key: string; ring: boolean }[] = [];
+  /** Parts of a walk: consecutive pieces with equal sign sets are merged. */
+  const partsOf = (w: Walk): EdgePart[] => {
+    const parts: EdgePart[] = [];
+    for (const s of w.steps) {
+      const piece = works[s.piece]!;
+      const last = parts[parts.length - 1];
+      if (last && last.keys.join(",") === piece.key) last.end = s.end;
+      else parts.push({ end: s.end, keys: piece.keys });
+    }
+    return parts;
+  };
+
+  const raw: RawEdge[] = [];
   const nodeKeys = [...adj.keys()].sort((a, b) =>
     comparePoints(adj.get(a)!.node, adj.get(b)!.node),
   );
 
-  // 6. Stretches between forks.
+  // 6. Edges between forks / dead ends.
   for (const k of nodeKeys) {
-    if (!isFork(k)) continue;
+    if (degree(k) === 2) continue;
     for (const a of adj.get(k)!.list) {
       if (used.has(a.piece)) continue;
       const r = walk(a);
-      for (const p of r.pieces) used.add(p);
+      for (const s of r.steps) used.add(s.piece);
+      const endKey = pointKey(r.coords[r.coords.length - 1]!);
       raw.push({
         coords: r.coords,
-        routes: works[a.piece]!.routes,
-        key: works[a.piece]!.key,
+        parts: partsOf(r),
         ring: false,
+        start: isFork(k) ? k : null,
+        end: isFork(endKey) ? endKey : null,
       });
     }
   }
 
-  // 7. Rings.
+  // 7. Rings: start at the smallest node where the sign set changes, else the smallest node.
   for (const k of nodeKeys) {
     for (const a of adj.get(k)!.list) {
       if (used.has(a.piece)) continue;
-      const list = adj.get(k)!.list;
-      // Both directions from the smallest node; take the smaller sequence.
-      const walks = list.map((s) => walk(s, k));
+      const probe = walk(adj.get(k)!.list[0]!, k);
+      let startKey = k;
+      let startNode = adj.get(k)!.node;
+      let found = false;
+      probe.steps.forEach((s, i) => {
+        const nextPiece = probe.steps[(i + 1) % probe.steps.length]!.piece;
+        if (works[s.piece]!.key === works[nextPiece]!.key) return;
+        const n = probe.nodes[i]!;
+        if (!found || comparePoints(n, startNode) < 0) {
+          found = true;
+          startNode = n;
+          startKey = pointKey(n);
+        }
+      });
+      // Both directions from the start node; take the smaller sequence.
+      const walks = adj.get(startKey)!.list.map((s) => walk(s, startKey));
       walks.sort((x, y) => compareCoords(x.coords, y.coords));
       const r = walks[0]!;
-      for (const p of r.pieces) used.add(p);
-      raw.push({
-        coords: r.coords,
-        routes: works[a.piece]!.routes,
-        key: works[a.piece]!.key,
-        ring: true,
-      });
+      for (const s of r.steps) used.add(s.piece);
+      raw.push({ coords: r.coords, parts: partsOf(r), ring: true, start: null, end: null });
     }
   }
 
   // 8./9. Normalise direction, ids, sort.
-  const items = raw.map((s) => {
-    let coords = s.coords;
-    if (!s.ring) {
+  const items = raw.map((e) => {
+    let { coords, parts, start, end } = e;
+    if (!e.ring) {
       const rev = coords.slice().reverse();
-      if (compareCoords(rev, coords) < 0) coords = rev;
+      if (compareCoords(rev, coords) < 0) {
+        const last = coords.length - 1;
+        const startOf = (i: number) => (i === 0 ? 0 : parts[i - 1]!.end);
+        const m = parts.length - 1;
+        parts = parts.map((_, j) => ({
+          end: last - startOf(m - j),
+          keys: parts[m - j]!.keys,
+        }));
+        coords = rev;
+        [start, end] = [end, start];
+      }
     }
     const first = coords[0]!;
     const last = coords[coords.length - 1]!;
-    const base = `${s.key}@${Math.round(first[0])},${Math.round(first[1])},${Math.round(last[0])},${Math.round(last[1])}`;
-    return { base, coords, routes: s.routes, ring: s.ring };
+    const base = `${parts.map((p) => p.keys.join(",")).join("/")}@${Math.round(first[0])},${Math.round(first[1])},${Math.round(last[0])},${Math.round(last[1])}`;
+    return { base, coords, parts, ring: e.ring, start, end };
   });
   items.sort((a, b) =>
     a.base < b.base ? -1 : a.base > b.base ? 1 : compareCoords(a.coords, b.coords),
@@ -371,6 +463,13 @@ export function buildStretches(pieces: readonly Piece[], snap = SNAP_UNITS): Str
       seq.set(it.base, n);
       id = `${it.base}#${n}`;
     }
-    return { id, coords: it.coords, routes: it.routes, ring: it.ring };
+    return {
+      id,
+      coords: it.coords,
+      parts: it.parts,
+      ring: it.ring,
+      start: it.start,
+      end: it.end,
+    };
   });
 }

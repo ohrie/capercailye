@@ -2,9 +2,10 @@
 //
 // The app places the signs itself instead of MapLibre's line placement:
 //   tiles.ts   z12 `routes` (and `poi`) tiles straight from the PMTiles file
-//   graph.ts   pieces -> stretches between forks
-//   signs.ts   one sign per distinct sign of a stretch's routes
-//   plan.ts    positions along the stretches (end blocks at forks, turns inside), no overlap
+//   signs.ts   one sign per distinct sign of a piece's routes (routes with equal signs are one)
+//   graph.ts   pieces -> edges between real forks (three or more branches with signs)
+//   plan.ts    positions along the edges (free stretch, away from forks, mandatory signs per edge,
+//              repeats over forks), no overlap
 // The result is a GeoJSON point source (`waymark-signs`, one image per point, drawn by the layer
 // `waymarks-signs` with allow-overlap, since overlap-freedom is already computed) and the boxes of
 // the signs, which the print placement takes as obstacles: signs are set BEFORE the pictograms,
@@ -24,10 +25,10 @@ import type { UrbanKeep } from "../placement/collect";
 import { greedyThin } from "../placement/thin";
 import { WAYMARK_MIN_ZOOM } from "../style/routes";
 import { WAYMARK_SOURCE } from "../style/sources";
-import { buildStretches } from "./graph";
-import { type PlanStretch, planWithStats } from "./plan";
+import { buildEdges, type Piece } from "./graph";
+import { type PlanEdge, type PlanStats, planWithStats } from "./plan";
 import { type RouteInfo, routesOn } from "./routes";
-import { signsForRoutes, signSizeFactor } from "./signs";
+import { type SignSpec, signsForRoutes, signSizeFactor } from "./signs";
 import { loadRegionData, urbanItems, type RegionData, WAYMARK_MARGIN_MM } from "./tiles";
 
 export { WAYMARK_MIN_ZOOM };
@@ -64,26 +65,55 @@ function intersects(a: RectMm, b: RectMm): boolean {
   return a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
 }
 
+/** The plan (and its statistics) for loaded data: signs of the whole loaded area. */
+export function waymarkPlan(data: RegionData, zoom: number): PlanStats {
+  const factor = signSizeFactor(zoom);
+  const toMm = (gx: number, gy: number) => tileUnitsToMm(gx, gy, zoom);
+  // Relation ids -> sign keys, so that routes with the same sign are one for the graph. Pieces
+  // without a visible sign do not count as a branch.
+  const cache = new Map<string, SignSpec[]>();
+  const specs = new Map<string, SignSpec>();
+  const pieces: Piece[] = [];
+  for (const p of data.pieces) {
+    const cacheKey = p.routes.join("|");
+    let signs = cache.get(cacheKey);
+    if (!signs) {
+      const infos = p.routes.map((id) => data.routes.get(id)).filter((r): r is RouteInfo => !!r);
+      signs = signsForRoutes(infos, factor);
+      cache.set(cacheKey, signs);
+      // One spec per key: the most important network, then the smaller image id.
+      for (const s of signs) {
+        const old = specs.get(s.key);
+        if (!old || s.rank < old.rank || (s.rank === old.rank && s.imageId < old.imageId)) {
+          specs.set(s.key, s);
+        }
+      }
+    }
+    if (signs.length > 0) pieces.push({ coords: p.coords, keys: signs.map((s) => s.key) });
+  }
+  const plan: PlanEdge[] = buildEdges(pieces).map((e) => ({
+    id: e.id,
+    coords: e.coords.map(([x, y]) => toMm(x, y)),
+    parts: e.parts.map((p) => ({ end: p.end, signs: p.keys.map((k) => specs.get(k)!) })),
+    ring: e.ring,
+    start: e.start,
+    end: e.end,
+  }));
+  return planWithStats(plan);
+}
+
 /**
  * The computation on loaded data (pure). `placed` is the number of signs of the whole loaded area
- * (not only of the region), `dropped` the signs that found no free spot within the shift limit.
+ * (not only of the region), `dropped` the signs that found no free spot.
  */
 export function waymarksFromData(
   data: RegionData,
   region: RectMm,
   zoom: number,
 ): Pick<WaymarkResult, "data" | "boxes" | "placed" | "dropped"> & { urban: UrbanKeep } {
-  const stretches = buildStretches(data.pieces);
-  const factor = signSizeFactor(zoom);
   const toMm = (gx: number, gy: number) => tileUnitsToMm(gx, gy, zoom);
-  const plan: PlanStretch[] = [];
-  for (const s of stretches) {
-    const infos = s.routes.map((id) => data.routes.get(id)).filter((r): r is RouteInfo => !!r);
-    const signs = signsForRoutes(infos, factor);
-    if (signs.length === 0) continue;
-    plan.push({ id: s.id, coords: s.coords.map(([x, y]) => toMm(x, y)), signs, ring: s.ring });
-  }
-  const { signs: placed, wanted } = planWithStats(plan);
+  const stats = waymarkPlan(data, zoom);
+  const placed = stats.signs;
   const features: FeatureCollection<Point>["features"] = [];
   const boxes: Obstacle[] = [];
   for (const p of placed) {
@@ -107,7 +137,7 @@ export function waymarksFromData(
     data: { type: "FeatureCollection", features },
     boxes,
     placed: placed.length,
-    dropped: wanted - placed.length,
+    dropped: stats.mandatory.wanted + stats.repeats.wanted - placed.length,
     urban: { ids: greedyThin(inside), region: keepRegion },
   };
 }
