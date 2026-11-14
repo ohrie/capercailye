@@ -27,6 +27,19 @@ weder Quelle noch Gruppe `busstops` in den Stil aufgenommen (sonst würde MapLib
 melden und Platzierung und Export hingen), und der Schalter „Bushaltestellen“ ist deaktiviert.
 Die Quellenangabe der Haltestellen steht als `BUSSTOPS_CREDIT` in `src/config.ts` (Datenstand siehe „Modi, Legende, Datenstand“).
 
+### Build-Variablen (Deployment)
+
+| Variable            | Standard                      | Wirkung                                                                                                                                                                    |
+| ------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_BASE`         | `/`                           | URL-Präfix der App (mit `/` am Anfang und Ende); Assets, Schriften, Worker und Daten hängen daran. Der Dev-/Preview-Server liefert die Daten dann unter `<base>data/` aus. |
+| `VITE_PMTILES_PATH` | `data/capercailye-rp.pmtiles` | PMTiles-Datei relativ zur Basis; aus dem Namen (`capercailye-<gebiet>.pmtiles`) wird das Relief-Credit-Gebiet abgeleitet (`rp`, `bw`, `de`).                               |
+
+Beispiel: Deutschland-Build unter `/app/`
+
+```sh
+VITE_BASE=/app/ VITE_PMTILES_PATH=data/capercailye-de.pmtiles bun run build
+```
+
 Das Relief (Schummerung und Höhenlinien) kommt online vom Mapterhorn-Kacheldienst (Terrarium-DEM,
 512-px-WebP) und wird über [maplibre-contour](https://github.com/onthegomap/maplibre-contour)
 (BSD-3-Clause) verarbeitet. Die Höhenlinien entstehen clientseitig im Browser, es gibt dafür keine

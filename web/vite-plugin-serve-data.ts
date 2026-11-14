@@ -7,7 +7,7 @@ import { extname, join, resolve, sep } from "node:path";
 import type { Connect, Plugin } from "vite";
 
 export interface ServeDataOptions {
-  /** URL prefix, with leading and trailing slash. */
+  /** URL prefix, with leading and trailing slash. Defaults to `<base>data/` (Vite `base`). */
   prefix?: string;
   /** Directory on disk. Defaults to $CAPERCAILYE_DATA or ~/.local/share/capercailye. */
   dir?: string;
@@ -91,16 +91,21 @@ function handler(dir: string, prefix: string): Connect.NextHandleFunction {
 }
 
 export function serveData(options: ServeDataOptions = {}): Plugin {
-  const prefix = options.prefix ?? "/data/";
   const dir = options.dir ?? defaultDataDir();
+  // The prefix follows Vite's `base` (e.g. VITE_BASE=/app/ serves the data under /app/data/).
+  let base = "/";
+  const prefix = () => options.prefix ?? `${base}data/`;
   return {
     name: "capercailye-serve-data",
+    configResolved(config) {
+      base = config.base;
+    },
     configureServer(server) {
-      server.middlewares.use(handler(dir, prefix));
-      server.config.logger.info(`  Daten: ${prefix} -> ${dir}`);
+      server.middlewares.use(handler(dir, prefix()));
+      server.config.logger.info(`  Daten: ${prefix()} -> ${dir}`);
     },
     configurePreviewServer(server) {
-      server.middlewares.use(handler(dir, prefix));
+      server.middlewares.use(handler(dir, prefix()));
     },
   };
 }

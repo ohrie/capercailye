@@ -4,8 +4,13 @@
 export const INITIAL_CENTER: [number, number] = [7.7765, 49.1505];
 export const INITIAL_ZOOM = 13;
 
-/** PMTiles file, served by the dev server from $CAPERCAILYE_DATA (default ~/.local/share/capercailye). */
-export const PMTILES_PATH = "data/capercailye-rp.pmtiles";
+/**
+ * PMTiles file, relative to the app base. Set `VITE_PMTILES_PATH` at build time to override it
+ * (e.g. `data/capercailye-de.pmtiles`). The dev server serves `data/` from $CAPERCAILYE_DATA
+ * (default ~/.local/share/capercailye). `import.meta.env` is undefined under `bun test`.
+ */
+export const PMTILES_PATH: string =
+  import.meta.env?.VITE_PMTILES_PATH ?? "data/capercailye-rp.pmtiles";
 
 /**
  * Bus stops from GTFS (PLAN.md 4c), a second small PMTiles file next to the OSM one
@@ -50,6 +55,13 @@ export const BUSSTOPS_CREDIT: SourceCredit = {
  * CORS), so the date is static: `access_year` of the producers in attribution.json (retrieved
  * 2026-11-14): derlp 2025 (rp); debw 2025 and debw025 (DGM ALS_3) 2026 (bw). Producer texts as
  * given there; both licensed dl-de/by-2-0.
+ *
+ * `de` (all of Germany): attribution.json lists 17 German producers (all 16 states; Baden-Württemberg
+ * has two): access_year 2025 for all but `dehessen` and `debw025`, which have 2026, hence
+ * "2025/2026". The licences differ per state: dl-de/by-2-0 (BW, BB, HH, RP, SL, SN, ST, TH),
+ * CC BY 4.0 (BY, HB, MV, NI, SH) and dl-de/zero-2-0 (BE, HE, NW). The credit therefore names the
+ * three licences, credits the state surveying administrations in general and points to
+ * mapterhorn.com/attribution for the per-state producer texts. Retrieved 2026-11-14.
  */
 const RELIEF_CREDITS: Record<string, SourceCredit> = {
   bw: {
@@ -61,6 +73,11 @@ const RELIEF_CREDITS: Record<string, SourceCredit> = {
     name: "Relief: Mapterhorn, ©GeoBasis-DE / LVermGeoRP",
     license: "dl-de/by-2-0",
     stand: "2025",
+  },
+  de: {
+    name: "Relief: Mapterhorn, © GeoBasis-DE / Landesvermessungsverwaltungen, Quellen: mapterhorn.com/attribution",
+    license: "dl-de/by-2-0, CC BY 4.0, dl-de/zero-2-0 je nach Land",
+    stand: "2025/2026",
   },
 };
 
