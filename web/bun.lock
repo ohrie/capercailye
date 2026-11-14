@@ -5,11 +5,13 @@
     "": {
       "name": "capercailye-web",
       "dependencies": {
+        "@mapbox/vector-tile": "^3.0.0",
         "@maplibre/maplibre-gl-style-spec": "^26.6.0",
         "@tmcw/togeojson": "^7.1.3",
         "jspdf": "^4.2.1",
         "maplibre-contour": "^0.1.1",
         "maplibre-gl": "^6.18.0",
+        "pbf": "^5.1.2",
         "pmtiles": "^4.5.0",
       },
       "devDependencies": {

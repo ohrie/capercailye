@@ -8,7 +8,7 @@
 // every icon it needs. That is what the PDF export relies on (print/render.ts waits for idle).
 //
 // Image ids are "<prefix>:<name>"; providers for a prefix return an SVG (see registry.ts).
-// src/osmc registers "waymark" (combined waymark images) the same way.
+// src/osmc registers "waymark" (single waymark signs) the same way.
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { SvgImage } from "./registry";
 

@@ -8,6 +8,12 @@
 // Filters, minzoom and the icon layout (image, size, anchor, offset, sort key) are evaluated
 // from the layer spec itself with the style-spec expression engine, so the selection per scale
 // (minzoom, filters) and the icon boxes match exactly what MapLibre would draw.
+// Before placing, urban restaurants/cafés, toilets and hotels (`urban=true`) are thinned by paper
+// distance (thinUrban, thin.ts, PLAN.md 4a): greedy by rank per group (gastro, toilets, hotel), a
+// place stays if no kept one of its group lies within 8 mm; dropped ones appear nowhere (neither
+// symbol nor name), all other kinds are never thinned. The decision comes from the sheet layout's
+// kept set (`PlacementRequest.urban`, computed once per layout in waymarks/index.ts) so preview and
+// every export page agree; without it the greedy rule runs over the candidates themselves.
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import {
   featureFilter,
@@ -28,6 +34,7 @@ import {
 } from "./displace";
 import { inRect, lngLatToMm, mmToLngLat, type RectMm } from "./geo";
 import { type FeatureRole, type ManagedLayer, P_LAYER, P_ROLE } from "./layers";
+import { greedyThin, thinGroup, type ThinItem } from "./thin";
 
 export interface SourceFeature {
   id?: string | number;
@@ -80,8 +87,6 @@ export function evaluateLayer(
     layout?: Record<string, unknown>;
     paint?: Record<string, unknown>;
   };
-  // Placed by MapLibre itself; only its rendered boxes take part (rendered.ts).
-  if (layer.role === "obstacle") return [];
   if (spec.minzoom !== undefined && zoom < spec.minzoom) return [];
   if (spec.maxzoom !== undefined && zoom >= spec.maxzoom) return [];
   const filter = featureFilter(spec.filter as never, `${spec.id}.filter`);
@@ -250,6 +255,18 @@ export interface PlacementRequest {
   /** Whether a managed layer is switched on. */
   wanted: (layer: ManagedLayer) => boolean;
   options?: Partial<PlaceOptions>;
+  /** Urban restaurants/cafés, toilets and hotels that stay (see UrbanKeep); without it greedy over the candidates. */
+  urban?: UrbanKeep;
+}
+
+/**
+ * Decision of the sheet layout on urban restaurants/cafés, toilets and hotels: feature ids
+ * (`featureKey`) that stay, valid for everything inside `region`. Candidates outside it (preview,
+ * beyond the sheet margin) are thinned greedily among themselves.
+ */
+export interface UrbanKeep {
+  ids: ReadonlySet<string>;
+  region: RectMm;
 }
 
 export interface PlacementResult {
@@ -280,6 +297,39 @@ export function placeCandidates(
     { ...req.options, obstacles: [...(req.options?.obstacles ?? []), ...obstacles] },
   );
   return [...first, ...second];
+}
+
+/**
+ * Drops urban restaurants/cafés, toilets and hotels that the greedy thinning does not keep (per
+ * group, see `thinGroup`; higher rank first: `weight`, then `tags`, then id; missing values count
+ * as 0). Inside `keep.region` the layout's kept set decides, elsewhere (and without `keep`) the
+ * rule runs over the candidates. Others pass untouched, order kept.
+ */
+export function thinUrban(candidates: readonly Candidate[], keep?: UrbanKeep): Candidate[] {
+  const items: ThinItem[] = [];
+  const dropped = new Set<string>();
+  for (const c of candidates) {
+    const p = c.feature.properties;
+    const group = p.urban === true ? thinGroup(p.kind) : undefined;
+    if (group === undefined) continue;
+    if (keep && inRect(keep.region, c.item.x, c.item.y)) {
+      if (!keep.ids.has(featureKey(c.feature))) dropped.add(c.item.id);
+      continue;
+    }
+    items.push({
+      id: c.item.id,
+      group,
+      x: c.item.x,
+      y: c.item.y,
+      weight: Number(p.weight ?? 0),
+      tags: Number(p.tags ?? 0),
+    });
+  }
+  if (items.length >= 2) {
+    const kept = greedyThin(items);
+    for (const it of items) if (!kept.has(it.id)) dropped.add(it.id);
+  }
+  return dropped.size === 0 ? [...candidates] : candidates.filter((c) => !dropped.has(c.item.id));
 }
 
 function feature(
@@ -338,13 +388,14 @@ export function computePlacement(
   const candidates: Candidate[] = [];
   const cache = new Map<string, SourceFeature[]>();
   for (const layer of managed) {
-    if (layer.role === "obstacle" || !req.wanted(layer)) continue;
+    if (!req.wanted(layer)) continue;
     const s = layer.spec as { source?: string; "source-layer"?: string };
     const key = `${s.source}/${s["source-layer"] ?? ""}`;
     let feats = cache.get(key);
     if (!feats) cache.set(key, (feats = sourceFeatures(map, layer.spec)));
     candidates.push(...evaluateLayer(layer, feats, req.zoom));
   }
-  const placements = placeCandidates(candidates, req);
-  return { data: placementData(candidates, placements, req.zoom), candidates, placements };
+  const kept = thinUrban(candidates, req.urban);
+  const placements = placeCandidates(kept, req);
+  return { data: placementData(kept, placements, req.zoom), candidates: kept, placements };
 }

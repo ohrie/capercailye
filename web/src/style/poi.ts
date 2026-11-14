@@ -17,15 +17,21 @@
 // displaced by priority (same sort key), and only names may drop out.
 //
 // Density rules (per A4 sheet at 1:25 000 in BW: parking 67, guideposts 50 …):
+//   merging      parking, guideposts, wayside shrines, stones, rocks, masts, toilets and fountains
+//                closer than 75 m are merged into one point at tile build time (`count`); picnic
+//                site, barbecue and shelter within 75 m become one rest-area symbol (`bbq=true`).
+//                `count` and `bbq` are not drawn (yet).
 //   parking      only with hiking=yes, a name containing "Wanderparkplatz", or area_m2 >= 2500
 //                (≈ 80–100 cars); never access=private/no/customers/permit/… (no name label).
 //   guidepost    named: yellow flag, in guideposts-main; the name only with the "Wegweisernamen"
 //                switch. Unnamed: small flag in guideposts-minor, lowest priority (drops out first).
-//   viewpoint    own layer `viewpoints-main` (group "viewpoints", off by default); view towers stay
-//                in poi-main.
+//   viewpoint    only named ones are in the tiles; own layer `viewpoints-main` (group "viewpoints",
+//                on by default); view towers stay in poi-main.
 //   bus stops    no longer from OSM: GTFS stops (>= 4 departures per weekend day) come from their own
 //                PMTiles file as group "busstops" (busstopLayers below); railway stations/halts stay here.
-//   restaurant/cafe  icon + name.
+//   restaurant/cafe  icon + name. In towns and cities (`urban=true`) the print placement thins them
+//                to one per 8 mm of paper, the one with the higher `weight` stays
+//                (placement/thin.ts); elsewhere none is dropped.
 // Every priority comes from style/hierarchy.ts (the importance hierarchy), every size from
 // style/sizes.ts.
 import type {
@@ -419,11 +425,12 @@ export function poiCategoryLayers(
 }
 
 /**
- * Viewpoints (tourism=viewpoint): own layer in group "viewpoints", off by default. Same look and
- * placement role as poi-main; while the group is off, the print placement reserves no room.
+ * Named viewpoints (tourism=viewpoint): own layer in group "viewpoints", on by default. Same look
+ * and placement role as poi-main; while the group is off, the print placement reserves no room.
  */
 export function viewpointLayers(): LayerSpecification[] {
-  return [mainLayer("viewpoints-main", ["==", kind, "viewpoint"], false)];
+  // Only named viewpoints are in the tiles; the name test is defensive for old tiles.
+  return [mainLayer("viewpoints-main", ["all", ["==", kind, "viewpoint"], ["has", "name"]], false)];
 }
 
 /**

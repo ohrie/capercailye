@@ -3,18 +3,26 @@
 // - layers.ts   which layers take part (layer metadata) and their clones on a GeoJSON source
 // - displace.ts the displacement algorithm (pure, unit-tested)
 // - collect.ts  features from the vector tiles -> paper mm -> placement -> GeoJSON
-// - rendered.ts boxes of symbols MapLibre placed itself ("obstacle": waymarks) as obstacles
+// - thin.ts     greedy thinning of urban restaurants/cafés by paper distance (8 mm)
+//
+// Waymark signs (waymarks/index.ts) are placed by the app BEFORE the pictograms: their boxes come in
+// as obstacles (`setWaymarkObstacles`, `req.options.obstacles`) and the pictograms move off them.
+// The same sheet-layout computation delivers which urban restaurants/cafés, toilets and hotels stay
+// (`setUrbanKeep`, `req.urban`), so preview and every export page agree.
 //
 // The main map runs it only in print view (exact print zoom), recomputing after the map is idle
 // whenever the view or the loaded tiles changed; elsewhere the original layers with MapLibre's
 // own collision stay in charge (sensible screen map while zooming). The export map always runs
 // it once before capturing (print/render.ts). Both place the sheet incl. bleed first and alone,
 // with the same zoom and the same feature set, so the preview matches the PDF.
+// Before placing, urban restaurants/cafés are thinned greedily to at least 8 mm of paper between
+// kept ones (thin.ts). The greedy result depends on the whole neighbourhood, so it is computed once
+// per sheet layout from the tiles (waymarks/index.ts) and handed in as a kept set.
 import type { GeoJSONSource, Map as MapLibreMap, MapSourceDataEvent } from "maplibre-gl";
-import { computePlacement, type PlacementRequest } from "./collect";
+import { computePlacement, type UrbanKeep, type PlacementRequest } from "./collect";
+import type { Obstacle } from "./displace";
 import type { RectMm } from "./geo";
 import { EMPTY_COLLECTION, ICON_CLONE_ID, type ManagedLayer, PLACEMENT_SOURCE } from "./layers";
-import { renderedObstacles } from "./rendered";
 
 export { computePlacement } from "./collect";
 export { rectAround } from "./geo";
@@ -27,7 +35,7 @@ export interface PrintPlacementOptions {
   region: () => RectMm;
 }
 
-/** Visibility of "fixed" and "obstacle" layers is not ours to manage: read it from the map. */
+/** Visibility of "fixed" layers is not ours to manage: read it from the map. */
 function fixedWanted(map: MapLibreMap, id: string): boolean {
   return map.getLayer(id) !== undefined && map.getLayoutProperty(id, "visibility") !== "none";
 }
@@ -36,13 +44,10 @@ export function setPlacementData(map: MapLibreMap, data: GeoJSON.FeatureCollecti
   map.getSource<GeoJSONSource>(PLACEMENT_SOURCE)?.setData(data);
 }
 
-/** Placed boxes of the visible "obstacle" layers (waymarks); call when the map is idle. */
-function obstacles(map: MapLibreMap, managed: readonly ManagedLayer[], zoom: number) {
-  const layers = managed.filter((m) => m.role === "obstacle" && fixedWanted(map, m.id));
-  return renderedObstacles(map, layers, zoom);
-}
-
-/** One-shot placement for the export map (style built with `active = true`); map must be idle. */
+/**
+ * One-shot placement for the export map (style built with `active = true`); map must be idle.
+ * Waymark boxes come in through `req.options.obstacles`, the urban decision through `req.urban`.
+ */
 export function placeForExport(
   map: MapLibreMap,
   managed: readonly ManagedLayer[],
@@ -50,10 +55,6 @@ export function placeForExport(
 ): void {
   const result = computePlacement(map, managed, {
     ...req,
-    options: {
-      ...req.options,
-      obstacles: [...(req.options?.obstacles ?? []), ...obstacles(map, managed, req.zoom)],
-    },
     wanted: (m) =>
       m.role === "fixed"
         ? fixedWanted(map, m.id)
@@ -67,6 +68,8 @@ export class PrintPlacement {
   private active = false;
   private dirty = true;
   private lastData = "";
+  private waymarkBoxes: readonly Obstacle[] = [];
+  private urban: UrbanKeep | undefined;
 
   constructor(
     private readonly map: MapLibreMap,
@@ -95,6 +98,25 @@ export class PrintPlacement {
     this.sync();
     if (!active) this.setData(EMPTY_COLLECTION);
     else this.recompute();
+  }
+
+  /** Boxes of the waymark signs (global paper mm): the pictograms move off them. */
+  setWaymarkObstacles(boxes: readonly Obstacle[]): void {
+    if (boxes === this.waymarkBoxes) return;
+    this.waymarkBoxes = boxes;
+    this.touch();
+  }
+
+  /** Urban restaurants/cafés, toilets and hotels that stay (sheet layout, waymarks/index.ts); undefined = fallback. */
+  setUrbanKeep(urban: UrbanKeep | undefined): void {
+    if (urban === this.urban) return;
+    this.urban = urban;
+    this.touch();
+  }
+
+  private touch(): void {
+    this.dirty = true;
+    if (this.active) this.map.triggerRepaint();
   }
 
   /** Re-applies original/clone visibility from the toggles (after setGroupVisible). */
@@ -127,7 +149,8 @@ export class PrintPlacement {
       zoom,
       region: this.options.region(),
       outside: true,
-      options: { obstacles: obstacles(this.map, this.managed, zoom) },
+      options: { obstacles: this.waymarkBoxes },
+      urban: this.urban,
       wanted: (m) => (m.role === "fixed" ? fixedWanted(this.map, m.id) : this.options.wanted(m.id)),
     });
     this.setData(result.data);

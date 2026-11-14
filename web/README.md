@@ -49,13 +49,19 @@ src/
 ├── style/           Stil als TS-Module, je Feature-Gruppe ein Baustein (index.ts setzt zusammen;
 │                    gpx.ts Track-Linie und Start/Ende; palette.ts Farben, units.ts mm/pt + Zoom-Skalierung, style.test.ts prüft
 │                    Spec, Layer-Ids und alle Attribute gegen ../tiles/SCHEMA.md)
-├── osmc/            Wegzeichen (PLAN.md 3): parse.ts OSMC-Grammatik, shapes.ts Formen,
-│                    render.ts SVG je Zeichen, Rückfallkette ref/colour → ref → Namenskürzel und
-│                    kombiniertes Bild aller Routen eines Abschnitts; index.ts Bild-Id
-│                    (waymarkImageExpression) und Bildlieferant „waymark:“
+├── osmc/            Wegzeichen-Bilder (PLAN.md 3): parse.ts OSMC-Grammatik, shapes.ts Formen,
+│                    render.ts SVG je Zeichen, Rückfallkette ref/colour → ref → Namenskürzel
+│                    (kombinierte Bilder nur für Legende/Musterblatt); index.ts Bild-Id
+│                    (waymarkImageId) und Bildlieferant „waymark:“
+├── waymarks/        Wegzeichen einzeln entlang der Wege (PLAN.md 3/4a), rein und getestet:
+│                    clip.ts (Linie auf Tile-Fläche), routes.ts (Routen, Netz-Schalter je Route),
+│                    signs.ts (Zeichen je Abschnitt, Größe in mm), graph.ts (Stücke → Abschnitte
+│                    zwischen Gabelungen), plan.ts (Positionen, Überdeckungsfreiheit); tiles.ts
+│                    (Layer `routes`/`poi` der z12-Tiles aus der PMTiles-Datei), index.ts
+│                    (computeWaymarks, WaymarkController)
 ├── placement/       Druck-Platzierung (PLAN.md 4a): displace.ts Verdrängung (rein, getestet),
 │                    collect.ts Features → Papier-mm → GeoJSON, layers.ts Klon-Layer,
-│                    rendered.ts gesetzte Wegzeichen als Hindernisse, index.ts Steuerung für
+│                    thin.ts Ausdünnung in Städten (Gastronomie, Toiletten, Hotels; greedy), index.ts Steuerung für
 │                    Vorschau (Druckansicht) und Export
 └── print/           scale.ts (Maßstab↔Zoom), paper.ts, layout.ts (Blattschnitt, rein, getestet),
                      frame.ts (Gebiet, Griffe, Blattrahmen), draw.ts (Gebiet aufziehen), render.ts (versteckte Karte),
@@ -150,17 +156,48 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   Kacheln, rechnet sie in Papier-mm und schiebt überlappende Symbole nach Priorität
   (`symbol-sort-key`) um höchstens 4 mm auseinander; ab 0,5 mm Abstand zur wahren Lage zeigt ein
   feiner Strich dorthin. Namen sind ein eigener Layer und dürfen entfallen. `"fixed"` (Gipfelpunkte,
-  Ortsnamen) bleibt stehen und hält Piktogramme fern; `"obstacle"` (Wegzeichen) platziert MapLibre
-  selbst, seine gesetzten Kästen halten Piktogramme ebenfalls fern. Außerhalb der Druckansicht gilt
-  MapLibres normale Kollision.
-- **Wegzeichen** (`style/routes.ts`, Layer `waymarks-line`): je Abschnitt des Tile-Layers `routes`
-  ein kombiniertes Bild aller Routen, aufrecht entlang der Linie, etwa alle 6 cm auf dem Papier,
-  ab z11,5 (alle Druckmaßstäbe), bei 1:50 000 verkleinert (`SMALL_SCALE_FACTOR`). Der Layer liegt ganz oben und
-  wird vor allen anderen Symbolen platziert: Beschriftungen und Piktogramme können kein Wegzeichen
-  verdrängen; `icon-allow-overlap: false` mit 1,8 mm Polster dünnt nur Wegzeichen untereinander
-  aus (keine Stapel an Abzweigen; das Bild mit mehr Routen gewinnt). In der Druckansicht und im
-  Export liest `placement/rendered.ts` die gesetzten Wegzeichen aus MapLibres Kollisionsindex
-  (interne Struktur, Stand maplibre-gl 6.18) und lässt die Piktogramme ihnen ausweichen.
+  Ortsnamen) bleibt stehen und hält Piktogramme fern. Die Wegzeichen (siehe nächster Punkt) haben
+  keine Rolle: ihre berechneten Kästen gehen als Hindernisse (`PlaceOptions.obstacles`) in die
+  Platzierung. Außerhalb der Druckansicht gilt MapLibres normale Kollision.
+- **Ausdünnung in Städten (Gastronomie, Toiletten, Hotels):** Restaurants/Cafés, Toiletten und
+  Hotels mit `urban=true` werden greedy ausgedünnt (`placement/thin.ts`, `greedyThin`: absteigend
+  nach Rang `weight`, `tags`, ID; ein Eintrag bleibt, wenn kein behaltener **derselben Gruppe**
+  näher als `URBAN_THIN_MIN_MM` (8 mm) liegt). Die Gruppen (`THIN_GROUPS`, `thinGroup(kind)`) sind
+  getrennt: Gastronomie (Restaurant + Café), Toiletten, Hotels; ein Hotel verdrängt nie eine
+  Toilette. Greedy hängt von der ganzen Nachbarschaft ab; damit Vorschau und alle Exportseiten
+  übereinstimmen, wird die Menge der behaltenen Einträge **einmal je Blattschnitt** aus den
+  z12-Tiles berechnet (gleiche Grundlage und gleicher Durchlauf wie die Wegzeichen,
+  `computeWaymarks(...).urban`, auch bei ausgeschalteten „Wanderrouten“) und an `computePlacement`
+  übergeben (`PlacementRequest.urban`, Ersatz ohne Menge: `thinUrban` rechnet greedy über die
+  eigenen Kandidaten).
+- **Wegzeichen** (`src/waymarks`, Layer `waymarks-signs` in `style/routes.ts`): Die App liest den
+  Layer `routes` der z12-Tiles selbst aus der PMTiles-Datei (`waymarks/tiles.ts`, `pmtiles` +
+  `@mapbox/vector-tile`; unabhängig vom Viewport und von `querySourceFeatures`), beschneidet die
+  Linien auf die Tile-Fläche und fügt die Stücke zu Abschnitten zwischen Gabelungen zusammen
+  (`graph.ts`, Fangtoleranz 3 Einheiten ≈ 5 m, T-Stöße werden aufgetrennt). Je Abschnitt setzt
+  `plan.ts` jedes Zeichen **einzeln** und aufrecht: ein Endblock an beiden Enden (kurz nach der
+  Gabelung steht auf jedem Ast das Zeichen der dort laufenden Routen), dazwischen reihum, jedes
+  Zeichen spätestens alle 60 mm Papier (`WAYMARK_SPACING_MM`); danach weicht ein Zeichen entlang
+  der Linie aus (höchstens 6 mm), bis seine Box frei ist, sonst entfällt es: Zeichen überdecken
+  einander nie. Gleiche Zeichen mehrerer Routen erscheinen einmal (Rückfallkette wie bisher).
+  Ergebnis: GeoJSON-Punktquelle `waymark-signs` (ein Bild je Punkt, `img` = Bild-Id mit genau einer
+  Route) und die Kästen der Zeichen. Der Layer zeichnet sie mit `icon-allow-overlap: true`, ab
+  z11,5, bei 1:50 000 verkleinert (`SMALL_SCALE_FACTOR`); die Kästen sind **Hindernisse** der
+  Piktogramm-Platzierung (Wegzeichen zuerst, Piktogramme weichen aus).
+  **Einmal je Blattschnitt:** In der Druckansicht und im Export wird alles **einmal für den ganzen
+  Blattschnitt** gerechnet (`layout.regionMm` beim Layout-Zoom, Tiles mit 30 mm Rand); Vorschau
+  und jede Exportseite verwenden dasselbe Ergebnis (Ergebnis-Cache nach Schlüssel in
+  `waymarks/index.ts`), die Überlappungen der Blätter sind also identisch. Außerhalb der
+  Druckansicht rechnet der `WaymarkController` dasselbe für den Viewport beim aktuellen Zoom
+  (nach `moveend`, 200 ms entprellt); unter z11,5 gibt es keine Zeichen. Mehr als 400 Tiles: keine
+  Zeichen (Warnung in der Konsole).
+  **Schalter:** Die Wegzeichen haben keinen eigenen Schalter, sie gehören zur Route (Gruppe
+  `waymarks` mit `toggledBy: "routes"`, wie `shields` bei `labels`). Das Zeichen einer Route
+  erscheint, wenn „Wanderrouten“ an ist **und** der Schalter ihres eigenen Netzes an ist
+  (`routeVisible`: iwn → `net-iwn`, nwn → `net-nwn`, rwn → `net-rwn`, alles andere inkl. leer →
+  `net-lwn`, `networkGroup`). Standard: alles an, also auch lokale Zeichen. „Wanderrouten“ aus:
+  keine Zeichen (die Ausdünnungsdaten werden trotzdem geladen). Ältere gespeicherte Werte der
+  früheren Schalter „Wegzeichen“ und „auch lokale Wege“ haben keine Wirkung mehr.
 - **Symbolgrößen: `src/style/sizes.ts`** (einzige Stelle, Papier-mm): Kasten-Piktogramme 3,4 mm
   (`ICON_MM`), kleine Kästen 3,0 mm, Wegzeichen-Schild 3,4 mm (`WAYMARK_MM`, Abstand 0,35 mm),
   Plain-Symbole in Stufen relativ dazu. Bei 1:50 000 gilt für Piktogramme, Haltestellen und
@@ -174,7 +211,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
 
   | Stufe     | Inhalt                                                                                                                                                            |
   | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | 0         | Wegzeichen (Ebene `waymarks-line`, immer oben, Rolle `obstacle`)                                                                                                  |
+  | 0         | Wegzeichen (Ebene `waymarks-signs`, immer oben, vor den Piktogrammen platziert)                                                                                   |
   | 1 (10–14) | Anreise und Schutz: Bahnhof, Haltepunkt, Bushaltestelle, Alpen-/Wildnishütte, Unterstand                                                                          |
   | 2 (20–24) | Wasser: Trinkwasser, Quelle                                                                                                                                       |
   | 3 (30–36) | Ziele: Aussichtsturm, Burg, Burgruine, Ruine, Höhle, Wasserfall, Aussichtspunkt                                                                                   |
@@ -200,8 +237,8 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   `disabled`, sein Wert bleibt). Die Anzeigereihenfolge steht in `UI_ORDER` (die Zeichenreihenfolge
   ist die Reihenfolge in `GROUPS`). `onToggle(map, visible, visibility)` bekommt die ganze
   Sichtbarkeit.
-  - **Routen:** Wanderrouten (Unterschalter International, National, Regional, Lokal), Wegzeichen
-    (eigener Schalter, nicht mehr an die Routen gekoppelt).
+  - **Routen:** Wanderrouten (Unterschalter International, National, Regional, Lokal); sie steuern
+    Hinterlegung und Wegzeichen gemeinsam (die Wegzeichen haben keinen eigenen Schalter).
   - **Gelände und Karte:** Schummerung, Höhenlinien, Schutzgebiete, Gebäude, Beschriftung.
   - **Symbole:** neun Kategorien (siehe unten), Aussichtspunkte (Standard aus), Wegweiser mit
     Unterschalter Wegweisernamen (Standard aus), Bushaltestellen, „Weitere Symbole“ (Gruppe
@@ -215,16 +252,20 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   `viewpoints` über die Sichtbarkeit. `poi-main` und `poi-minor` schließen alle Kategorie-Arten
   (und die Aussichtspunkte) aus; unbekannte Arten bleiben in `poi-main`. Gruppen-IDs dürfen kein
   Präfix fremder Ebenen-IDs sein (daher `drinking`).
-- **Netz-Filter** (B3): Der Tile-Layer `routes` hat nur `network` = _höchstes_ Netz des
-  Abschnitts (`iwn > nwn > rwn > lwn`, fehlt sonst). `routeNetworkFilter(visibility)` (`style/routes.ts`,
-  rein) liefert den Ausschluss (oder `null`, wenn alle an sind); er steckt beim Stilbau in
-  `routes-band` und `waymarks-line` (der Export stimmt also) und wird auf der Hauptkarte per
-  `setFilter` gesetzt (`setRouteNetworks`). „Lokal“ umfasst auch Abschnitte ohne `network`.
-  Wegzeichen sind Rolle `obstacle`: die Platzierung liest deren gesetzte Kästen, daher wirkt
-  `setFilter` dort. **Grenze:** gefiltert wird nach dem höchsten Netz. Ein Abschnitt mit
-  regionaler und lokaler Route verschwindet, wenn „Regional“ aus und „Lokal“ an ist, und ein
-  sichtbarer Abschnitt zeigt im Wegzeichenbild weiter alle Zeichen, auch die eines
-  ausgeschalteten Netzes. Sauber ginge es nur mit dem Netz je Route in den Tiles.
+- **Netz-Filter** (B3): Der Tile-Layer `routes` hat je Route `networks`, `network` = _höchstes_
+  Netz des Abschnitts (`iwn > nwn > rwn > lwn`, fehlt sonst; nur noch Doku, nicht mehr für den
+  Filter) und seit 0.3.1 `nets` = die Schalter-Klassen der Routen des Abschnitts (`iwn|nwn|rwn|lwn`,
+  alles andere inkl. leer ist `lwn`). Die Netz-Schalter steuern **Hinterlegung und Wegzeichen**:
+  Ein Abschnitt bekommt ein Band, wenn **mindestens eine seiner Routen** in einem eingeschalteten
+  Netz liegt (`routeNetworkFilter(visibility)` in `style/routes.ts`, rein: Teilsuche `|k|` in
+  `|nets|`, `null`, wenn alle an sind); dieselbe Bedingung, unter der mindestens eine Route des
+  Abschnitts ihr Zeichen zeigt. **Breite, Deckkraft und Sortierung** folgen dem höchsten
+  _sichtbaren_ Netz (`major` = ein eingeschaltetes iwn/nwn/rwn in `nets`). Eine Funktion
+  (`routeBandExpressions`) liefert Filter, Sortierschlüssel, Breite und Deckkraft; sie steckt beim
+  Stilbau im Layer (der Export stimmt also) und wird auf der Hauptkarte von `setRouteNetworks`
+  gesetzt. `networkGroup` (`waymarks/routes.ts`) muss der Abbildung des Profils entsprechen. Die
+  Wegzeichen werden bei jedem Schalterwechsel neu berechnet (`main.ts` →
+  `WaymarkController.update()`).
 - **Photon-Suche** (`src/search.ts`): Feld oben in der Seitenleiste, ab 3 Zeichen, 300 ms
   Entprellung, laufende Anfrage wird abgebrochen. Anfrage:
   `GET https://photon.komoot.io/api?q=…&lang=de&limit=8&lat=…&lon=…`, **nur diese Parameter**; `lat`/`lon`
@@ -288,7 +329,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   Bild je beschrifteter Gruppe (außer den Unterschaltern `net-*`, `guidepostnames`, die eine leere
   Zelle behalten), angezeigt als `<img class="switch__legend">` mit `LEGEND_SCALE = 1.25` in einer
   Zelle von 40 × 18 px. Alle Bilder kommen aus den Quellen der Karte: Piktogramme aus `poiIconSvg`
-  (höchstens zwei Arten je Gruppe, `PoiCategory.legend`), das Wegzeichen aus `osmcToSvg`, Farben
+  (höchstens zwei Arten je Gruppe, `PoiCategory.legend`), das Beispiel-Wegzeichen (aus `osmcToSvg`) auf dem Routenband von „Wanderrouten“, Farben
   aus `COLORS`, Breiten aus den exportierten Konstanten der Stilmodule (`BAND_MAJOR_MM`,
   `CONTOUR_MM`, `HILLSHADE_SHADOW`, `PROTECTED_BANDS`, `BUILDING_OUTLINE_MM`, `PATH_MM`). Die
   Signaturen (Routenband, Höhenlinien, Schummerung, Schutzgebiet, Gebäude, „Aa“) zeichnet

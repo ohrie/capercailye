@@ -1,6 +1,8 @@
 // Multi-sheet PDF export: every sheet is rendered in a hidden map at the common layout zoom
 // and added to one PDF, in sheet order.
 import type { StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
+import type { UrbanKeep } from "../placement/collect";
+import type { Obstacle } from "../placement/displace";
 import type { VectorTileZoomMode } from "../style/sources";
 import { tileZoomHistogram } from "../tiles";
 import type { SheetLayout } from "./layout";
@@ -15,6 +17,12 @@ export interface ExportOptions {
   /** Source credits for the sheet margin (credits.ts `line`). */
   credits: string;
   vectorTileZoom?: VectorTileZoomMode;
+  /**
+   * Waymark boxes and the kept urban set (restaurants/cafés, toilets, hotels) of the whole layout (waymarks/index.ts): the same for
+   * every sheet, so the overlaps of neighbouring sheets agree. The signs are in `style`.
+   */
+  waymarkObstacles?: readonly Obstacle[];
+  urban?: UrbanKeep;
   /** Checked before each sheet; the running sheet is finished first. */
   signal?: AbortSignal;
   /** Called before each sheet is rendered (1-based). */
@@ -101,6 +109,8 @@ export async function exportLayout(
       sizeMm,
       dpi: opts.dpi,
       vectorTileZoom: opts.vectorTileZoom,
+      waymarkObstacles: opts.waymarkObstacles,
+      urban: opts.urban,
     });
     const tileZooms = tileZoomHistogram(tPage);
     pdfPage = addSheetPage(

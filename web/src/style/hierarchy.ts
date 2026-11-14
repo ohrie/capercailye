@@ -6,7 +6,8 @@
 // this number, see placement/layers.ts). Tiers are the tens; within a tier the units order finer.
 //
 // Not in the table: summit dots and settlement names ("fixed", never moved) and the waymark signs
-// (tier 0: layer `waymarks-line`, always on top and placed first, role "obstacle").
+// (tier 0: layer `waymarks-signs`, always on top and placed first; their boxes are obstacles of
+// the displacement).
 import type { PoiKind } from "../icons/registry";
 
 /** Everything that has a rank: the tile kinds plus the GTFS bus stop (own source, no `kind`). */

@@ -49,12 +49,23 @@ function signature(body: string): SvgImage {
 const line = (d: string, color: string, width: number, extra = ""): string =>
   `<path d="${d}" fill="none" stroke="${color}" stroke-width="${fmt(width)}" stroke-linecap="round"${extra}/>`;
 
+/** Band with the way line and the example waymark on it: the signs belong to the routes. */
 function routes(): SvgImage {
-  const mid = SIGNATURE_VIEWBOX.height / 2;
-  const d = `M3 ${mid}H37`;
+  const { width, height } = SIGNATURE_VIEWBOX;
+  const d = `M3 ${height / 2}H${width - 3}`;
+  const sign = osmcToSvg(WAYMARK_EXAMPLE);
+  // The signature field shows its units 1:1, the sign image is in print px: scale it up.
+  const placed = sign
+    ? nested(
+        { ...sign, width: sign.width * LEGEND_SCALE, height: sign.height * LEGEND_SCALE },
+        (width - sign.width * LEGEND_SCALE) / 2,
+        (height - sign.height * LEGEND_SCALE) / 2,
+      )
+    : "";
   return signature(
     line(d, COLORS.route, px(BAND_MAJOR_MM), ` opacity="${BAND_MAJOR_OPACITY}"`) +
-      line(d, COLORS.path, px(PATH_MM)),
+      line(d, COLORS.path, px(PATH_MM)) +
+      placed,
   );
 }
 
@@ -145,8 +156,6 @@ export function legendSvg(groupId: string): SvgImage | undefined {
   switch (groupId) {
     case "routes":
       return routes();
-    case "waymarks":
-      return osmcToSvg(WAYMARK_EXAMPLE);
     case "contours":
       return contours();
     case "hillshade":

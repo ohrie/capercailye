@@ -21,7 +21,7 @@ import { circle, foregroundElems, path, rect, render, type Elem, type Halo } fro
 export { WAYMARK_GAP_MM };
 /** Height of one sign (plate) on paper in mm. */
 export const WAYMARK_HEIGHT_MM = WAYMARK_MM;
-/** At most this many signs per image (the tiles cap at 4 as well). */
+/** At most this many signs per combined image (legend and sample sheet; the map uses one sign per image). */
 export const WAYMARK_MAX_SIGNS = 4;
 
 const OUTLINE = "#2b2b2b";

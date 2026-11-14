@@ -1,74 +1,106 @@
 import { describe, expect, test } from "bun:test";
 import {
   createExpression,
-  featureFilter,
   latest,
   type SymbolLayerSpecification,
+  validateStyleMin,
 } from "@maplibre/maplibre-gl-style-spec";
 import { svgForImageId } from "../icons/runtime";
 import { WAYMARK_IMAGE_PREFIX } from "../osmc";
-import { evaluateLayer } from "../placement/collect";
 import { managedLayers, withPlacementLayers } from "../placement/layers";
 import { zoomForScale } from "../print/scale";
-import { buildStyle, defaultVisibility, GROUPS } from "./index";
-import { WAYMARK_PADDING_MM, WAYMARK_SPACING_MM, waymarkLayers } from "./routes";
+import { WAYMARK_SPACING_MM } from "../waymarks/plan";
+import { signsForRoutes } from "../waymarks/signs";
+import { buildStyle, defaultVisibility, GROUPS, UI_ORDER } from "./index";
+import { WAYMARK_PADDING_MM, waymarkLayers } from "./routes";
 import { SMALL_SCALE_FACTOR } from "./sizes";
+import { WAYMARK_SOURCE } from "./sources";
 import { mm, PRINT_MIN_ZOOM } from "./units";
 
-const base = () =>
+const RELIEF = { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" };
+
+const base = (extra: Partial<Parameters<typeof buildStyle>[0]> = {}) =>
   buildStyle({
     pmtilesUrl: "https://example.invalid/x.pmtiles",
     busstopsUrl: "https://example.invalid/busstops.pmtiles",
     glyphsUrl: "https://example.invalid/{fontstack}/{range}.pbf",
-    relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
+    relief: RELIEF,
     visibility: defaultVisibility(),
+    ...extra,
   });
 
 const [layer] = waymarkLayers() as SymbolLayerSpecification[];
 const layout = layer!.layout as Record<string, unknown>;
 
 type Props = Record<string, unknown>;
-const filter = featureFilter(layer!.filter as never, "waymarks.filter");
-const passes = (properties: Props) =>
-  filter.filter({ zoom: 13 } as never, { type: 2, properties } as never);
 
 function evalLayout(key: string, zoom: number, properties: Props = {}): unknown {
   const spec = (latest as unknown as { layout_symbol: Record<string, unknown> }).layout_symbol[key];
   const expr = createExpression(layout[key], spec as never);
   if (expr.result !== "success") throw new Error(JSON.stringify(expr.value));
-  return expr.value.evaluate({ zoom } as never, { type: 2, properties } as never);
+  return expr.value.evaluate({ zoom } as never, { type: 1, properties } as never);
 }
 
 const SCALE_ZOOM = (scale: number) => zoomForScale(scale, 48.5);
 
 describe("waymarks layer", () => {
-  test("one layer in the waymarks group, with its own toggle, on top of the style", () => {
+  test("one layer in the waymarks group, no switch of its own (follows routes), on top", () => {
     const group = GROUPS.find((g) => g.id === "waymarks")!;
-    expect(group.toggledBy).toBeUndefined();
-    expect(group.label).toBe("Wegzeichen");
+    expect(group.toggledBy).toBe("routes");
+    expect(group.label).toBeUndefined();
+    expect(group.parent).toBeUndefined();
+    expect(group.defaultVisible).toBe(true);
+    expect(UI_ORDER).not.toContain("waymarks");
     expect(GROUPS.at(-1)!.id).toBe("waymarks");
     const style = base();
-    expect(style.layers.at(-1)!.id).toBe("waymarks-line");
-    const off = buildStyle({
-      pmtilesUrl: "x",
-      glyphsUrl: "y",
-      relief: { dem: "dem-shared://{z}/{x}/{y}", contours: "dem-contour://{z}/{x}/{y}?test" },
-      visibility: { ...defaultVisibility(), waymarks: false },
-    });
-    const vis = (off.layers.find((l) => l.id === "waymarks-line")!.layout as { visibility: string })
-      .visibility;
-    expect(vis).toBe("none");
+    expect(style.layers.at(-1)!.id).toBe("waymarks-signs");
+    expect(style.layers.filter((l) => l.id.startsWith("waymarks-"))).toHaveLength(1);
+    const visibilityOf = (v: Record<string, boolean>) =>
+      (
+        base({ visibility: v }).layers.find((l) => l.id === "waymarks-signs")!.layout as {
+          visibility: string;
+        }
+      ).visibility;
+    expect(visibilityOf(defaultVisibility())).toBe("visible");
+    expect(visibilityOf({ ...defaultVisibility(), routes: false })).toBe("none");
+    // A stored value of the former sign switch has no effect any more.
+    expect(visibilityOf({ ...defaultVisibility(), waymarks: false })).toBe("visible");
   });
 
-  test("upright symbols along the routes lines, every 6 cm on paper", () => {
-    expect(layer!.source).toBe("osm");
-    expect(layer!["source-layer"]).toBe("routes");
-    expect(layout["symbol-placement"]).toBe("line");
+  test("no sub-switch for local signs, no label for the signs; the network switches are sub-switches of routes", () => {
+    expect(GROUPS.filter((g) => g.id.startsWith("local"))).toEqual([]);
+    expect(UI_ORDER.filter((id) => id.startsWith("local"))).toEqual([]);
+    for (const net of ["net-iwn", "net-nwn", "net-rwn", "net-lwn"]) {
+      expect(GROUPS.find((g) => g.id === net)?.parent).toBe("routes");
+    }
+  });
+
+  test("a point layer on the waymark-signs source: one image per placed sign, upright", () => {
+    expect(layer!.source).toBe(WAYMARK_SOURCE);
+    expect(layer!["source-layer"]).toBeUndefined();
+    expect(layout["symbol-placement"]).toBe("point");
     expect(layout["icon-rotation-alignment"]).toBe("viewport");
-    expect(layout["symbol-spacing"]).toBeCloseTo(mm(WAYMARK_SPACING_MM), 9);
-    expect(WAYMARK_SPACING_MM).toBe(60);
-    // No text: the combined image carries every sign of the segment.
+    expect(layout["icon-pitch-alignment"]).toBe("viewport");
     expect(layout["text-field"]).toBeUndefined();
+    expect(WAYMARK_SPACING_MM).toBe(60);
+    const style = base();
+    expect(style.sources[WAYMARK_SOURCE]).toMatchObject({ type: "geojson" });
+    expect(validateStyleMin(style).map((e) => e.message)).toEqual([]);
+  });
+
+  test("the style takes the computed signs as source data", () => {
+    const data = {
+      type: "FeatureCollection" as const,
+      features: [
+        {
+          type: "Feature" as const,
+          properties: { img: "waymark:red::red_bar" },
+          geometry: { type: "Point" as const, coordinates: [9, 48] },
+        },
+      ],
+    };
+    const style = base({ waymarks: data });
+    expect((style.sources[WAYMARK_SOURCE] as { data: unknown }).data).toEqual(data);
   });
 
   test("only from the print band on; smaller at 1:50 000, full size from 1:25 000", () => {
@@ -85,69 +117,47 @@ describe("waymarks layer", () => {
     }
   });
 
-  test("collision: nothing else removes a waymark, labels avoid it, waymarks do not stack", () => {
-    // Placed first (top of the style), so only other waymarks are in the collision index
-    // when a waymark is placed: allow-overlap false thins out neighbouring waymarks only.
-    expect(layout["icon-allow-overlap"]).toBe(false);
+  test("collision: signs never overlap by construction, labels avoid them, no placement role", () => {
+    expect(layout["icon-allow-overlap"]).toBe(true);
     expect(layout["icon-ignore-placement"]).toBe(false);
+    expect(WAYMARK_PADDING_MM).toBe(0.5);
     expect(layout["icon-padding"]).toBeCloseTo(mm(WAYMARK_PADDING_MM), 9);
-    // More routes and major networks win where two waymarks compete.
-    const key = (p: Props) => evalLayout("symbol-sort-key", 13, p) as number;
-    expect(key({ count: 3, network: "lwn" })).toBeLessThan(key({ count: 1, network: "lwn" }));
-    expect(key({ count: 1, network: "nwn" })).toBeLessThan(key({ count: 3, network: "lwn" }));
-    // The print placement reads its boxes (role "obstacle") instead of moving it.
-    expect(managedLayers([layer!])[0]!.role).toBe("obstacle");
+    expect(managedLayers([layer!])).toEqual([]);
+    expect(layout["symbol-sort-key"]).toBeUndefined();
   });
 
-  test("filter: segments without any sign are not requested", () => {
-    expect(passes({ symbols: "", refs: "", names: "", colours: "" })).toBe(false);
-    expect(passes({ symbols: "|||", refs: "|||", names: "|||", colours: "red|||" })).toBe(false);
-    expect(passes({ symbols: "||", refs: "||", names: "||" })).toBe(false);
-    expect(passes({})).toBe(false);
-    expect(passes({ symbols: "yellow::yellow_diamond", refs: "", names: "" })).toBe(true);
-    expect(passes({ symbols: "|", refs: "|HW 2", names: "|" })).toBe(true);
-    expect(passes({ symbols: "", refs: "", names: "Weg der Sinne" })).toBe(true);
-  });
-
-  test("every segment that passes the filter gets an image from the waymark provider", () => {
-    const samples: Props[] = [
-      { symbols: "red:white:red_pointer|green:blue::DZW|", refs: "HW 2||", names: "a|b|c" },
-      { symbols: "yellow::yellow_diamond", refs: "", names: "", colours: "" },
-      { symbols: "", refs: "", names: "Donau Felsen Läufe: Wilde Täler", colours: "" },
-      { symbols: "|", refs: "|5", names: "|", colours: "|blue" },
+  test("the image id of a point is a single-route waymark id the provider can draw", () => {
+    const samples = [
+      { id: "1", network: "rwn", osmc: "red:white:red_bar" },
+      { id: "2", network: "lwn", ref: "5", colour: "blue" },
+      { id: "3", network: "", name: "Donau Felsen Läufe: Wilde Täler" },
     ];
-    for (const p of samples) {
-      expect(passes(p)).toBe(true);
-      const id = evalLayout("icon-image", 13, p) as { name: string } | string;
-      const name = typeof id === "string" ? id : id.name;
-      expect(name.startsWith(`${WAYMARK_IMAGE_PREFIX}:`)).toBe(true);
-      expect(svgForImageId(name)).toBeDefined();
+    for (const route of samples) {
+      const [sign] = signsForRoutes([route], 1);
+      expect(sign).toBeDefined();
+      const props = { img: sign!.imageId };
+      expect(evalLayout("icon-image", 13, props)).toBe(sign!.imageId);
+      expect(sign!.imageId.startsWith(`${WAYMARK_IMAGE_PREFIX}:`)).toBe(true);
+      expect(svgForImageId(sign!.imageId)).toBeDefined();
     }
   });
 });
 
 describe("waymarks and the print placement", () => {
   for (const active of [false, true]) {
-    test(`waymarks stay the topmost symbol layer above all placement clones (active = ${active})`, () => {
+    test(`the signs stay the topmost layer above all placement clones (active = ${active})`, () => {
       const { style } = withPlacementLayers(base(), active);
       const ids = style.layers.map((l) => l.id);
-      const wm = ids.indexOf("waymarks-line");
+      const wm = ids.indexOf("waymarks-signs");
       expect(wm).toBe(ids.length - 1);
       const clones = ids.filter((id) => id.startsWith("placement-"));
       expect(clones.length).toBeGreaterThan(0);
       for (const c of clones) expect(ids.indexOf(c)).toBeLessThan(wm);
-      // The icon clones are placed right after the waymarks' group-mates, i.e. below them.
-      expect(ids.indexOf("placement-poi-main-icon")).toBeLessThan(wm);
     });
   }
 
-  test("obstacle layers are no candidates of the displacement", () => {
-    const [m] = managedLayers([layer!]);
-    const f = {
-      id: 1,
-      properties: { symbols: "red::red_bar" },
-      lngLat: [9, 48] as [number, number],
-    };
-    expect(evaluateLayer(m!, [f], 13)).toEqual([]);
+  test('no layer carries the removed role "obstacle"', () => {
+    const roles = managedLayers(base().layers).map((m) => m.role as string);
+    expect(roles).not.toContain("obstacle");
   });
 });

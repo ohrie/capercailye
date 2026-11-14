@@ -4,6 +4,7 @@ import {
   NavigationControl,
   ScaleControl,
 } from "maplibre-gl";
+import type { FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./app.css";
 import {
@@ -20,6 +21,8 @@ import { installIcons } from "./icons";
 import { areaOutside, interactionFor, type MapMode } from "./mode";
 import { downloadBlob, exportLayout, type ExportResult, isAbortError } from "./print/export";
 import { PrintPlacement, rectAround, withPlacementLayers } from "./placement";
+import type { Obstacle } from "./placement/displace";
+import type { RectMm } from "./placement/geo";
 import { AreaDrawer } from "./print/draw";
 import { PrintFrame } from "./print/frame";
 import {
@@ -53,6 +56,7 @@ import {
   type VectorTileZoomMode,
 } from "./style/sources";
 import { reliefUrls, setupMapLibre, tileLog, tileZoomHistogram } from "./tiles";
+import { computeWaymarks, WaymarkController } from "./waymarks";
 
 setupMapLibre();
 
@@ -75,7 +79,7 @@ const credits = buildCredits({
   busstopsAvailable,
 });
 
-function currentStyle() {
+function currentStyle(waymarks?: FeatureCollection) {
   return buildStyle({
     pmtilesUrl,
     busstopsUrl: busstopsAvailable ? busstopsUrl : undefined,
@@ -85,6 +89,8 @@ function currentStyle() {
     visibility: getState().visibility,
     // The hidden export map renders the track, too.
     gpx: getState().gpx?.data,
+    // The placed waymark signs (the export passes its layout-wide result).
+    waymarks,
   });
 }
 
@@ -191,23 +197,38 @@ function layerWanted(layerId: string): boolean {
 
 // Print placement (PLAN.md 4a): in print view symbols are displaced instead of dropped,
 // exactly as in the PDF; outside print view MapLibre's collision keeps the screen map tidy.
+/**
+ * Region of the print view: all sheets incl. bleed at the layout zoom. Too many sheets: just one
+ * sheet around the centre (the grid would be huge; there is no export then anyway).
+ */
+function placementRegion(): RectMm {
+  const l = layout();
+  if (!l.tooLarge) return l.regionMm;
+  const c = map.getCenter();
+  const area = printableArea(l.orientation);
+  return rectAround([c.lng, c.lat], l.zoom, area.width + 2 * BLEED_MM, area.height + 2 * BLEED_MM);
+}
+
 const placement = new PrintPlacement(map, placementLayers, {
   wanted: layerWanted,
-  // All sheets incl. bleed at the layout zoom. Too many sheets: just one sheet around the centre
-  // (the grid would be huge; there is no export then anyway).
-  region: () => {
-    const l = layout();
-    if (!l.tooLarge) return l.regionMm;
-    const c = map.getCenter();
-    const area = printableArea(l.orientation);
-    return rectAround(
-      [c.lng, c.lat],
-      l.zoom,
-      area.width + 2 * BLEED_MM,
-      area.height + 2 * BLEED_MM,
-    );
+  region: placementRegion,
+});
+
+// Waymark signs (PLAN.md 3 / 4a): placed by the app, one by one along the routes. In print view the
+// plan covers the sheet layout (the same result as the export), otherwise the viewport. Its boxes
+// are obstacles of the pictogram placement, and it decides which urban restaurants/cafés, toilets and hotels stay.
+const NO_BOXES: Obstacle[] = [];
+const waymarks = new WaymarkController(map, pmtilesUrl, {
+  printRegion: () =>
+    getState().printView ? { region: placementRegion(), zoom: printZoom() } : null,
+  visibility: () => getState().visibility,
+  onResult: (r) => {
+    const printView = getState().printView;
+    placement.setWaymarkObstacles(printView ? r.boxes : NO_BOXES);
+    placement.setUrbanKeep(printView ? r.urban : undefined);
   },
 });
+map.once("load", () => waymarks.update());
 
 function printZoom(): number {
   return layout().zoom;
@@ -248,6 +269,15 @@ subscribe((state, prev) => {
   }
   // Sheets, scale or zoom changed: region and visibility of the placement follow.
   if (state.print !== prev.print) placement.sync();
+  // Switches ("Wanderrouten" and the network switches decide band and signs alike; recomputed on every
+  // visibility change, the result is cached by key), print view or layout: new signs.
+  if (
+    state.visibility !== prev.visibility ||
+    state.printView !== prev.printView ||
+    state.print !== prev.print
+  ) {
+    waymarks.update();
+  }
   if (state.gpx !== prev.gpx) applyGpxData();
 });
 
@@ -353,10 +383,22 @@ async function runExport(options: ExportCallOptions = {}): Promise<ExportResult>
   if (options.signal?.aborted) controller.abort();
   options.signal?.addEventListener("abort", () => controller.abort(), { once: true });
   setExportBusy(true);
-  setStatus("Karte wird in Druckauflösung gerendert …");
+  setStatus("Wegzeichen werden berechnet …");
   try {
+    // One result for the whole layout: every sheet gets the same signs, obstacles and urban set
+    // (the preview used the same, see waymarks/index.ts).
+    const wm = await computeWaymarks({
+      pmtilesUrl,
+      region: l.regionMm,
+      zoom: l.zoom,
+      visibility: getState().visibility,
+    });
+    if (controller.signal.aborted) throw new DOMException("Export abgebrochen", "AbortError");
+    setStatus("Karte wird in Druckauflösung gerendert …");
     const result = await exportLayout(l, {
-      style: currentStyle(),
+      style: currentStyle(wm.data),
+      waymarkObstacles: wm.boxes,
+      urban: wm.urban,
       dpi: options.dpi ?? EXPORT_DPI,
       credits: credits.line,
       vectorTileZoom: options.vectorTileZoom,

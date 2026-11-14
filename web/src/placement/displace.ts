@@ -74,8 +74,8 @@ export const PLACE_DEFAULTS: PlaceOptions = {
 
 const CELL_MM = 4;
 
-/** Uniform grid over absolute boxes. */
-class BoxIndex {
+/** Uniform grid over absolute boxes (also used by waymarks/plan.ts). */
+export class BoxIndex {
   private readonly cells = new Map<string, Obstacle[]>();
 
   add(b: Obstacle): void {

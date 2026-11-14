@@ -22,18 +22,16 @@
 //               stop over a restaurant.
 //   "fixed"     symbol or circle layer that is drawn as it is (never moves) and only reserves
 //               its space, e.g. peak dots.
-//   "obstacle"  symbol layer that MapLibre places itself (line placement: the positions are only
-//               known after MapLibre's placement), e.g. waymarks. It must sit above the icon clones
-//               (it is placed before them). collect.ts reads its placed boxes from MapLibre's
-//               collision index (rendered.ts) and the pictograms move off them like off "fixed".
 // Outside print mode the original layers are shown with MapLibre's normal collision.
 //
 // "fixed" text-only symbol layers (settlement names) are placed before the icons, so they are never
 // pushed out by pictograms; their estimated box is an obstacle the icons move away from.
 //
-// M3 waymarks ("obstacle", style/routes.ts): their layers sit in the "waymarks" group above
-// everything; the icon clones are inserted below the first "obstacle" layer, so waymarks are placed
-// even before the pictograms, are never removed by them, and the pictograms avoid them.
+// M3 waymarks (style/routes.ts) have no role: the app places them itself (waymarks/index.ts) and
+// hands their boxes to the displacement as obstacles (PlaceOptions.obstacles, placement/index.ts).
+// Their layer sits in the "waymarks" group above everything, so MapLibre places it before the
+// pictogram clones as well (icon-allow-overlap: true, nothing removes a sign), as long as the clones
+// are inserted below it: they go below the first "fixed" symbol layer, which precedes the waymarks.
 import type { FeatureCollection, Geometry } from "geojson";
 import {
   latest,
@@ -49,7 +47,7 @@ export const PLACEMENT_KEY = "capercailye:placement";
 export const PLACEMENT_SOURCE = "placement";
 export const PLACEMENT_PREFIX = "placement-";
 
-export type PlacementRole = "displace" | "fixed" | "obstacle";
+export type PlacementRole = "displace" | "fixed";
 
 /** Feature property names on the placement source. */
 export const P_ROLE = "_role";
@@ -73,7 +71,7 @@ export interface ManagedLayer {
 export function placementRole(layer: LayerSpecification): PlacementRole | undefined {
   const meta = (layer as { metadata?: Record<string, unknown> }).metadata;
   const role = meta?.[PLACEMENT_KEY];
-  return role === "displace" || role === "fixed" || role === "obstacle" ? role : undefined;
+  return role === "displace" || role === "fixed" ? role : undefined;
 }
 
 export function managedLayers(layers: readonly LayerSpecification[]): ManagedLayer[] {
@@ -83,9 +81,6 @@ export function managedLayers(layers: readonly LayerSpecification[]): ManagedLay
     if (!role) continue;
     if (role === "displace" && spec.type !== "symbol") {
       throw new Error(`${spec.id}: "displace" gilt nur für Symbol-Layer`);
-    }
-    if (role === "obstacle" && spec.type !== "symbol") {
-      throw new Error(`${spec.id}: "obstacle" gilt nur für Symbol-Layer`);
     }
     if (role === "fixed" && spec.type !== "symbol" && spec.type !== "circle") {
       throw new Error(`${spec.id}: "fixed" gilt nur für Symbol- und Kreis-Layer`);
@@ -298,13 +293,10 @@ export function withPlacementLayers(
     if (vis === "visible") iconsVisible = true;
   }
   const icons = [mergedIconClone(iconSpecs, active && iconsVisible ? "visible" : "none")];
-  // Leaders, anchors and icons go below the first "obstacle" layer (waymarks) and below "fixed"
-  // symbol layers (settlement names), or to the very top: those are placed before the icons and
-  // keep their spot; every other label is placed after the icons and avoids them.
-  const at = layers.findIndex((l) => {
-    const role = placementRole(l);
-    return role === "obstacle" || (l.type === "symbol" && role === "fixed");
-  });
+  // Leaders, anchors and icons go below the first "fixed" symbol layer (settlement names), or to
+  // the very top: those are placed before the icons and keep their spot; every other label is
+  // placed after the icons and avoids them.
+  const at = layers.findIndex((l) => l.type === "symbol" && placementRole(l) === "fixed");
   const insertAt = at < 0 ? layers.length : at;
   layers.splice(insertAt, 0, ...top, ...icons);
 

@@ -5,7 +5,10 @@
  * Aufruf:
  *   bun transit/busstops.ts --gtfs <entpacktes-GTFS-Verzeichnis> --out <datei.geojsonl>
  *       [--min 4] [--saturday YYYY-MM-DD] [--bbox minLon,minLat,maxLon,maxLat]
- *       [--cluster-m 150] [--include-on-demand] [--include-rail-replacement] [--stats <datei.json>] [--all <datei.geojsonl>]
+ *       [--cluster-m 150] [--merge-m 75] [--include-on-demand] [--include-rail-replacement] [--stats <datei.json>] [--all <datei.geojsonl>]
+ *
+ * --merge-m: ausgewaehlte Haltestellen im Umkreis dieser Metern (Leader-Verfahren) zu einem Symbol zusammenfassen
+ * (Standard 75, 0 = aus); --all liefert weiterhin alle Haltestellen unzusammengefasst.
  *
  * stop_times.txt (mehrere GB) wird gestreamt; im Speicher liegen nur trips (aktive Fahrten) und Zaehler je Mast.
  */
@@ -24,11 +27,13 @@ for (let i = 2; i < process.argv.length; i++) {
 const gtfsDir = args.get("gtfs");
 const outPath = args.get("out");
 if (!gtfsDir || !outPath) {
-  console.error("Aufruf: bun busstops.ts --gtfs <dir> --out <datei.geojsonl> [--min 4] [--saturday YYYY-MM-DD] [--bbox a,b,c,d] [--cluster-m 150] [--include-on-demand] [--include-rail-replacement] [--stats f.json] [--all f.geojsonl]");
+  console.error("Aufruf: bun busstops.ts --gtfs <dir> --out <datei.geojsonl> [--min 4] [--saturday YYYY-MM-DD] [--bbox a,b,c,d] [--cluster-m 150] [--merge-m 75] [--include-on-demand] [--include-rail-replacement] [--stats f.json] [--all f.geojsonl]");
   process.exit(2);
 }
 const THRESHOLD = Number(args.get("min") ?? 4);
 const CLUSTER_M = Number(args.get("cluster-m") ?? 150);
+const MERGE_M = Number(args.get("merge-m") ?? 75);
+if (Number.isNaN(MERGE_M) || MERGE_M < 0) throw new Error("--merge-m: Meter >= 0 (0 = aus)");
 const INCLUDE_ON_DEMAND = args.has("include-on-demand");
 const INCLUDE_RAIL_REPLACEMENT = args.has("include-rail-replacement");
 const bbox = args.get("bbox")?.split(",").map(Number) as [number, number, number, number] | undefined;
@@ -374,10 +379,11 @@ unitList.forEach((u, i) => {
 });
 log(`Haltestellen mit Bus-Abfahrten: ${clusters.size} (Einheiten ${unitList.length}, ${merges} Namens-Zusammenfassungen)`);
 
-// ---------------------------------------------------------------- 7. Auswahl und Ausgabe
-const out = createWriteStream(outPath);
+// ---------------------------------------------------------------- 7. Auswahl
+type Sel = { name: string; sat: number; sun: number; min: number; lat: number; lon: number };
+const selection: Sel[] = [];
 const allOut = args.get("all") ? createWriteStream(args.get("all")!) : undefined; // Diagnose: alle Haltestellen mit Abfahrten
-let selected = 0, inBbox = 0, maxSpreadM = 0, maxSpreadName = "";
+let maxSpreadM = 0, maxSpreadName = "";
 for (const c of clusters.values()) {
   const lat = c.sumLat / c.n, lon = c.sumLon / c.n;
   const spread = Math.hypot((c.maxLat - c.minLat) * M_PER_DEG, (c.maxLon - c.minLon) * M_PER_DEG * Math.cos(lat * Math.PI / 180));
@@ -385,14 +391,72 @@ for (const c of clusters.values()) {
   const min = Math.min(c.sat, c.sun);
   allOut?.write(JSON.stringify({ type: "Feature", properties: { name: c.name, sat: c.sat, sun: c.sun, min, masts: c.masts }, geometry: { type: "Point", coordinates: [+lon.toFixed(6), +lat.toFixed(6)] } }) + "\n");
   if (min < THRESHOLD) continue;
-  selected++;
-  if (bbox && (lon < bbox[0] || lat < bbox[1] || lon > bbox[2] || lat > bbox[3])) continue;
+  selection.push({ name: c.name, sat: c.sat, sun: c.sun, min, lat, lon });
+}
+if (allOut) await new Promise<void>((r) => allOut.end(r));
+log(`ausgewaehlt (min(Sa,So) >= ${THRESHOLD}): ${selection.length}; groesste Ausdehnung einer Haltestelle: ${Math.round(maxSpreadM)} m (${maxSpreadName})`);
+
+// ---------------------------------------------------------------- 8. Zusammenfassen benachbarter Haltestellen
+// Wie die Picknickplaetze im Tile-Profil (Leader-Verfahren): nur die AUSGEWAEHLTEN Haltestellen (die Schwelle
+// gilt je Haltestelle, vor dem Zusammenfassen; Addieren wuerde Fahrten benachbarter Haltestellen doppelt zaehlen
+// und schwache Haltestellen ueber die Schwelle heben). Sortiert nach min absteigend, dann sat + sun absteigend,
+// dann Name (Code-Einheiten-Vergleich), lon, lat; die beste noch freie wird Repraesentant und nimmt alle freien
+// im Umkreis `radiusM` von SICH SELBST (keine Ketten). Position, Name und Abfahrten sind die des Repraesentanten.
+// Gerechnet wird ueber alle ausgewaehlten, --bbox filtert erst danach.
+const cmp = <T>(a: T, b: T) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** Leader-Zusammenfassung (rein, deterministisch): Repraesentanten in Reihenfolge der Rangfolge + groesste Gruppe. */
+function mergeNearby(list: readonly Sel[], radiusM: number): { kept: Sel[]; largest: { count: number; name: string } } {
+  const sorted = [...list].sort((a, b) => b.min - a.min || b.sat + b.sun - (a.sat + a.sun) || cmp(a.name, b.name) || cmp(a.lon, b.lon) || cmp(a.lat, b.lat));
+  if (radiusM <= 0) return { kept: sorted, largest: { count: 1, name: sorted[0]?.name ?? "" } };
+  const cell = radiusM / M_PER_DEG; // Zellgroesse in Grad (Breite); Laenge grosszuegig (cos >= 0.56 in Deutschland)
+  const cellLon = cell * 1.8;
+  const key = (s: Sel) => `${Math.floor(s.lon / cellLon)},${Math.floor(s.lat / cell)}`;
+  const grid = new Map<string, number[]>();
+  sorted.forEach((s, i) => {
+    const k = key(s);
+    let a = grid.get(k);
+    if (!a) grid.set(k, (a = []));
+    a.push(i);
+  });
+  const geoDist = (a: Sel, b: Sel) => {
+    const dy = (a.lat - b.lat) * M_PER_DEG;
+    const dx = (a.lon - b.lon) * M_PER_DEG * Math.cos(((a.lat + b.lat) / 2) * Math.PI / 180);
+    return Math.hypot(dx, dy);
+  };
+  const taken = new Array<boolean>(sorted.length).fill(false);
+  const kept: Sel[] = [];
+  let largest = { count: 0, name: "" };
+  for (let i = 0; i < sorted.length; i++) {
+    if (taken[i]) continue;
+    taken[i] = true;
+    const lead = sorted[i]!;
+    let count = 1;
+    const cx = Math.floor(lead.lon / cellLon), cy = Math.floor(lead.lat / cell);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      for (const j of grid.get(`${cx + dx},${cy + dy}`) ?? []) {
+        if (!taken[j] && geoDist(lead, sorted[j]!) <= radiusM) { taken[j] = true; count++; }
+      }
+    }
+    if (count > largest.count) largest = { count, name: lead.name };
+    kept.push(lead);
+  }
+  return { kept, largest };
+}
+
+const merged = mergeNearby(selection, MERGE_M);
+log(MERGE_M > 0 ? `zusammengefasst (<= ${MERGE_M} m): ${selection.length} -> ${merged.kept.length}; groesste Gruppe: ${merged.largest.count} (${merged.largest.name})` : "Zusammenfassen aus (--merge-m 0)");
+
+// ---------------------------------------------------------------- 9. Ausgabe
+const out = createWriteStream(outPath);
+let inBbox = 0;
+for (const s of merged.kept) {
+  if (bbox && (s.lon < bbox[0] || s.lat < bbox[1] || s.lon > bbox[2] || s.lat > bbox[3])) continue;
   inBbox++;
-  out.write(JSON.stringify({ type: "Feature", properties: { name: c.name, sat: c.sat, sun: c.sun, min }, geometry: { type: "Point", coordinates: [+lon.toFixed(6), +lat.toFixed(6)] } }) + "\n");
+  out.write(JSON.stringify({ type: "Feature", properties: { name: s.name, sat: s.sat, sun: s.sun, min: s.min }, geometry: { type: "Point", coordinates: [+s.lon.toFixed(6), +s.lat.toFixed(6)] } }) + "\n");
 }
 await new Promise<void>((r) => out.end(r));
-if (allOut) await new Promise<void>((r) => allOut.end(r));
-log(`ausgewaehlt (min(Sa,So) >= ${THRESHOLD}): ${selected}${bbox ? `, davon in bbox: ${inBbox}` : ""}; groesste Ausdehnung einer Haltestelle: ${Math.round(maxSpreadM)} m (${maxSpreadName})`);
+if (bbox) log(`davon in bbox: ${inBbox}`);
 
-const stats = { saturday: SAT, sunday: SUN, feedValidity: [feedMin, feedMax], threshold: THRESHOLD, clusterM: CLUSTER_M, routeTypes: Object.fromEntries(routeTypeCount), busRoutes: busRoutes.size, onDemandRoutesExcluded: excludedOnDemand, railReplacementRoutesExcluded: excludedRail, busTripsWeekend: tripFlag.size, departuresCounted: counted, pickupTypeCount, stopsWithDepartures: clusters.size, selected, inBbox: bbox ? inBbox : null, maxSpreadM: Math.round(maxSpreadM), seconds: Math.round((performance.now() - t0) / 1000) };
+const stats = { saturday: SAT, sunday: SUN, feedValidity: [feedMin, feedMax], threshold: THRESHOLD, clusterM: CLUSTER_M, mergeM: MERGE_M, routeTypes: Object.fromEntries(routeTypeCount), busRoutes: busRoutes.size, onDemandRoutesExcluded: excludedOnDemand, railReplacementRoutesExcluded: excludedRail, busTripsWeekend: tripFlag.size, departuresCounted: counted, pickupTypeCount, stopsWithDepartures: clusters.size, selected: merged.kept.length, selectedBeforeMerge: selection.length, selectedAfterMerge: merged.kept.length, largestMergedGroup: merged.largest, inBbox: bbox ? inBbox : null, maxSpreadM: Math.round(maxSpreadM), seconds: Math.round((performance.now() - t0) / 1000) };
 if (args.get("stats")) writeFileSync(args.get("stats")!, JSON.stringify(stats, null, 2) + "\n");

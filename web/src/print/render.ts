@@ -2,6 +2,8 @@
 import { type ErrorEvent, Map as MapLibreMap } from "maplibre-gl";
 import type { StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
 import { installIcons } from "../icons";
+import type { UrbanKeep } from "../placement/collect";
+import type { Obstacle } from "../placement/displace";
 import { PLACEMENT_SOURCE, placeForExport, rectAround, withPlacementLayers } from "../placement";
 import {
   applyVectorTileZoom,
@@ -24,6 +26,13 @@ export interface RenderRequest {
   vectorTileZoom?: VectorTileZoomMode;
   /** Print placement of symbols (default true; false = MapLibre collision, for comparisons). */
   placement?: boolean;
+  /**
+   * Boxes of the waymark signs of the whole sheet layout (waymarks/index.ts, global paper mm at
+   * `zoom`): obstacles of the pictogram placement. The signs themselves are in the style.
+   */
+  waymarkObstacles?: readonly Obstacle[];
+  /** Kept urban restaurants/cafés, toilets and hotels of the whole sheet layout (same computation as the signs). */
+  urban?: UrbanKeep;
 }
 
 export interface RenderResult {
@@ -115,7 +124,12 @@ export async function renderMapImage(req: RenderRequest): Promise<RenderResult> 
         req.sizeMm.width + 2 * bleed,
         req.sizeMm.height + 2 * bleed,
       );
-      placeForExport(map, managed, { zoom: req.zoom, region });
+      placeForExport(map, managed, {
+        zoom: req.zoom,
+        region,
+        options: { obstacles: req.waymarkObstacles ?? [] },
+        urban: req.urban,
+      });
       await waitForIdle(map, req.timeoutMs ?? 120_000, PLACEMENT_SOURCE);
     }
 

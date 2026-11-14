@@ -35,7 +35,7 @@ Größen: `style/sizes.ts`, Rangfolge: `style/hierarchy.ts`.
 - Bushaltestellen kommen nicht mehr aus OSM, sondern aus GTFS (eigene Quelle, Gruppe `busstops`,
   Layer `busstops-main`): grüne Scheibe mit gelbem Rand und weißem „H“ (allgemeines
   Haltestellenzeichen), 3,0 mm, Rang 12 (`BUSSTOP_PRIORITY`, `style/hierarchy.ts`), Name optional.
-- Aussichtspunkte (`viewpoint`) in eigener Ebene `viewpoints-main`, Standard aus (Schalter
+- Aussichtspunkte (`viewpoint`) in eigener Ebene `viewpoints-main`, nur benannte, Standard an (Schalter
   „Aussichtspunkte“); Aussichtstürme bleiben immer sichtbar.
 - Die kleinen Symbole (`poi-minor` und die `<kategorie>-minor`-Ebenen: Wegkreuze, Bildstöcke,
   Gedenksteine, Brunnen, Türme, Masten, Windräder, Felsen, Dolinen, Wehre, unbenannte Wegweiser)

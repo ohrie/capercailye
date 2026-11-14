@@ -29,11 +29,13 @@ import {
   GPX_SOURCE,
   OSM_SOURCE,
   type ReliefUrls,
+  WAYMARK_SOURCE,
   busstopsSource,
   contourSource,
   demSource,
   gpxSource,
   osmSource,
+  waymarkSource,
 } from "./sources";
 import { transportLayers } from "./transport";
 import { waterLayers } from "./water";
@@ -117,8 +119,10 @@ export const GROUPS: LayerGroup[] = [
     defaultVisible: true,
     layers: routeLayers,
   },
-  // Network sub-switches of "Wanderrouten" (B3): no layers of their own, they set the filters of
-  // routes-band and waymarks-line (also built into the style from the visibility, for the export).
+  // Network sub-switches of "Wanderrouten" (B3): no layers of their own. They control band AND
+  // waymark signs: they set filter, width and opacity of routes-band (also built into the style from
+  // the visibility, for the export) and, per route, decide which routes get signs (waymarks/routes.ts;
+  // main.ts recomputes the signs).
   ...(
     [
       ["iwn", "International"],
@@ -164,12 +168,12 @@ export const GROUPS: LayerGroup[] = [
     defaultVisible: cat.defaultVisible,
     layers: (v = {}) => poiCategoryLayers(cat, { guidepostNames: isOn("guidepostnames", v) }),
   })),
-  // Viewpoints (tourism=viewpoint) are off by default; view towers stay in "poi".
+  // Viewpoints: only named ones are in the tiles; on by default. View towers stay in "poi".
   {
     id: "viewpoints",
     label: "Aussichtspunkte",
     section: "symbols",
-    defaultVisible: false,
+    defaultVisible: true,
     layers: viewpointLayers,
   },
   // Names of the guideposts (the flags belong to the category "guideposts"). Not a layer group: the
@@ -200,11 +204,14 @@ export const GROUPS: LayerGroup[] = [
     defaultVisible: true,
     layers: labelLayers,
   },
-  // M3: waymark symbols on top, so they win collisions against all other labels. Own switch (M6).
+  // M3: waymark signs on top, so they win collisions against all other labels. Part of the routes
+  // (PLAN.md 4a), no switch of their own: "Wanderrouten" and the network switches decide (the signs
+  // are recomputed in waymarks/index.ts). The layer draws the points of the source `waymark-signs`
+  // that waymarks/index.ts computes: one image per sign, placed along the routes by the app. Like
+  // `shields` this is a sign group that follows its toggle (`toggledBy`).
   {
     id: "waymarks",
-    label: "Wegzeichen",
-    section: "routes",
+    toggledBy: "routes",
     defaultVisible: true,
     layers: waymarkLayers,
   },
@@ -217,7 +224,6 @@ export const GROUPS: LayerGroup[] = [
 export const UI_ORDER: readonly string[] = [
   "routes",
   ...Object.values(NETWORK_GROUPS),
-  "waymarks",
   "hillshade",
   "contours",
   "protected",
@@ -264,6 +270,8 @@ export interface StyleOptions {
   visibility: GroupVisibility;
   /** The GPX track (lines and start/end points); empty source without it. */
   gpx?: FeatureCollection;
+  /** Placed waymark signs (waymarks/index.ts, GeoJSON points); empty source without them. */
+  waymarks?: FeatureCollection;
   /** Attribution text per source (map attribution); default: the sources without data dates. */
   credits?: SourceCredits;
 }
@@ -288,6 +296,7 @@ export function buildStyle(opts: StyleOptions): StyleSpecification {
     [DEM_SOURCE]: demSource(opts.relief.dem, credits.relief),
     [CONTOUR_SOURCE]: contourSource(opts.relief.contours, credits.relief),
     [GPX_SOURCE]: gpxSource(opts.gpx),
+    [WAYMARK_SOURCE]: waymarkSource(opts.waymarks),
   };
   if (opts.busstopsUrl)
     sources[BUSSTOPS_SOURCE] = busstopsSource(opts.busstopsUrl, credits.busstops);

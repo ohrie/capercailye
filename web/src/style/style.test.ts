@@ -2,13 +2,18 @@
 // source-layer / attribute / enumerated value used in expressions exists in tiles/SCHEMA.md.
 // A typo in any of these would not fail at runtime, it would silently render nothing.
 import { describe, expect, test } from "bun:test";
-import { featureFilter, validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
+import {
+  createExpression,
+  featureFilter,
+  latest,
+  validateStyleMin,
+} from "@maplibre/maplibre-gl-style-spec";
 import type { Feature, FeatureCollection } from "geojson";
 import { POI_KINDS as REGISTRY_KINDS } from "../icons/registry";
 import { managedLayers, placementRole } from "../placement/layers";
 import { buildStyle, defaultVisibility, GROUPS, SECTIONS, UI_ORDER, uiGroups } from "./index";
 import { POI_CATEGORIES } from "./poi";
-import { NETWORK_GROUPS, routeNetworkFilter } from "./routes";
+import { NETWORK_GROUPS, routeBandExpressions, routeLayers, routeNetworkFilter } from "./routes";
 import { COLORS } from "./palette";
 import { GPX_LINE_MM, GPX_MARKER_MM } from "./sizes";
 import { CONTOUR_OPTIONS } from "./sources";
@@ -35,7 +40,7 @@ const SCHEMA: Record<string, string[]> = {
     "name",
     "ref",
   ],
-  routes: ["symbols", "refs", "names", "colours", "network", "count"],
+  routes: ["symbols", "refs", "names", "colours", "network", "nets", "count"],
   landcover: ["kind", "wetland"],
   protected_area: ["kind", "name", "protect_class"],
   water: ["name", "intermittent"],
@@ -213,6 +218,7 @@ describe("style", () => {
       "dem",
       "gpx",
       "osm",
+      "waymark-signs",
     ]);
     expect(style.layers.some((l) => l.id.startsWith("busstops-"))).toBe(true);
     const without = buildStyle({
@@ -221,7 +227,13 @@ describe("style", () => {
       relief: RELIEF,
       visibility: defaultVisibility(),
     });
-    expect(Object.keys(without.sources).sort()).toEqual(["contours", "dem", "gpx", "osm"]);
+    expect(Object.keys(without.sources).sort()).toEqual([
+      "contours",
+      "dem",
+      "gpx",
+      "osm",
+      "waymark-signs",
+    ]);
     expect(without.layers.some((l) => l.id.startsWith("busstops-"))).toBe(false);
     expect(validateStyleMin(without).map((e) => e.message)).toEqual([]);
     // Every layer's source exists in either style.
@@ -372,16 +384,18 @@ describe("M6 switches", () => {
 
   test("every POI kind lands in exactly one layer (category, viewpoints or poi-main/minor)", () => {
     for (const k of REGISTRY_KINDS) {
-      // Parking needs hiking=yes to be shown at all; every other kind is unconditional.
+      // Parking needs hiking=yes to be shown at all, viewpoints a name; every other kind is
+      // unconditional.
       for (const props of [
         { kind: k, name: "x", hiking: true },
-        { kind: k, hiking: true },
+        ...(k === "viewpoint" ? [] : [{ kind: k, hiking: true }]),
       ]) {
         expect(passing(props), JSON.stringify(props)).toHaveLength(1);
       }
     }
-    // Hidden car parks are the only kind in no layer.
+    // Hidden car parks and unnamed viewpoints are the only ones in no layer.
     expect(passing({ kind: "parking", name: "x" })).toEqual([]);
+    expect(passing({ kind: "viewpoint", hiking: true })).toEqual([]);
   });
 
   test("category kinds are disjoint and their layers belong to their own group", () => {
@@ -426,33 +440,110 @@ describe("M6 switches", () => {
     expect(ids.has("heritage-minor")).toBe(true);
   });
 
-  test("routeNetworkFilter: all on = no exclusion; only Lokal = lwn and missing", () => {
-    expect(routeNetworkFilter({})).toBeNull();
-    expect(routeNetworkFilter(defaultVisibility())).toBeNull();
-    const pass = (vis: Record<string, boolean>, network?: string) => {
-      const f = featureFilter(routeNetworkFilter(vis) as never, "net");
-      const properties = network === undefined ? {} : { network };
-      return f.filter({ zoom: 13 } as never, { type: 2, properties } as never);
+  describe("band by the network switches (attribute nets)", () => {
+    const iwn = { [NETWORK_GROUPS.iwn]: false };
+    const noRwn = { [NETWORK_GROUPS.rwn]: false };
+    const noLokal = { [NETWORK_GROUPS.lwn]: false };
+    const none = {
+      [NETWORK_GROUPS.iwn]: false,
+      [NETWORK_GROUPS.nwn]: false,
+      [NETWORK_GROUPS.rwn]: false,
+      [NETWORK_GROUPS.lwn]: false,
     };
     const onlyLokal = {
       [NETWORK_GROUPS.iwn]: false,
       [NETWORK_GROUPS.nwn]: false,
       [NETWORK_GROUPS.rwn]: false,
     };
-    expect(pass(onlyLokal, "iwn")).toBe(false);
-    expect(pass(onlyLokal, "nwn")).toBe(false);
-    expect(pass(onlyLokal, "rwn")).toBe(false);
-    expect(pass(onlyLokal, "lwn")).toBe(true);
-    expect(pass(onlyLokal)).toBe(true);
-    const noLokal = { [NETWORK_GROUPS.lwn]: false };
-    expect(pass(noLokal, "lwn")).toBe(false);
-    expect(pass(noLokal)).toBe(false);
-    expect(pass(noLokal, "rwn")).toBe(true);
-    const none = { ...onlyLokal, ...noLokal };
-    for (const n of ["iwn", "nwn", "rwn", "lwn", undefined]) expect(pass(none, n)).toBe(false);
+    const feature = (nets?: string) => ({
+      type: 2,
+      properties: nets === undefined ? {} : { nets },
+    });
+    const pass = (vis: Record<string, boolean>, nets?: string) => {
+      const f = featureFilter(routeNetworkFilter(vis) as never, "net");
+      return f.filter({ zoom: 13 } as never, feature(nets) as never);
+    };
+    const major = (vis: Record<string, boolean>, nets: string) => {
+      const sortKey = routeBandExpressions(vis).sortKey;
+      if (typeof sortKey === "number") return false;
+      const expr = createExpression(
+        sortKey as never,
+        (latest as never)["layout_line"]["line-sort-key"],
+      );
+      if (expr.result !== "success") throw new Error(JSON.stringify(expr.value));
+      return expr.value.evaluate({ zoom: 13 } as never, feature(nets) as never) === 1;
+    };
+
+    test("all four on: no filter at all", () => {
+      expect(routeNetworkFilter({})).toBeNull();
+      expect(routeNetworkFilter(defaultVisibility())).toBeNull();
+      expect(routeBandExpressions({}).filter).toBeNull();
+    });
+
+    test("a segment has a band if at least one of its routes lies in a switched-on network", () => {
+      // rwn|lwn: rwn off + lwn on -> visible; rwn on + lwn off -> visible; both off -> invisible.
+      expect(pass(noRwn, "rwn|lwn")).toBe(true);
+      expect(pass(noLokal, "rwn|lwn")).toBe(true);
+      expect(pass({ ...noRwn, ...noLokal }, "rwn|lwn")).toBe(false);
+      // Only lwn: gone with lwn off, present with only lwn on.
+      expect(pass(noLokal, "lwn")).toBe(false);
+      expect(pass(onlyLokal, "lwn")).toBe(true);
+      expect(pass(onlyLokal, "iwn|nwn|rwn")).toBe(false);
+      expect(pass(onlyLokal, "iwn|lwn")).toBe(true);
+      expect(pass(iwn, "iwn")).toBe(false);
+      expect(pass(iwn, "iwn|rwn")).toBe(true);
+      // The search is exact: no partial matches across the pipes.
+      expect(pass(onlyLokal, "lwnx")).toBe(false);
+    });
+
+    test("nothing on: nothing; a segment without nets counts as nothing", () => {
+      for (const nets of ["iwn", "nwn", "rwn", "lwn", "rwn|lwn", undefined]) {
+        expect(pass(none, nets)).toBe(false);
+      }
+      expect(pass(noRwn, undefined)).toBe(false);
+    });
+
+    test("width, opacity and sort key follow the highest VISIBLE network", () => {
+      // rwn on: rwn|lwn is major; rwn off: the same segment is only local (lwn).
+      expect(major({}, "rwn|lwn")).toBe(true);
+      expect(major(noRwn, "rwn|lwn")).toBe(false);
+      expect(major(noLokal, "rwn|lwn")).toBe(true);
+      expect(major(noLokal, "lwn")).toBe(false);
+      expect(major(onlyLokal, "rwn|lwn")).toBe(false);
+      expect(major(iwn, "iwn|nwn")).toBe(true);
+      // No major network on: constants, no expression.
+      const local = routeBandExpressions(onlyLokal);
+      expect(local.sortKey).toBe(0);
+      expect(local.opacity).toBe(0.58);
+      expect(JSON.stringify(local.width)).not.toContain("case");
+      expect(JSON.stringify(routeBandExpressions({}).width)).toContain("case");
+    });
+
+    test("the style (export) carries the same expressions as the live map", () => {
+      const vis = { ...defaultVisibility(), ...noRwn };
+      const band = routeBandExpressions(vis);
+      const layer = routeLayers(vis)[0] as unknown as {
+        filter: unknown;
+        layout: Record<string, unknown>;
+        paint: Record<string, unknown>;
+      };
+      expect(layer.filter).toEqual(band.filter);
+      expect(layer.layout["line-sort-key"]).toEqual(band.sortKey);
+      expect(layer.paint["line-width"]).toEqual(band.width);
+      expect(layer.paint["line-opacity"]).toEqual(band.opacity);
+      for (const v of [{}, noRwn, onlyLokal, none]) {
+        const style = buildStyle({
+          pmtilesUrl: "http://localhost/data/test.pmtiles",
+          glyphsUrl: "http://localhost/fonts/{fontstack}/{range}.pbf",
+          relief: RELIEF,
+          visibility: { ...defaultVisibility(), ...v },
+        });
+        expect(validateStyleMin(style).map((e) => e.message)).toEqual([]);
+      }
+    });
   });
 
-  test("the network switches reach routes-band and waymarks-line of the built style", () => {
+  test("the network switches reach routes-band of the built style", () => {
     const build = (visibility: Record<string, boolean>) =>
       buildStyle({
         pmtilesUrl: "http://localhost/data/test.pmtiles",
@@ -464,9 +555,12 @@ describe("M6 switches", () => {
       (s.layers.find((l) => l.id === id) as { filter?: unknown }).filter;
     expect(filterOf(build({}), "routes-band")).toBeUndefined();
     const off = build({ [NETWORK_GROUPS.iwn]: false });
-    expect(JSON.stringify(filterOf(off, "routes-band"))).toContain("iwn");
-    expect(JSON.stringify(filterOf(off, "waymarks-line"))).toContain("iwn");
-    expect(JSON.stringify(filterOf(off, "waymarks-line"))).toContain("symbols");
+    // The filter lists the networks that are on.
+    const filter = JSON.stringify(filterOf(off, "routes-band"));
+    expect(filter).toContain("|nwn|");
+    expect(filter).not.toContain("|iwn|");
+    // The waymark signs follow the same switches per route (waymarks/routes.ts), not by a layer filter.
+    expect(off.layers.find((l) => l.id === "waymarks-signs")).toBeDefined();
     expect(validateStyleMin(off).map((e) => e.message)).toEqual([]);
   });
 
@@ -499,10 +593,10 @@ describe("M6 switches", () => {
     );
   });
 
-  test("waymarks have their own label and are no longer part of the route toggle", () => {
+  test("waymarks have no switch of their own: they follow the route toggle", () => {
     const g = GROUPS.find((x) => x.id === "waymarks")!;
-    expect(g.label).toBe("Wegzeichen");
-    expect(g.toggledBy).toBeUndefined();
+    expect(g.label).toBeUndefined();
+    expect(g.toggledBy).toBe("routes");
     expect(GROUPS.find((x) => x.id === "routes")?.label).toBe("Wanderrouten");
   });
 });

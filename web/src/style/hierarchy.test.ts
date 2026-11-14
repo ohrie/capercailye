@@ -192,20 +192,20 @@ describe("importance hierarchy", () => {
 
   test("waymarks (tier 0) stay above everything", () => {
     const ids = withPlacementLayers(style(), true).style.layers.map((l) => l.id);
-    expect(ids.at(-1)).toBe("waymarks-line");
-    expect(ids.indexOf("placement-icons")).toBeLessThan(ids.indexOf("waymarks-line"));
+    expect(ids.at(-1)).toBe("waymarks-signs");
+    expect(ids.indexOf("placement-icons")).toBeLessThan(ids.indexOf("waymarks-signs"));
   });
 });
 
 describe("switches: viewpoints and guidepost names", () => {
-  test("both are off by default, with their own sidebar toggle", () => {
+  test("viewpoints are on and guidepost names off by default, each with its own sidebar toggle", () => {
     const vp = GROUPS.find((g) => g.id === "viewpoints")!;
     const gn = GROUPS.find((g) => g.id === "guidepostnames")!;
     expect(vp.label).toBe("Aussichtspunkte");
-    expect(vp.defaultVisible).toBe(false);
+    expect(vp.defaultVisible).toBe(true);
     expect(gn.label).toBe("Wegweisernamen");
     expect(gn.defaultVisible).toBe(false);
-    expect(defaultVisibility().viewpoints).toBe(false);
+    expect(defaultVisibility().viewpoints).toBe(true);
     expect(defaultVisibility().guidepostnames).toBe(false);
     expect(defaultVisibility().busstops).toBe(true);
   });
@@ -221,6 +221,10 @@ describe("switches: viewpoints and guidepost names", () => {
     expect(pass(main, "viewpoint")).toBe(false);
     expect(pass(main, "viewtower")).toBe(true);
     expect(pass(vpf, "viewpoint")).toBe(true);
+    // Only named viewpoints (defensive against old tiles).
+    expect(
+      vpf.filter({ zoom: 13 } as never, { type: 1, properties: { kind: "viewpoint" } } as never),
+    ).toBe(false);
     expect(pass(vpf, "viewtower")).toBe(false);
     expect(MINOR_KINDS as string[]).not.toContain("viewpoint");
   });

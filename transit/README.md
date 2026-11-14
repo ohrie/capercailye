@@ -18,11 +18,12 @@ einige hundert MB (stop_times.txt mit 2,1 GB wird gestreamt). Plattenplatz für 
 
 Ausgabe:
 
-- `$CAPERCAILYE_DATA/capercailye-busstops.pmtiles` (rund 23 MB für ganz Deutschland, 125 665 Haltestellen)
+- `$CAPERCAILYE_DATA/capercailye-busstops.pmtiles` (rund 24 MB für ganz Deutschland, 124 265 Haltestellen)
 - `$CAPERCAILYE_DATA/capercailye-busstops.geojsonl` (Zwischendatei, GeoJSON Lines)
 - `$CAPERCAILYE_DATA/tmp/busstops-stats.json` (Zahlen des Laufs)
 
-Zusätzliche Optionen von `transit/busstops.ts` (nach `--`): `--cluster-m 150`, `--include-on-demand`,
+Zusätzliche Optionen von `transit/busstops.ts` (nach `--`): `--cluster-m 150`, `--merge-m 75` (Regel 9, `0` schaltet das
+Zusammenfassen ab), `--include-on-demand`,
 `--include-rail-replacement`, `--all <datei.geojsonl>` (alle Haltestellen mit Abfahrten, auch unter der Schwelle, zur Diagnose).
 
 ## Schema der Tiles (fest)
@@ -79,7 +80,20 @@ Verzeichnisname nicht zum Muster, entfällt `-N` und damit der Stand. Prüfen: i
    keine haben; 150 m deckt Kreuzungen ab, und gleichnamige Haltestellen verschiedener Orte werden nicht vermischt, weil die Namen
    meist den Ort enthalten. Abfahrten der Masten werden addiert, die Position ist der Mittelpunkt der Masten mit Abfahrten.
    Größte beobachtete Ausdehnung einer zusammengefassten Haltestelle: 226 m.
-8. **Auswahl:** `min(sat, sun) >= Schwelle` (Standard 4).
+8. **Auswahl:** `min(sat, sun) >= Schwelle` (Standard 4), je Haltestelle (nach Regel 7).
+9. **Benachbarte Haltestellen zusammenfassen** (`--merge-m 75`, seit 2026-11-14): ausgewählte Haltestellen, die höchstens
+   75 m auseinanderliegen, werden zu **einem** Symbol (Leader-Verfahren wie bei den Picknickplätzen im Tile-Profil,
+   deterministisch). Sortierung: `min` absteigend, dann `sat + sun` absteigend, dann Name (Code-Einheiten-Vergleich),
+   dann Länge und Breite. Die beste noch freie Haltestelle wird Repräsentant und nimmt alle freien innerhalb 75 m
+   **von sich selbst** (keine Ketten). Position, Name und Abfahrten (`sat`, `sun`, `min`) sind die des Repräsentanten,
+   es wird nichts addiert. Begründung: (a) benachbarte, verschieden benannte Haltestellen werden oft von denselben
+   Fahrten nacheinander bedient, Addieren würde Fahrten doppelt zählen und schwache Haltestellen (2 + 2) über die
+   Schwelle heben, deshalb wird erst ausgewählt und dann zusammengefasst; (b) es ist eine reine Darstellungsmaßnahme auf
+   bereits gefilterten Kandidaten und ändert nicht, welche Orte eine brauchbare Verbindung haben. Gerechnet wird über
+   alle ausgewählten Haltestellen, `--bbox` filtert erst danach (Ausschnitt-Läufe liefern dieselben Punkte wie der
+   Gesamtlauf). `--all` bleibt unzusammengefasst. Feed 2026-11-07: 125 665 ausgewählt → 124 265 Symbole (1 400
+   Zusammenfassungen), größte Gruppe 5 Haltestellen („BNA, Bahnhof 05“); `busstops-stats.json` enthält `mergeM`,
+   `selectedBeforeMerge`, `selectedAfterMerge` und `largestMergedGroup`.
 
 ## Bekannte Eigenheiten der Daten
 

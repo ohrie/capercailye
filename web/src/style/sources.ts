@@ -12,6 +12,10 @@ export const GPX_SOURCE = "gpx";
 
 export const EMPTY_GPX: FeatureCollection = { type: "FeatureCollection", features: [] };
 
+/** The placed waymark signs (GeoJSON points, `img` = image id); empty without a computation. */
+export const WAYMARK_SOURCE = "waymark-signs";
+export const EMPTY_WAYMARKS: FeatureCollection = { type: "FeatureCollection", features: [] };
+
 /**
  * Contour options for maplibre-contour (the DemSource itself lives in tiles.ts, browser only).
  * Thresholds are keyed by the rounded tile zoom: z13/z14 (1:15 000-1:25 000) 10 m with index
@@ -72,6 +76,14 @@ export function busstopsSource(pmtilesUrl: string, credit: string): SourceSpecif
 /** GPX track: lines plus start/end points (`_kind`, see src/gpx.ts); empty without a track. */
 export function gpxSource(data: FeatureCollection = EMPTY_GPX): SourceSpecification {
   return { type: "geojson", data };
+}
+
+/**
+ * Waymark signs, one point per sign (waymarks/index.ts); empty without data. `tolerance: 0`: the
+ * points are already placed, MapLibre must not simplify or cluster them.
+ */
+export function waymarkSource(data: FeatureCollection = EMPTY_WAYMARKS): SourceSpecification {
+  return { type: "geojson", data, tolerance: 0 };
 }
 
 export function demSource(url: string, credit: string): SourceSpecification {
