@@ -588,3 +588,50 @@ section {
   padding-left: 1.2em;
   color: var(--ink-muted);
 }
+
+/* Impressum und Datenschutz */
+.legal {
+  padding: 48px 0 56px;
+}
+
+.legal .wrap {
+  max-width: 760px;
+}
+
+.legal h1 {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.legal h2 {
+  font-size: 1.2rem;
+  margin: 32px 0 8px;
+}
+
+.legal h3 {
+  font-size: 1rem;
+  margin: 20px 0 6px;
+}
+
+.legal p,
+.legal ul {
+  margin: 0 0 12px;
+}
+
+.legal ul {
+  padding-left: 22px;
+}
+
+.legal__stand {
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.legal code {
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+.legal a {
+  overflow-wrap: anywhere;
+}
