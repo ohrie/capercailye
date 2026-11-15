@@ -1,4 +1,4 @@
-// Symbol displacement for the fixed print scale (PLAN.md 4a). Pure and deterministic.
+// Symbol displacement for the fixed print scale (SPEC.md 4.4). Pure and deterministic.
 //
 // Every symbol is drawn. Items are placed one after another in priority order (lower value =
 // more important, ties by id); each takes the free position closest to its true location within

@@ -2,7 +2,7 @@
 
 Laufzeit-Icons für MapLibre: jedes Bild `"<präfix>:<name>"` wird aus SVG erzeugt, mit 4-facher
 Überabtastung gerastert und mit `pixelRatio: 4` per `map.addImage` eingetragen. Kein Sprite, weil
-der Export mit `pixelRatio` bis 3,125 rendert (PLAN.md §7).
+der Export mit `pixelRatio` bis 3,125 rendert (SPEC.md 2, 4.3).
 
 - `registry.ts` – Definitionen je POI-Art (`kind` aus `tiles/SCHEMA.md`), reine Funktion
   `iconSvg(def)` → `{ svg, width, height }` (Größen in Papier-mm, `style/units.ts`).

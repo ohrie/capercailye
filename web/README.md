@@ -21,7 +21,7 @@ Die PMTiles werden nicht ins Repo kopiert. Der Dev-Server liefert `/data/*` aus
 `$CAPERCAILYE_DATA/` mit Range-Requests (206) aus; ein anderes Verzeichnis per
 `CAPERCAILYE_DATA=/pfad bun run dev`. Erwartet wird die Datei aus `PMTILES_PATH` in `src/config.ts` (derzeit `capercailye-rp.pmtiles`) (Schema:
 `../tiles/SCHEMA.md`). Optional ist `capercailye-busstops.pmtiles` (GTFS-Bushaltestellen aus
-`../transit/`, Layer `bus_stop`, Attribute `name`, `sat`, `sun`, `min`, Zoom 10–14, PLAN.md 4c):
+`../transit/`, Layer `bus_stop`, Attribute `name`, `sat`, `sun`, `min`, Zoom 10–14, SPEC.md 5):
 `src/data.ts` prüft beim Start per Range-Request auf die PMTiles-Kennung; fehlt die Datei, wird
 weder Quelle noch Gruppe `busstops` in den Stil aufgenommen (sonst würde MapLibre nie `idle`
 melden und Platzierung und Export hingen), und der Schalter „Bushaltestellen“ ist deaktiviert.
@@ -62,17 +62,17 @@ src/
 ├── style/           Stil als TS-Module, je Feature-Gruppe ein Baustein (index.ts setzt zusammen;
 │                    gpx.ts Track-Linie und Start/Ende; palette.ts Farben, units.ts mm/pt + Zoom-Skalierung, style.test.ts prüft
 │                    Spec, Layer-Ids und alle Attribute gegen ../tiles/SCHEMA.md)
-├── osmc/            Wegzeichen-Bilder (PLAN.md 3): parse.ts OSMC-Grammatik, shapes.ts Formen,
+├── osmc/            Wegzeichen-Bilder (SPEC.md 4.5): parse.ts OSMC-Grammatik, shapes.ts Formen,
 │                    render.ts SVG je Zeichen, Rückfallkette ref/colour → ref → Namenskürzel
 │                    (kombinierte Bilder nur für Legende/Musterblatt); index.ts Bild-Id
 │                    (waymarkImageId) und Bildlieferant „waymark:“
-├── waymarks/        Wegzeichen einzeln entlang der Wege (PLAN.md 3/4a), rein und getestet:
+├── waymarks/        Wegzeichen einzeln entlang der Wege (SPEC.md 4.5), rein und getestet:
 │                    clip.ts (Linie auf Tile-Fläche), routes.ts (Routen, Netz-Schalter je Route),
 │                    signs.ts (Zeichen je Abschnitt, Größe in mm), graph.ts (Stücke → Abschnitte
 │                    zwischen Gabelungen), plan.ts (Positionen, Überdeckungsfreiheit); tiles.ts
 │                    (Layer `routes`/`poi` der z12-Tiles aus der PMTiles-Datei), index.ts
 │                    (computeWaymarks, WaymarkController)
-├── placement/       Druck-Platzierung (PLAN.md 4a): displace.ts Verdrängung (rein, getestet),
+├── placement/       Druck-Platzierung (SPEC.md 4.4): displace.ts Verdrängung (rein, getestet),
 │                    collect.ts Features → Papier-mm → GeoJSON, layers.ts Klon-Layer,
 │                    thin.ts Ausdünnung in Städten (Gastronomie, Toiletten, Hotels; greedy), index.ts Steuerung für
 │                    Vorschau (Druckansicht) und Export
@@ -110,7 +110,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
 - Ändert sich `../tiles/SCHEMA.md`, die Liste in `style/style.test.ts` mitziehen.
 - `VECTOR_TILE_ZOOM` in `style/sources.ts` steuert, welche Kachelstufe MapLibre beim gebrochenen
   Druckzoom lädt (`"round"`: 1:25 000 → z13, 1:50 000 → z12).
-- **Blattschnitt** (M5, `print/layout.ts`, PLAN.md 4): Der Nutzer legt ein **Gebiet** fest
+- **Blattschnitt** (M5, `print/layout.ts`, SPEC.md 4.3): Der Nutzer legt ein **Gebiet** fest
   (`state.print.area`, Länge/Breite; gestricheltes Rechteck mit vier Eckgriffen zum Aufziehen und
   einem Mittelgriff zum Verschieben, beim Start 90 % eines Kartenfelds bei 1:25 000, nicht
   gespeichert). Daraus entsteht ein Raster aus A4-Blättern, mittig über dem Gebiet, als
@@ -161,7 +161,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   actualCanvasPx, effectiveDpi, reduced, tileZooms, renderMs, reliefErrors` je Blatt.
   `window.__capercailye.layout(settings?)` liefert das berechnete Layout (Maßstab, Zoom, Raster,
   Blätter mit `fieldMm`/`printMm`/`center`/`neighbours`, `areaCovered`, `tooLarge`) für die Prüfung.
-- **Symbole entfallen im Druck nie** (PLAN.md 4a): Symbol-Layer mit Metadaten
+- **Symbole entfallen im Druck nie** (SPEC.md 4.4): Symbol-Layer mit Metadaten
   `"capercailye:placement": "displace"` (Piktogramme) werden in der Druckansicht und im Export
   durch Klone auf der GeoJSON-Quelle `placement` ersetzt (Layer beliebiger Vektorquellen, auch
   `busstops`; Features ohne id werden über Koordinate und Name dedupliziert). `src/placement` holt die Punkte aus den
@@ -190,7 +190,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   `plan.ts` jedes Zeichen **einzeln** und aufrecht: ein Endblock an beiden Enden (kurz nach der
   Gabelung steht auf jedem Ast das Zeichen der dort laufenden Routen), dazwischen reihum, jedes
   Zeichen spätestens alle 60 mm Papier (`WAYMARK_SPACING_MM`); danach weicht ein Zeichen entlang
-  der Linie aus (höchstens 6 mm), bis seine Box frei ist, sonst entfällt es: Zeichen überdecken
+  der Linie aus (höchstens 10 mm, `maxShiftMm`), bis seine Box frei ist, sonst entfällt es: Zeichen überdecken
   einander nie. Gleiche Zeichen mehrerer Routen erscheinen einmal (Rückfallkette wie bisher).
   Ergebnis: GeoJSON-Punktquelle `waymark-signs` (ein Bild je Punkt, `img` = Bild-Id mit genau einer
   Route) und die Kästen der Zeichen. Der Layer zeichnet sie mit `icon-allow-overlap: true`, ab
@@ -235,9 +235,9 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
 
   Gipfelpunkte und Ortsnamen bleiben `fixed`.
 
-- **Schalter mit Standard „aus“:** „Aussichtspunkte“ (`viewpoint`, eigene Ebene `viewpoints-main`;
-  ausgeblendet nimmt er nicht an der Platzierung teil; Aussichtstürme sind immer da) und
-  „Wegweisernamen“ (Gruppe `guidepostnames` ohne eigene Ebenen: sie setzt das `text-field` von
+- **Aussichtspunkte** (Standard „an“): nur benannte stehen in den Tiles (`viewpoint`, eigene Ebene
+  `viewpoints-main`; ausgeblendet nimmt er nicht an der Platzierung teil; Aussichtstürme sind immer
+  da). **Schalter mit Standard „aus“:** „Wegweisernamen“ (Gruppe `guidepostnames` ohne eigene Ebenen: sie setzt das `text-field` von
   `guideposts-main` und seines Namensklons; die Fähnchen bleiben). „Wegweisernamen“ ist
   Unterschalter von „Wegweiser“.
 

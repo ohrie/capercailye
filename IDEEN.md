@@ -1,6 +1,6 @@
 # capercailye – Ideen für später
 
-Sammlung von Ideen, die nicht zum aktuellen Umfang gehören (siehe [PLAN.md](PLAN.md)). Nichts davon ist eingeplant.
+Sammlung von Ideen, die nicht zum aktuellen Umfang gehören (siehe [SPEC.md](SPEC.md)). Nichts davon ist eingeplant.
 
 ## npm-Paket für OSMC-Wegzeichen
 
@@ -36,7 +36,7 @@ Dafür braucht es einen eigenen Platzierungs-Algorithmus, der für den festen Dr
 - Jedes Zeichen erscheint auf jedem Abschnitt seiner Route in einem Höchstabstand (z. B. alle 6 cm Papier), auch dort, wo es sich die Linie mit anderen teilt.
 - Wo sich Routen trennen oder zusammenlaufen, steht kurz nach der Gabelung auf jedem Ast das Zeichen der dort weiterlaufenden Route(n), damit die Zuordnung an jeder Verzweigung klar ist.
 - Auf gemeinsamen Abschnitten werden die Zeichen reihum gesetzt; jedes erscheint mindestens einmal zwischen zwei Gabelungen.
-- Kein Zeichen entfällt durch Kollision (siehe PLAN.md 4a).
+- Kein Zeichen entfällt durch Kollision (siehe SPEC.md 4.4).
 
 Voraussetzungen: Die Tiles müssten die Routen pro Abschnitt einzeln mit Relation-ID liefern (heute nur die deduplizierte, gekappte Liste), und die Platzierung liefe wie bei den Piktogrammen in der App statt über MapLibres `symbol-placement: line`.
 
@@ -46,19 +46,19 @@ Derzeit werden Aussichtspunkte standardmäßig ausgeschaltet. Zukünftig soll es
 
 ## Gastronomie in Städten ausdünnen
 
-Im Gelände und in den Bergen muss jedes Restaurant, jede Hütte und jedes Café auf der Karte stehen. In Städten und anderen dichten Bereichen ist das nicht wichtig, dort ist jedes einzelne Symbol eher Ballast. Heute führt eine Kollision nie zum Ausblenden eines Piktogramms (PLAN.md 4a), in der Innenstadt werden die Symbole deshalb weit verdrängt und die Karte wird unruhig.
+Im Gelände und in den Bergen muss jedes Restaurant, jede Hütte und jedes Café auf der Karte stehen. In Städten und anderen dichten Bereichen ist das nicht wichtig, dort ist jedes einzelne Symbol eher Ballast. Heute führt eine Kollision nie zum Ausblenden eines Piktogramms (SPEC.md 4.4), in der Innenstadt werden die Symbole deshalb weit verdrängt und die Karte wird unruhig.
 
 Gesucht ist eine gute Lösung, vermutlich mit einigem Aufwand. Denkbare Ansätze:
 
 - Dichte messen, z. B. Anzahl Gastronomie-Punkte je Fläche auf dem Papier oder Lage innerhalb von Siedlungsflächen (`landuse=residential|commercial`, `place=town|city`), und nur dort ausdünnen.
 - In dichten Bereichen ein Sammelsymbol oder nur die wichtigsten Betriebe zeigen, im Außenbereich weiter alle.
-- Die Regel „Symbole entfallen nie“ ausdrücklich auf den Außenbereich beschränken und die Ausnahme in PLAN.md 4a festhalten.
+- Die Regel „Symbole entfallen nie“ ausdrücklich auf den Außenbereich beschränken und die Ausnahme in SPEC.md 4.4 festhalten.
 
 ## Legende
 
 Die Karte soll eine Legende bekommen, die beim Lesen des Ausdrucks hilft:
 
-- **Übergeordnete Routen** auf dem Blatt auflisten, jeweils mit Wegzeichen und Namen (Fernwanderwege, regionale Hauptwege; lokale Rundwege eher nicht). Das greift die zurückgestellte Routenlegende B5 aus PLAN.md wieder auf.
+- **Übergeordnete Routen** auf dem Blatt auflisten, jeweils mit Wegzeichen und Namen (Fernwanderwege, regionale Hauptwege; lokale Rundwege eher nicht). Das greift die zurückgestellte Routenlegende B5 (SPEC.md 4.10) wieder auf.
 - **Piktogramme erklären**, möglichst nur die, die auf dem Blatt vorkommen.
 - **Flächen und Signaturen erklären**, also Landnutzung (Wald, Wiese, Obstwiese, Weinberg, Fels usw.) und die Weg-Signaturen.
 

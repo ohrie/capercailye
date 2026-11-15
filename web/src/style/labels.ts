@@ -87,7 +87,7 @@ export function labelLayers(): LayerSpecification[] {
         ],
         "text-font": FONT_MEDIUM,
         "text-size": pt(7),
-        // Below the dot first; above, right or left when that spot is taken (PLAN.md 4a).
+        // Below the dot first; above, right or left when that spot is taken (SPEC.md 4.4).
         "text-variable-anchor-offset": [
           "top",
           [0, 0.35],

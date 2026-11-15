@@ -1,5 +1,5 @@
 /* capercailye landing page. Flat, paper-like, no shadows, no gradients.
-   Tokens come from web/src/style/palette.ts (see LANDING-PLAN.md 1.1). */
+   Tokens come from web/src/style/palette.ts (see SPEC.md 2 and 4.9). */
 :root {
   --paper: #fcfbf6;
   --surface: #ffffff;

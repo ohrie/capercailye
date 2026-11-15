@@ -22,7 +22,7 @@
 // - A bare colour as foreground fills the whole sign (OsmcToSVG); as second foreground it is
 //   ignored (in practice it is a misplaced text colour, e.g. "blue:blue:white_circle:white").
 // - A value is unreadable (`readable: false`) when nothing visible remains: no background colour,
-//   no foreground and no text. The caller then falls back to ref/colour/name (PLAN.md 3).
+//   no foreground and no text. The caller then falls back to ref/colour/name (SPEC.md 4.5).
 
 /** OSMC colour names (wiki list plus "pink", which OsmcToSVG knows). `grey` = `gray`. */
 export const OSMC_COLOURS = {

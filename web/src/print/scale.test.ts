@@ -10,7 +10,7 @@ import {
 } from "./scale";
 
 describe("zoomForScale", () => {
-  test("1:25 000 at 48.5° N is about z12.94 (PLAN.md §4)", () => {
+  test("1:25 000 at 48.5° N is about z12.94 (SPEC.md 4.3)", () => {
     expect(zoomForScale(25000, 48.5)).toBeCloseTo(12.94, 2);
   });
 

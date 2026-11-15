@@ -1,4 +1,4 @@
-// Waymark signs (M3, PLAN.md 3): sign images and their ids.
+// Waymark signs (M3, SPEC.md 4.5): sign images and their ids.
 //
 // Tile layer `routes` (tiles/SCHEMA.md) lists every route of a way segment individually in |-joined,
 // slot-aligned lists (`symbols` = osmc:symbol, `refs`, `colours`, `names`; no cap). The app reads

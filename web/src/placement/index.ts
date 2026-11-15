@@ -1,4 +1,4 @@
-// Print placement (PLAN.md 4a, M2b): symbols never drop out at the print scale.
+// Print placement (SPEC.md 4.4, M2b): symbols never drop out at the print scale.
 //
 // - layers.ts   which layers take part (layer metadata) and their clones on a GeoJSON source
 // - displace.ts the displacement algorithm (pure, unit-tested)

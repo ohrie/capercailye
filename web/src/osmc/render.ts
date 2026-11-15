@@ -1,5 +1,5 @@
 // Waymark signs as SVG: a single osmc:symbol (osmcToSvg), the fallback chain for routes without a
-// readable symbol (ref + colour -> ref -> name initials, PLAN.md 3) and the combined image of all
+// readable symbol (ref + colour -> ref -> name initials, SPEC.md 4.5) and the combined image of all
 // routes on a way segment (waymarkSvg). Pure functions, no DOM.
 //
 // Look: every sign sits on a small white plate with a thin dark outline, like an enamel sign

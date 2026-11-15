@@ -391,7 +391,7 @@ independent villages):
 
 **Bus stops are not in `poi`:** `highway=bus_stop` was mapped up to M1 and was removed in M2c
 (`public_transport=platform` was never mapped). Bus stops come from the GTFS timetable data instead
-(PLAN.md 4c) as a separate small file `capercailye-busstops.pmtiles` (layer `bus_stop`, points,
+(SPEC.md 5) as a separate small file `capercailye-busstops.pmtiles` (layer `bus_stop`, points,
 z10–z14, attrs `name`, `sat`, `sun`, `min`; built by `transit/`), not by this profile.
 Railway stations and halts (`railway=station|halt`) stay in `poi`.
 

@@ -1,7 +1,7 @@
 # deploy/ – Betrieb mit Docker Compose
 
-Die Karten-App läuft als ein nginx-Container (`web`) hinter **Traefik**: Landingpage unter `/`, App unter `/app/`, PMTiles unter `/app/data/`. Plan und
-Hintergründe: [../DEPLOY-PLAN.md](../DEPLOY-PLAN.md).
+Die Karten-App läuft als ein nginx-Container (`web`) hinter **Traefik**: Landingpage unter `/`, App unter `/app/`, PMTiles unter `/app/data/`. Begründungen,
+Messwerte und Risiken: [../SPEC.md](../SPEC.md), Abschnitt 6.
 
 ```
 compose.yaml          Dienste web (Traefik-Labels, Volume mit den PMTiles) und updater, eigenes Netzwerk
@@ -164,7 +164,7 @@ Der Dienst `updater` baut jeden **Dienstag um 02:23 Uhr (Europe/Berlin)** die Ka
 Deutschland neu (supercronic, `updater/crontab`) und tauscht sie ohne Ausfall in `live/` ein:
 OSM-Auszug von Geofabrik laden (nur wenn neuer, md5-geprüft), Kacheln mit Planetiler bauen,
 Bushaltestellen aus dem GTFS-Feed bauen, mit `updater/check.ts` prüfen, dann je Datei
-`mv` (atomar). Schlägt etwas fehl, bleibt `live/` unverändert. Details: [../DEPLOY-PLAN.md](../DEPLOY-PLAN.md).
+`mv` (atomar). Schlägt etwas fehl, bleibt `live/` unverändert. Begründungen: [../SPEC.md](../SPEC.md), Abschnitt 6.
 
 **GTFS-Feed (Bushaltestellen):** Der Feed (gtfs.de) wird nur geladen, wenn in `work/gtfs/` noch keiner
 liegt oder der neueste älter ist als der letzte Fahrplanwechsel (15. Dezember). Die
@@ -208,8 +208,7 @@ dauerhaft und startet nach Zeitplan.
   mv -f /srv/capercailye/work/prev/capercailye-de.pmtiles /srv/capercailye/live/capercailye-de.pmtiles
   ```
   (gleich für `capercailye-busstops.pmtiles`; laufende Anfragen beenden sich auf dem alten Inode).
-- **Healthcheck:** `HEALTHCHECK_URL` in `.env` (z. B. healthchecks.io): Ping nach erfolgreichem Lauf, bei
-  einem Fehler `<URL>/fail`. Ein fehlgeschlagener Ping lässt den Lauf nie scheitern.
+- **Kein Healthcheck/Monitoring** (bewusst): Fehler zeigen sich nur in `work/logs/` und daran, dass `live/` alt bleibt.
 - **Neues Image** (jeder `deploy.sh`-Lauf baut neu): Wird das Updater-Image dabei ersetzt, bricht ein
   gerade laufender Update-Lauf ab; `live/` bleibt unverändert.
 

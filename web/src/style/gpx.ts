@@ -2,7 +2,7 @@
 // marker (the same with a magenta dot). Source `gpx` (GeoJSON, features carry `_kind`: "line",
 // "start" or "end", see src/gpx.ts). The group sits above the roads and below the names.
 //
-// Placement (PLAN.md 4a): the line is no obstacle (lines never are). The markers are "fixed" circle
+// Placement (SPEC.md 4.4): the line is no obstacle (lines never are). The markers are "fixed" circle
 // layers: they never move, and pictograms give way to them (placement/layers.ts). The inner dot of
 // the end marker lies inside the same box and needs no role.
 import type { LayerSpecification } from "@maplibre/maplibre-gl-style-spec";

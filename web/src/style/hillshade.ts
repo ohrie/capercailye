@@ -38,7 +38,7 @@ export function hillshadeLayers(): LayerSpecification[] {
  * Contour lines from maplibre-contour (M4): 10 m with index lines every 50 m at 1:15 000-1:25 000,
  * 20 m / 100 m from about 1:35 000 (CONTOUR_OPTIONS). Index lines are heavier and labelled.
  * The numbers do not take part in the print placement: they are the lowest symbol layer, placed
- * last by MapLibre, and yield to waymarks, names and pictograms (like names, PLAN.md 4a).
+ * last by MapLibre, and yield to waymarks, names and pictograms (like names, SPEC.md 4.4).
  */
 export function contourLayers(): LayerSpecification[] {
   const { contourLayer, elevationKey, levelKey } = CONTOUR_OPTIONS;

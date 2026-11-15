@@ -1,4 +1,4 @@
-// Waymark signs along the routes (PLAN.md 3 / 4a): computation and map controller.
+// Waymark signs along the routes (SPEC.md 4.5): computation and map controller.
 //
 // The app places the signs itself instead of MapLibre's line placement:
 //   tiles.ts   z12 `routes` (and `poi`) tiles straight from the PMTiles file

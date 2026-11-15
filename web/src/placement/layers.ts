@@ -1,4 +1,4 @@
-// Style side of the print placement (PLAN.md 4a). Pure: works on style specs, no DOM.
+// Style side of the print placement (SPEC.md 4.4). Pure: works on style specs, no DOM.
 //
 // Style layers opt in through metadata (see PLACEMENT_KEY):
 //   "displace"  symbol layer whose icons must never be dropped. In print mode the layer is

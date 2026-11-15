@@ -205,7 +205,7 @@ export const GROUPS: LayerGroup[] = [
     layers: labelLayers,
   },
   // M3: waymark signs on top, so they win collisions against all other labels. Part of the routes
-  // (PLAN.md 4a), no switch of their own: "Wanderrouten" and the network switches decide (the signs
+  // (SPEC.md 4.4), no switch of their own: "Wanderrouten" and the network switches decide (the signs
   // are recomputed in waymarks/index.ts). The layer draws the points of the source `waymark-signs`
   // that waymarks/index.ts computes: one image per sign, placed along the routes by the app. Like
   // `shields` this is a sign group that follows its toggle (`toggledBy`).

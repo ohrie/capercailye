@@ -114,7 +114,7 @@ export interface PoiCategory {
 }
 
 /**
- * Pictogram kinds with their own sidebar switch (PLAN.md 8: F1, F2, F4, F5, F7, F8, D4, E6, B6).
+ * Pictogram kinds with their own sidebar switch (SPEC.md 4.2).
  * Group ids must not be a prefix of another group's layer ids (style.test.ts), hence `drinking`.
  */
 export const POI_CATEGORIES: readonly PoiCategory[] = [

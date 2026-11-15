@@ -2,7 +2,7 @@
 
 Wanderkarten on demand aus OpenStreetMap: Gebiet wählen, Anzahl A4-Seiten wählen, Vorschau prüfen,
 PDF exportieren und selbst drucken. Alles läuft lokal im Browser (MapLibre GL JS auf eigenen
-PMTiles); Umfang und Entscheidungen stehen in [PLAN.md](PLAN.md).
+PMTiles); Umfang und Entscheidungen stehen in [SPEC.md](SPEC.md).
 
 ## Voraussetzungen
 

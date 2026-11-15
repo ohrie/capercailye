@@ -1,4 +1,4 @@
-// Placement of waymark signs along edges (PLAN.md 3 / 4a). Pure and deterministic.
+// Placement of waymark signs along edges (SPEC.md 4.5). Pure and deterministic.
 //
 // Input are edges between real forks (graph.ts) in global paper millimetres (y down); every part of
 // an edge carries the distinct signs of the routes running there. Signs stand upright

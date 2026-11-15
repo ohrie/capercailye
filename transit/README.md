@@ -1,7 +1,7 @@
 # transit/ – Bushaltestellen aus GTFS
 
 Erzeugt aus dem gesamtdeutschen GTFS-Fahrplan eine kleine PMTiles-Datei mit allen Bushaltestellen, die an
-einem Samstag **und** an einem Sonntag mindestens 4 Abfahrten haben (PLAN.md, Abschnitt 4c).
+einem Samstag **und** an einem Sonntag mindestens 4 Abfahrten haben (SPEC.md, Abschnitt 5).
 
 ## Aufruf
 

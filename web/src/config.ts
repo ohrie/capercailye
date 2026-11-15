@@ -13,7 +13,7 @@ export const PMTILES_PATH: string =
   import.meta.env?.VITE_PMTILES_PATH ?? "data/capercailye-rp.pmtiles";
 
 /**
- * Bus stops from GTFS (PLAN.md 4c), a second small PMTiles file next to the OSM one
+ * Bus stops from GTFS (SPEC.md 5), a second small PMTiles file next to the OSM one
  * (layer `bus_stop`, zoom 10-14). Optional: without the file the app runs without bus stops.
  */
 export const BUSSTOPS_PMTILES_PATH = "data/capercailye-busstops.pmtiles";

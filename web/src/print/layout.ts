@@ -1,4 +1,4 @@
-// Sheet layout (PLAN.md 4): an area on the map -> a grid of overlapping A4 sheets at one common
+// Sheet layout (SPEC.md 4.3): an area on the map -> a grid of overlapping A4 sheets at one common
 // zoom. Pure maths (no DOM, no MapLibre), shared by the preview frame, the placement region and
 // the multi-page export.
 //

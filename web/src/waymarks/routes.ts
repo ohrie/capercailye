@@ -2,7 +2,7 @@
 //
 // The tiles (tiles/SCHEMA.md) list every route of a way segment individually in slot-aligned
 // |-joined lists (`ids`, `networks`, `symbols`, `refs`, `names`, `colours`). Waymarks belong to the
-// routes (PLAN.md 4a): a route shows its sign exactly if the group "Wanderrouten" is on AND the
+// routes (SPEC.md 4.4): a route shows its sign exactly if the group "Wanderrouten" is on AND the
 // switch of its OWN network is on (iwn -> net-iwn, nwn -> net-nwn, rwn -> net-rwn, everything else
 // incl. no network -> net-lwn); missing switches count as on. The band (style/routes.ts) uses the
 // same rule per segment through the tile attribute `nets` (the same mapping per route, built by the

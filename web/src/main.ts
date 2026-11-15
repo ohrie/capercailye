@@ -195,7 +195,7 @@ function layerWanted(layerId: string): boolean {
   return getState().visibility[key] ?? owner.defaultVisible;
 }
 
-// Print placement (PLAN.md 4a): in print view symbols are displaced instead of dropped,
+// Print placement (SPEC.md 4.4): in print view symbols are displaced instead of dropped,
 // exactly as in the PDF; outside print view MapLibre's collision keeps the screen map tidy.
 /**
  * Region of the print view: all sheets incl. bleed at the layout zoom. Too many sheets: just one
@@ -214,7 +214,7 @@ const placement = new PrintPlacement(map, placementLayers, {
   region: placementRegion,
 });
 
-// Waymark signs (PLAN.md 3 / 4a): placed by the app, one by one along the routes. In print view the
+// Waymark signs (SPEC.md 4.5): placed by the app, one by one along the routes. In print view the
 // plan covers the sheet layout (the same result as the export), otherwise the viewport. Its boxes
 // are obstacles of the pictogram placement, and it decides which urban restaurants/cafés, toilets and hotels stay.
 const NO_BOXES: Obstacle[] = [];

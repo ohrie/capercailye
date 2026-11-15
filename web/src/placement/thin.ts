@@ -1,4 +1,4 @@
-// Thinning of urban restaurants/cafés, toilets and hotels by paper distance (PLAN.md 4a). Pure, no
+// Thinning of urban restaurants/cafés, toilets and hotels by paper distance (SPEC.md 4.4). Pure, no
 // MapLibre.
 //
 // Three groups are thinned separately (THIN_GROUPS): gastro (restaurant + cafe together), toilets and
@@ -11,7 +11,7 @@
 // layout from the tiles (waymarks/index.ts), and the preview and every export page use that same
 // set. Without such a set (fallback) placement/collect.ts runs it over its own candidates.
 
-/** Minimum distance between two urban items of the same group on paper (PLAN.md 4a). */
+/** Minimum distance between two urban items of the same group on paper (SPEC.md 4.4). */
 export const URBAN_THIN_MIN_MM = 8;
 /** POI kinds per thinning group (when `urban`); every other kind never is thinned. */
 export const THIN_GROUPS: Readonly<Record<string, readonly string[]>> = {

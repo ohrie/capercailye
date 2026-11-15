@@ -1,4 +1,4 @@
-// GPX upload (PLAN.md 1 and 8: G6). The pure parts (`normalizeTrack`, `areaForTrack`,
+// GPX upload (SPEC.md 4.6). The pure parts (`normalizeTrack`, `areaForTrack`,
 // `trackLengthKm`) work on GeoJSON and are unit-tested; `readGpxFile` is the DOM part.
 //
 // Tracks (`trk`) and routes (`rte`) become lines, waypoints are ignored. The normalised

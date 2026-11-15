@@ -1,4 +1,4 @@
-// Renders the landing-page images from the running web app (see LANDING-PLAN.md, section 4).
+// Renders the landing-page images from the running web app (see SPEC.md, section 4.9).
 //
 //   bun scripts/snapshots.ts [name ...] [--rp http://localhost:5180] [--bw http://localhost:5181]
 //

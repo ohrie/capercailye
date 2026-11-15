@@ -9,7 +9,7 @@
 // from the layer spec itself with the style-spec expression engine, so the selection per scale
 // (minzoom, filters) and the icon boxes match exactly what MapLibre would draw.
 // Before placing, urban restaurants/cafés, toilets and hotels (`urban=true`) are thinned by paper
-// distance (thinUrban, thin.ts, PLAN.md 4a): greedy by rank per group (gastro, toilets, hotel), a
+// distance (thinUrban, thin.ts, SPEC.md 4.4): greedy by rank per group (gastro, toilets, hotel), a
 // place stays if no kept one of its group lies within 8 mm; dropped ones appear nowhere (neither
 // symbol nor name), all other kinds are never thinned. The decision comes from the sheet layout's
 // kept set (`PlacementRequest.urban`, computed once per layout in waymarks/index.ts) so preview and

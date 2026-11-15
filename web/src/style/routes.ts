@@ -1,7 +1,7 @@
 // Hiking routes (tile layer `routes`, B1). A dark-red band drawn UNDER the way signature (the
 // transport group comes later), so path/track type stays readable on the band.
 //
-// Waymark signs belong to the routes (PLAN.md 4a): they are not drawn from the tiles, waymarks/index.ts
+// Waymark signs belong to the routes (SPEC.md 4.4): they are not drawn from the tiles, waymarks/index.ts
 // places them one by one along the routes and feeds the point source `waymark-signs`; the layer
 // `waymarks-signs` below only draws those points. The network switches control band and signs alike.
 import type {
@@ -142,7 +142,7 @@ export function routeLayers(visibility?: Visibility): LayerSpecification[] {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Waymarks (M3, PLAN.md 3 and 4a)
+// Waymarks (M3, SPEC.md 4.4, 4.5)
 
 /**
  * Clearance around a sign (mm) that labels placed later keep (`icon-padding`). The signs never
@@ -159,7 +159,7 @@ export const WAYMARK_MIN_ZOOM = PRINT_MIN_ZOOM;
  * for pictograms and bus stops, style/sizes.ts).
  *
  * `icon-allow-overlap: true`: the signs do not overlap by construction, MapLibre must not thin
- * them. Collision (PLAN.md 4a): the group "waymarks" is the top of the style, so MapLibre places
+ * them. Collision (SPEC.md 4.4): the group "waymarks" is the top of the style, so MapLibre places
  * the signs before every label (`icon-ignore-placement: false`, labels avoid them and cannot
  * remove them), and in the print view the same boxes go into the pictogram placement as
  * obstacles (placement/index.ts): signs first, pictograms move off them. No placement role.
