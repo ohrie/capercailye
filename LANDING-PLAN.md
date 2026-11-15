@@ -160,8 +160,8 @@ die es gibt (Quelle: `web/README.md`, `web/src/style/index.ts`, `web/src/style/p
 ### 2.3 SEO und Technik
 
 - `<html lang="en">`, `<title>capercailye – print your own hiking map from OpenStreetMap</title>`,
-  `meta description` (≤ 155 Zeichen), `link rel="canonical"` und `og:url` mit Platzhalter
-  `https://example.org/` und einem `<!-- TODO: domain -->`-Kommentar (Domain steht noch nicht fest).
+  `meta description` (≤ 155 Zeichen), `link rel="canonical"` und `og:url` mit der
+  festen Domain.
 - Open Graph + Twitter Card (`og:image` = `img/og-image.jpg`, 1200 × 630).
 - JSON-LD `WebApplication` (`name`, `description`, `applicationCategory: "TravelApplication"`,
   `operatingSystem: "Any (web browser)"`, `offers.price: 0`).
@@ -301,6 +301,5 @@ und Sidebar gegen diesen Plan.
 
 ## 6. Offene Punkte (nicht Teil dieses Auftrags)
 
-- Domain für `canonical`/`og:url`.
 - Deployment: `base: "/app/"` in Vite, Hosting der PMTiles (Range-Requests), ggf. CDN.
 - App-Oberfläche ist deutsch, die Landingpage englisch; spätere Übersetzung der App.

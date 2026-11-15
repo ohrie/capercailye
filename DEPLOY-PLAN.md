@@ -72,7 +72,7 @@ Data on the host under one bind mount (one filesystem, so the swap is an atomic 
    `VITE_BASE=/app/ VITE_PMTILES_PATH=data/capercailye-de.pmtiles`; the `/app/` build loads tiles,
    fonts and bus stops from `/app/…` when served under that prefix.
 
-The `TODO: domain` placeholders in `site/` are replaced at image build time in Phase 2 (build arg).
+The domain in `site/` is hardcoded; `DOMAIN` in `.env` only drives the Traefik rule.
 
 ## 5. Files (Phases 2–3)
 
@@ -86,8 +86,7 @@ deploy/
 ├── deploy.env.example        DEPLOY_HOST, DEPLOY_DIR (real deploy.env is gitignored)
 ├── .env.example              DOMAIN, DATA_ROOT=/srv/capercailye, JAVA_XMX=3g, UPDATER_MEM_LIMIT=5g,
 │                             UPDATER_CPUS=4, HEALTHCHECK_URL; TRAEFIK_ENTRYPOINT/CERTRESOLVER optional
-├── web/Dockerfile            bun build (VITE_BASE=/app/, VITE_PMTILES_PATH=…-de…; sed DOMAIN into
-│                             site/) → nginx:alpine with site/ at /, dist at /app/
+├── web/Dockerfile            bun build (VITE_BASE=/app/, VITE_PMTILES_PATH=…-de…) → nginx:alpine with site/ at /, dist at /app/
 ├── web/nginx.conf
 └── updater/
     ├── Dockerfile            temurin 21 JDK (the profile runs as a source file, needs javac) + curl unzip

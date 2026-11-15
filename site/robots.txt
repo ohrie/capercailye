@@ -1,5 +1,4 @@
 User-agent: *
 Allow: /
 
-# TODO: domain
-Sitemap: https://example.org/sitemap.xml
+Sitemap: https://capercailye.chilla.dev/sitemap.xml

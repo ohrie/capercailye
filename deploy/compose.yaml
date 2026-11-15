@@ -6,8 +6,6 @@ services:
     build:
       context: ..
       dockerfile: deploy/web/Dockerfile
-      args:
-        DOMAIN: ${DOMAIN:?DOMAIN fehlt in .env}
     image: capercailye-web
     container_name: capercailye-web
     restart: unless-stopped

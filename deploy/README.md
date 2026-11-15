@@ -92,8 +92,8 @@ deploy/deploy.sh --update-now    # zusätzlich sofort einen Daten-Update starten
 Weitere Optionen: `--allow-dirty` (trotz uncommitteter Änderungen; deployt trotzdem nur den
 committeten HEAD und listet die ausgelassenen Dateien auf), `--no-up` (nur hochladen und `app/`
 austauschen, nichts bauen), `--help`. `DEPLOY_HOST`/`DEPLOY_DIR` stehen in `deploy/deploy.env` oder
-in der Umgebung. Die Domain steckt beim Image-Build in `canonical`, `og:*`, `robots.txt` und
-`sitemap.xml`; nach einer Änderung von `DOMAIN` in `.env` also neu deployen.
+in der Umgebung. Die Domain der Landingpage (`canonical`, `og:*`, `robots.txt`,
+`sitemap.xml`) steht fest in `site/`; `DOMAIN` in `.env` steuert nur die Traefik-Regel.
 
 Der Build auf dem Server (Bun-Build der App, Planetiler-JAR, tippecanoe aus dem Quelltext) dauert beim
 ersten Mal einige Minuten; danach nutzt Docker seinen Schichtcache.

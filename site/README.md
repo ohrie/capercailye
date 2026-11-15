@@ -32,5 +32,5 @@ available for screen readers. Once the files exist, nothing in the HTML needs to
 ## Deployment assumptions
 
 - Landing page served at `/`, the built app at `/app/`; all CTAs link to `/app/`.
-- Domain is open: `https://example.org/` in `canonical`, `og:*`, `twitter:image`, JSON-LD,
-  `robots.txt` and `sitemap.xml` (search for `TODO: domain`).
+- The domain is hardcoded in `canonical`, `og:*`, `twitter:image`, JSON-LD, `robots.txt` and
+  `sitemap.xml`.

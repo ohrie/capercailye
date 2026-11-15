@@ -12,15 +12,10 @@ RUN bun install --frozen-lockfile
 COPY web/ ./
 RUN bun run build
 
-# --- 2. Landingpage: Domain eintragen -----------------------------------------------------
+# --- 2. Landingpage: Hilfsdateien entfernen ----------------------------------------------
 FROM alpine:3.22 AS site
-ARG DOMAIN
 COPY site/ /site/
-RUN test -n "$DOMAIN" || { echo "Build-Arg DOMAIN fehlt (z. B. DOMAIN=karte.example.com)" >&2; exit 1; } \
- && cd /site \
- && rm -rf scripts node_modules package.json bun.lock README.md \
- && sed -i "s#https://example\.org#https://${DOMAIN}#g" index.html robots.txt sitemap.xml \
- && ! grep -rq "example\.org" .
+RUN cd /site && rm -rf scripts node_modules package.json bun.lock README.md
 
 # --- 3. Ausliefern ------------------------------------------------------------------------
 FROM nginx:1.30-alpine
