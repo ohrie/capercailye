@@ -12,6 +12,7 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "logo": "bun scripts/logo.ts",
+    "og": "bun scripts/og-image.ts",
     "snapshots": "bun scripts/snapshots.ts",
     "i18n": "bun scripts/i18n-compile.ts"
   },
