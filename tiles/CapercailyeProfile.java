@@ -1,10 +1,37 @@
-// capercailye – Planetiler profile for a printable 1:25,000 hiking map.
-// SPDX-License-Identifier: MIT
-//
-// Single-file profile, run without Maven:
-//   java -cp planetiler.jar CapercailyeProfile.java --input=bw.osm.pbf --output=out.pmtiles
-// Structure loosely follows Planetiler's Apache-2.0 example BikeRouteOverlay.java.
-// See SCHEMA.md for the produced layers and attributes.
+/*
+ * capercailye – Planetiler profile for a printable 1:25,000 hiking map.
+ * SPDX-License-Identifier: MIT
+ *
+ * WHAT IT DOES
+ *   Turns an OpenStreetMap extract (.osm.pbf) into vector tiles (PMTiles, zoom 0–14) that a MapLibre
+ *   style renders as a hiking map. The layers and attributes produced are the contract with the style:
+ *   see SCHEMA.md.
+ *
+ * RUN (single file, no Maven; planetiler.jar supplies the classpath)
+ *   java -cp planetiler.jar CapercailyeProfile.java --input=bw.osm.pbf --output=out.pmtiles
+ *   Normally via tiles/build.sh, which downloads the jar and sets the standard flags.
+ *
+ * PIPELINE (order of the code below)
+ *   1. Tables       Tag → kind / minzoom (roads, rails, waterways, places) and the POI table
+ *                   (key=value → kind + rank; lower rank = more important for hikers).
+ *   2. Routes       preprocessOsmRelation collects hiking route relations first, so each way segment
+ *                   later knows which routes (symbol, network, ref, colour) run along it.
+ *   3. Features     processFeature maps every OSM object to a layer: transport, routes, landcover,
+ *                   water, waterway, cliff, protected_area, building, place, peak, poi.
+ *   4. POI cleanup  finish() runs once after all features: filters toilets (public only), merges
+ *                   similar POIs closer than 75 m into one point, flags urban ones. Needs the whole
+ *                   dataset at once, so it cannot happen per feature.
+ *   5. Per tile     postProcessLayerFeatures merges line segments with identical attributes;
+ *                   postProcessTileFeatures marks industrial buildings from the landcover of the tile.
+ *
+ * DESIGN DECISIONS
+ *   - Print quality: from zoom 12 (PRINT_ZOOM) on, almost nothing is simplified or dropped; below it,
+ *     lines are merged and thinned. Tiles at z12 may be large (up to a few MB in cities).
+ *   - Points are not thinned by density in the tiles; the app thins them by paper distance.
+ *   - Booleans are only present when true; empty optional attributes are omitted.
+ *
+ * Structure loosely follows Planetiler's Apache-2.0 example BikeRouteOverlay.java.
+ */
 
 import com.onthegomap.planetiler.FeatureCollector;
 import com.onthegomap.planetiler.FeatureMerge;
