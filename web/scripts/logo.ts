@@ -69,6 +69,8 @@ export function buildSvg(matrix: string[]): string {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const svg = buildSvg(MATRIX);
-writeFileSync(join(here, "..", "logo.svg"), svg);
-writeFileSync(join(here, "..", "favicon.svg"), svg);
-console.log("wrote site/logo.svg and site/favicon.svg");
+// public/app/logo.svg is the app's favicon (/app/logo.svg), a copy of the same file.
+for (const file of ["logo.svg", "favicon.svg", join("app", "logo.svg")]) {
+  writeFileSync(join(here, "..", "public", file), svg);
+}
+console.log("wrote public/logo.svg, public/favicon.svg and public/app/logo.svg");

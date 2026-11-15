@@ -1,6 +1,7 @@
 // Renders one map image in a hidden MapLibre instance at print resolution.
 import { type ErrorEvent, Map as MapLibreMap } from "maplibre-gl";
 import type { StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
+import { m } from "../paraglide/messages.js";
 import { installIcons } from "../icons";
 import type { UrbanKeep } from "../placement/collect";
 import type { Obstacle } from "../placement/displace";
@@ -58,7 +59,7 @@ function waitForIdle(map: MapLibreMap, timeoutMs: number, sourceId?: string): Pr
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
       map.off("idle", onIdle);
-      reject(new Error(`Karte nicht innerhalb von ${timeoutMs / 1000} s fertig geladen`));
+      reject(new Error(m.app_error_render_timeout({ seconds: timeoutMs / 1000 })));
     }, timeoutMs);
     const onIdle = () => {
       if (map.loaded() && map.areTilesLoaded() && (!sourceId || map.isSourceLoaded(sourceId))) {
@@ -113,7 +114,7 @@ export async function renderMapImage(req: RenderRequest): Promise<RenderResult> 
     map.on("error", (e: ErrorEvent) => {
       const sourceId = (e as { sourceId?: string }).sourceId;
       if (sourceId === DEM_SOURCE || sourceId === CONTOUR_SOURCE) reliefErrors++;
-      console.warn("Export-Karte:", e.error?.message ?? e);
+      console.warn("Export map:", e.error?.message ?? e);
     });
     await waitForIdle(map, req.timeoutMs ?? 120_000);
     if (placement && managed.length > 0) {
@@ -164,7 +165,7 @@ export async function renderMapImage(req: RenderRequest): Promise<RenderResult> 
     out.width = outW;
     out.height = outH;
     const ctx = out.getContext("2d");
-    if (!ctx) throw new Error("2D-Canvas nicht verfügbar");
+    if (!ctx) throw new Error(m.app_error_canvas());
     ctx.drawImage(glCanvas, sx, sy, sw, sh, 0, 0, outW, outH);
 
     return {

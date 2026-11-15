@@ -1,4 +1,6 @@
 // Scale <-> zoom maths for 512 px Web-Mercator tiles and 96 CSS px per inch.
+import { formatNumber, type Locale } from "../i18n";
+import { getLocale } from "../paraglide/runtime.js";
 
 export const EARTH_CIRCUMFERENCE_M = 40075016.686;
 export const CSS_PX_PER_INCH = 96;
@@ -41,12 +43,19 @@ export function scaleBarLength(scale: number, maxMm: number): { meters: number; 
   return { meters: best, mm: paperMm(best, scale) };
 }
 
-/** "1:25 000" – grouped with plain spaces (safe for PDF standard fonts). */
-export function formatScale(scale: number): string {
-  const digits = String(Math.round(scale)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+/**
+ * "1:25 000" (de, plain spaces: safe for PDF standard fonts) or "1:25,000" (en). The active
+ * locale unless one is given.
+ */
+export function formatScale(scale: number, locale: Locale = getLocale()): string {
+  const separator = locale === "de" ? " " : ",";
+  const digits = String(Math.round(scale)).replace(/\B(?=(\d{3})+(?!\d))/g, separator);
   return `1:${digits}`;
 }
 
-export function formatDistance(meters: number): string {
-  return meters >= 1000 ? `${String(meters / 1000).replace(".", ",")} km` : `${meters} m`;
+/** "500 m", "2,5 km" (de) or "2.5 km" (en). */
+export function formatDistance(meters: number, locale: Locale = getLocale()): string {
+  return meters >= 1000
+    ? `${formatNumber(meters / 1000, { maximumFractionDigits: 3, useGrouping: false }, locale)} km`
+    : `${meters} m`;
 }

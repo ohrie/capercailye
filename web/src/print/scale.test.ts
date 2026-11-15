@@ -40,10 +40,14 @@ describe("scale bar and formatting", () => {
   });
 
   test("labels", () => {
-    expect(formatScale(25000)).toBe("1:25 000");
-    expect(formatScale(15000)).toBe("1:15 000");
-    expect(formatDistance(500)).toBe("500 m");
-    expect(formatDistance(2500)).toBe("2,5 km");
+    expect(formatScale(25000, "de")).toBe("1:25 000");
+    expect(formatScale(15000, "de")).toBe("1:15 000");
+    expect(formatDistance(500, "de")).toBe("500 m");
+    expect(formatDistance(2500, "de")).toBe("2,5 km");
+    expect(formatScale(25000, "en")).toBe("1:25,000");
+    expect(formatScale(1000, "en")).toBe("1:1,000");
+    expect(formatDistance(500, "en")).toBe("500 m");
+    expect(formatDistance(2500, "en")).toBe("2.5 km");
   });
 });
 

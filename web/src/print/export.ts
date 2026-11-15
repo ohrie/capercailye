@@ -1,11 +1,12 @@
 // Multi-sheet PDF export: every sheet is rendered in a hidden map at the common layout zoom
 // and added to one PDF, in sheet order.
 import type { StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
+import { m } from "../paraglide/messages.js";
 import type { UrbanKeep } from "../placement/collect";
 import type { Obstacle } from "../placement/displace";
 import type { VectorTileZoomMode } from "../style/sources";
 import { tileZoomHistogram } from "../tiles";
-import type { SheetLayout } from "./layout";
+import { MAX_SHEETS, type SheetLayout } from "./layout";
 import { type Orientation, printableArea, type SizeMm } from "./paper";
 import { addSheetPage, createPdf, finishPdf, IMAGE_FORMAT, type PdfPageResult } from "./pdf";
 import { renderMapImage } from "./render";
@@ -72,7 +73,7 @@ export interface ExportResult {
 }
 
 function abortError(): DOMException {
-  return new DOMException("Export abgebrochen", "AbortError");
+  return new DOMException(m.app_status_cancelled(), "AbortError");
 }
 
 export function isAbortError(err: unknown): boolean {
@@ -84,7 +85,7 @@ export async function exportLayout(
   opts: ExportOptions,
 ): Promise<ExportResult> {
   if (layout.tooLarge) {
-    throw new Error(`Gebiet zu groß: ${layout.count} Seiten`);
+    throw new Error(m.app_area_too_large({ count: layout.count, max: MAX_SHEETS }));
   }
   const t0 = performance.now();
   const total = layout.sheets.length;
@@ -92,8 +93,8 @@ export async function exportLayout(
   const doc = createPdf(
     layout.orientation,
     total > 1
-      ? `capercailye ${formatScale(layout.scale)}, ${total} Seiten`
-      : `capercailye ${formatScale(layout.scale)}`,
+      ? m.pdf_title_pages({ scale: formatScale(layout.scale), count: total })
+      : m.pdf_title({ scale: formatScale(layout.scale) }),
   );
   const pages: PageMeta[] = [];
   let pdfPage: PdfPageResult | undefined;
@@ -152,7 +153,7 @@ export async function exportLayout(
       reliefErrors: render.reliefErrors,
     });
   }
-  if (!pdfPage) throw new Error("Keine Seiten zu exportieren");
+  if (!pdfPage) throw new Error(m.app_error_no_pages());
 
   return {
     blob: finishPdf(doc),

@@ -1,0 +1,27 @@
+---
+// Shared <head> (charset, viewport, title, favicon, analytics) of all pages.
+import Analytics from "../components/Analytics.astro";
+
+interface Props {
+  title: string;
+  lang?: string;
+  favicon?: string;
+}
+
+const { title, lang = "en", favicon = "/favicon.svg" } = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <slot name="head" />
+    <link rel="icon" type="image/svg+xml" href={favicon} />
+    <Analytics />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

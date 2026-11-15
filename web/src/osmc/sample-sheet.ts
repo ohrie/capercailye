@@ -11,7 +11,7 @@ import { osmcToSvg, parseOsmc, waymarkSvg, type WaymarkEntry } from "./index";
 
 const [tsv, outDir, countArg] = process.argv.slice(2);
 if (!tsv || !outDir) {
-  console.error("Aufruf: bun src/osmc/sample-sheet.ts <osmc-count.tsv> <out-dir> [anzahl]");
+  console.error("Usage: bun src/osmc/sample-sheet.ts <osmc-count.tsv> <out-dir> [count]");
   process.exit(1);
 }
 const count = Number(countArg ?? 60);
@@ -75,7 +75,7 @@ const fallback: [WaymarkEntry[], string][] = [
   [[{ ref: "E1", colour: "yellow" }], "ref+colour yellow"],
   [[{ ref: "12" }], "ref"],
   [[{ name: "Rundweg Hohenzollern" }], "name"],
-  [[{ osmc: "green", ref: "G2" }], "unlesbar → ref + waycolor"],
+  [[{ osmc: "green", ref: "G2" }], "unreadable → ref + waycolor"],
   [
     [
       { osmc: "yellow:white:yellow_diamond" },
@@ -83,7 +83,7 @@ const fallback: [WaymarkEntry[], string][] = [
       { osmc: "red:white:red_diamond:W:blue" },
       { ref: "HW1", colour: "red" },
     ],
-    "kombiniert (4)",
+    "combined (4)",
   ],
   [
     [
@@ -92,12 +92,12 @@ const fallback: [WaymarkEntry[], string][] = [
       { ref: "7" },
       { ref: "7" },
     ],
-    "kombiniert mit Dubletten",
+    "combined with duplicates",
   ],
 ];
 
 const parts: string[] = [];
-parts.push(`<h2>Häufigste ${rows.length} Werte in BW</h2><div class="grid">`);
+parts.push(`<h2>Most frequent ${rows.length} values in BW</h2><div class="grid">`);
 for (const r of rows) {
   const p = parseOsmc(r.value);
   parts.push(
@@ -108,16 +108,16 @@ for (const r of rows) {
     ),
   );
 }
-parts.push(`</div><h2>Sonderfälle</h2><div class="grid">`);
+parts.push(`</div><h2>Special cases</h2><div class="grid">`);
 for (const v of edge) {
   const p = parseOsmc(v);
   parts.push(cell(osmcToSvg(v), v, p.issues.join("; ")));
 }
-parts.push(`</div><h2>Rückfall und Kombination</h2><div class="grid">`);
+parts.push(`</div><h2>Fallback and combination</h2><div class="grid">`);
 for (const [entries, label] of fallback) parts.push(cell(waymarkSvg(entries), label));
 parts.push(`</div>`);
 
-const html = `<!doctype html><meta charset="utf-8"><title>Wegzeichen</title><style>
+const html = `<!doctype html><meta charset="utf-8"><title>Waymarks</title><style>
 body{font:12px sans-serif;margin:16px;background:#c3dda2}
 .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
 figure{margin:0;background:#edf4da;padding:6px;display:flex;flex-direction:column;align-items:center;gap:4px}

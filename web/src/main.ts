@@ -18,7 +18,9 @@ import { buildCredits, gtfsStand, osmStand } from "./credits";
 import { pmtilesExists, pmtilesMetadata } from "./data";
 import { areaForTrack, initGpxDrop, parseGpx, readGpxFile, type TrackResult } from "./gpx";
 import { installIcons } from "./icons";
+import { formatNumber } from "./i18n";
 import { areaOutside, interactionFor, type MapMode } from "./mode";
+import { m } from "./paraglide/messages.js";
 import { downloadBlob, exportLayout, type ExportResult, isAbortError } from "./print/export";
 import { PrintPlacement, rectAround, withPlacementLayers } from "./placement";
 import type { Obstacle } from "./placement/displace";
@@ -38,6 +40,7 @@ import {
 import { BLEED_MM, EXPORT_DPI, type Orientation, printableArea } from "./print/paper";
 import { zoomForScale } from "./print/scale";
 import { initSearch } from "./search";
+import { collapseSheet } from "./sheet";
 import {
   initSidebar,
   setAttribution,
@@ -70,7 +73,7 @@ const [busstopsAvailable, osmMeta, busstopsMeta] = await Promise.all([
   pmtilesMetadata(pmtilesUrl),
   pmtilesMetadata(busstopsUrl),
 ]);
-if (!busstopsAvailable) console.info(`Keine Bushaltestellen-Datei (${BUSSTOPS_PMTILES_PATH}).`);
+if (!busstopsAvailable) console.info(`No bus stop file (${BUSSTOPS_PMTILES_PATH}).`);
 
 /** Source credits, built once: map attribution and sidebar with data dates, PDF line without. */
 const credits = buildCredits({
@@ -163,6 +166,8 @@ function viewBounds(): Area {
 function selectMode(mode: MapMode): void {
   const s = getState();
   if (mode === s.mode) return;
+  // Drawing and placing the sheets happen on the map: fold the mobile sheet away.
+  if (mode !== "explore") collapseSheet();
   const area = s.print.area;
   if (mode === "sheets" && s.mode === "explore" && area && areaOutside(area, viewBounds())) {
     const c = map.getCenter();
@@ -271,7 +276,7 @@ subscribe((state, prev) => {
   }
   // Sheets, scale or zoom changed: region and visibility of the placement follow.
   if (state.print !== prev.print) placement.sync();
-  // Switches ("Wanderrouten" and the network switches decide band and signs alike; recomputed on every
+  // Switches ("Hiking routes" and the network switches decide band and signs alike; recomputed on every
   // visibility change, the result is cached by key), print view or layout: new signs.
   if (
     state.visibility !== prev.visibility ||
@@ -362,7 +367,7 @@ function layoutFor(options: Partial<LayoutSettings> & { center?: [number, number
   const scale = options.scale ?? s.scale;
   const area =
     options.area ?? (options.center ? defaultArea(options.center, orientation, scale) : s.area);
-  if (!area) throw new Error("Kein Gebiet festgelegt");
+  if (!area) throw new Error(m.app_error_no_area());
   return computeLayout({
     mode: options.mode ?? s.mode,
     scale,
@@ -377,7 +382,7 @@ function cancelExport(): void {
 }
 
 async function runExport(options: ExportCallOptions = {}): Promise<ExportResult> {
-  if (busy) throw new Error("Export läuft bereits");
+  if (busy) throw new Error(m.app_error_export_running());
   const l = layoutFor(options);
   busy = true;
   const controller = new AbortController();
@@ -385,7 +390,8 @@ async function runExport(options: ExportCallOptions = {}): Promise<ExportResult>
   if (options.signal?.aborted) controller.abort();
   options.signal?.addEventListener("abort", () => controller.abort(), { once: true });
   setExportBusy(true);
-  setStatus("Wegzeichen werden berechnet …");
+  collapseSheet();
+  setStatus(m.app_status_waymarks());
   try {
     // One result for the whole layout: every sheet gets the same signs, obstacles and urban set
     // (the preview used the same, see waymarks/index.ts).
@@ -395,8 +401,8 @@ async function runExport(options: ExportCallOptions = {}): Promise<ExportResult>
       zoom: l.zoom,
       visibility: getState().visibility,
     });
-    if (controller.signal.aborted) throw new DOMException("Export abgebrochen", "AbortError");
-    setStatus("Karte wird in Druckauflösung gerendert …");
+    if (controller.signal.aborted) throw new DOMException(m.app_status_cancelled(), "AbortError");
+    setStatus(m.app_status_rendering());
     const result = await exportLayout(l, {
       style: currentStyle(wm.data),
       waymarkObstacles: wm.boxes,
@@ -406,37 +412,40 @@ async function runExport(options: ExportCallOptions = {}): Promise<ExportResult>
       vectorTileZoom: options.vectorTileZoom,
       signal: controller.signal,
       onProgress: (n, total) => {
-        if (total > 1) setStatus(`Seite ${n} von ${total} wird gerendert …`);
+        if (total > 1) setStatus(m.app_status_page({ n, total }));
       },
     });
-    const m = result.meta;
-    const mb = (result.blob.size / 1e6).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+    const meta = result.meta;
+    const size = formatNumber(result.blob.size / 1e6, { maximumFractionDigits: 1 });
     const reliefWarning =
-      m.reliefErrors > 0
-        ? `Relief (Schummerung/Höhenlinien) unvollständig: ${m.reliefErrors} Kacheln nicht geladen (offline?).`
-        : "";
-    const weakest = m.pages.reduce((a, p) => (p.effectiveDpi < a.effectiveDpi ? p : a));
-    if (m.reduced) {
+      meta.reliefErrors > 0 ? m.app_status_relief_warning({ count: meta.reliefErrors }) : "";
+    const weakest = meta.pages.reduce((a, p) => (p.effectiveDpi < a.effectiveDpi ? p : a));
+    if (meta.reduced) {
       setStatus(
-        `Achtung: Der Browser hat die Auflösung reduziert (${Math.round(m.effectiveDpi)} statt ${m.dpi} dpi, ` +
-          `${weakest.actualCanvasPx.join(" × ")} px). Der Maßstab stimmt trotzdem.` +
-          (reliefWarning ? ` ${reliefWarning}` : ""),
+        m.app_status_reduced({
+          effective: Math.round(meta.effectiveDpi),
+          dpi: meta.dpi,
+          size: weakest.actualCanvasPx.join(" × "),
+        }) + (reliefWarning ? ` ${reliefWarning}` : ""),
         "warn",
       );
     } else if (reliefWarning) {
-      setStatus(`Fertig, aber ${reliefWarning}`, "warn");
+      setStatus(m.app_status_done_with_warning({ warning: reliefWarning }), "warn");
     } else {
-      const pages = m.pageCount > 1 ? `${m.pageCount} Seiten, ` : "";
-      setStatus(`Fertig: ${pages}${m.dpi} dpi, ${mb} MB.`);
+      setStatus(
+        meta.pageCount > 1
+          ? m.app_status_done_pages({ count: meta.pageCount, dpi: meta.dpi, size })
+          : m.app_status_done({ dpi: meta.dpi, size }),
+      );
     }
     if (options.download ?? true) downloadBlob(result.blob, layoutFilename(l));
     return result;
   } catch (err) {
     if (isAbortError(err)) {
-      setStatus("Export abgebrochen");
+      setStatus(m.app_status_cancelled());
     } else {
       setStatus(
-        `Export fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
+        m.app_status_failed({ reason: err instanceof Error ? err.message : String(err) }),
         "error",
       );
     }
@@ -504,6 +513,6 @@ window.__capercailye = {
   setState,
   busstopsAvailable,
   credits,
-  loadGpx: (text) => useTrack(parseGpx(text, "GPX-Track")),
+  loadGpx: (text) => useTrack(parseGpx(text, m.gpx_default_name())),
   clearGpx,
 };

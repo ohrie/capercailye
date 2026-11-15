@@ -4,7 +4,11 @@
 // Privacy: the request carries exactly the search text and the map centre rounded to three
 // decimals (about 100 m) as a ranking bias; no zoom, no ids, no cookies, no referrer.
 import type { Map as MapLibreMap } from "maplibre-gl";
+import type { Locale } from "./i18n";
+import { m } from "./paraglide/messages.js";
+import { getLocale } from "./paraglide/runtime.js";
 import { getState } from "./state";
+import { collapseSheet } from "./sheet";
 
 export const PHOTON_URL = "https://photon.komoot.io/api";
 export const MIN_QUERY_LENGTH = 3;
@@ -24,11 +28,18 @@ export interface SearchResult {
   bounds?: [number, number, number, number];
 }
 
-/** Request URL: only `q`, `lang`, `limit` and the rounded map centre as `lat`/`lon`. */
-export function photonUrl(query: string, center: { lng: number; lat: number }): string {
+/**
+ * Request URL: only `q`, `lang` (the active language, Photon knows `de` and `en`), `limit` and
+ * the rounded map centre as `lat`/`lon`.
+ */
+export function photonUrl(
+  query: string,
+  center: { lng: number; lat: number },
+  locale: Locale = getLocale(),
+): string {
   const params = new URLSearchParams({
     q: query,
-    lang: "de",
+    lang: locale,
     limit: String(RESULT_LIMIT),
     lat: center.lat.toFixed(3),
     lon: center.lng.toFixed(3),
@@ -36,60 +47,60 @@ export function photonUrl(query: string, center: { lng: number; lat: number }): 
   return `${PHOTON_URL}?${params}`;
 }
 
-/** German kind names for `osm_value`; unknown values get no kind. */
-const KIND_NAMES: Record<string, string> = {
-  city: "Stadt",
-  town: "Stadt",
-  village: "Dorf",
-  hamlet: "Weiler",
-  suburb: "Stadtteil",
-  quarter: "Stadtteil",
-  neighbourhood: "Stadtteil",
-  locality: "Ort",
-  isolated_dwelling: "Einzelhof",
-  farm: "Hof",
-  municipality: "Gemeinde",
-  county: "Landkreis",
-  state: "Bundesland",
-  peak: "Gipfel",
-  saddle: "Sattel",
-  hill: "Hügel",
-  ridge: "Bergrücken",
-  valley: "Tal",
-  rock: "Fels",
-  cliff: "Felswand",
-  cave_entrance: "Höhle",
-  spring: "Quelle",
-  waterfall: "Wasserfall",
-  water: "Gewässer",
-  lake: "See",
-  river: "Fluss",
-  stream: "Bach",
-  wood: "Wald",
-  forest: "Wald",
-  heath: "Heide",
-  nature_reserve: "Naturschutzgebiet",
-  national_park: "Nationalpark",
-  protected_area: "Schutzgebiet",
-  castle: "Burg",
-  ruins: "Ruine",
-  tower: "Turm",
-  viewpoint: "Aussichtspunkt",
-  alpine_hut: "Hütte",
-  wilderness_hut: "Hütte",
-  shelter: "Unterstand",
-  station: "Bahnhof",
-  halt: "Haltepunkt",
-  camp_site: "Campingplatz",
-  hostel: "Herberge",
-  hotel: "Hotel",
-  restaurant: "Restaurant",
-  cafe: "Café",
-  parking: "Parkplatz",
-  church: "Kirche",
-  chapel: "Kapelle",
-  attraction: "Sehenswürdigkeit",
-  museum: "Museum",
+/** Kind names for `osm_value` in the active language; unknown values get no kind. */
+const KIND_NAMES: Record<string, (locale?: Locale) => string> = {
+  city: (locale) => m.search_kind_city({}, { locale }),
+  town: (locale) => m.search_kind_town({}, { locale }),
+  village: (locale) => m.search_kind_village({}, { locale }),
+  hamlet: (locale) => m.search_kind_hamlet({}, { locale }),
+  suburb: (locale) => m.search_kind_district({}, { locale }),
+  quarter: (locale) => m.search_kind_district({}, { locale }),
+  neighbourhood: (locale) => m.search_kind_district({}, { locale }),
+  locality: (locale) => m.search_kind_locality({}, { locale }),
+  isolated_dwelling: (locale) => m.search_kind_isolated_dwelling({}, { locale }),
+  farm: (locale) => m.search_kind_farm({}, { locale }),
+  municipality: (locale) => m.search_kind_municipality({}, { locale }),
+  county: (locale) => m.search_kind_county({}, { locale }),
+  state: (locale) => m.search_kind_state({}, { locale }),
+  peak: (locale) => m.search_kind_peak({}, { locale }),
+  saddle: (locale) => m.search_kind_saddle({}, { locale }),
+  hill: (locale) => m.search_kind_hill({}, { locale }),
+  ridge: (locale) => m.search_kind_ridge({}, { locale }),
+  valley: (locale) => m.search_kind_valley({}, { locale }),
+  rock: (locale) => m.search_kind_rock({}, { locale }),
+  cliff: (locale) => m.search_kind_cliff({}, { locale }),
+  cave_entrance: (locale) => m.search_kind_cave({}, { locale }),
+  spring: (locale) => m.search_kind_spring({}, { locale }),
+  waterfall: (locale) => m.search_kind_waterfall({}, { locale }),
+  water: (locale) => m.search_kind_water({}, { locale }),
+  lake: (locale) => m.search_kind_lake({}, { locale }),
+  river: (locale) => m.search_kind_river({}, { locale }),
+  stream: (locale) => m.search_kind_stream({}, { locale }),
+  wood: (locale) => m.search_kind_forest({}, { locale }),
+  forest: (locale) => m.search_kind_forest({}, { locale }),
+  heath: (locale) => m.search_kind_heath({}, { locale }),
+  nature_reserve: (locale) => m.search_kind_nature_reserve({}, { locale }),
+  national_park: (locale) => m.search_kind_national_park({}, { locale }),
+  protected_area: (locale) => m.search_kind_protected_area({}, { locale }),
+  castle: (locale) => m.search_kind_castle({}, { locale }),
+  ruins: (locale) => m.search_kind_ruins({}, { locale }),
+  tower: (locale) => m.search_kind_tower({}, { locale }),
+  viewpoint: (locale) => m.search_kind_viewpoint({}, { locale }),
+  alpine_hut: (locale) => m.search_kind_hut({}, { locale }),
+  wilderness_hut: (locale) => m.search_kind_hut({}, { locale }),
+  shelter: (locale) => m.search_kind_shelter({}, { locale }),
+  station: (locale) => m.search_kind_station({}, { locale }),
+  halt: (locale) => m.search_kind_halt({}, { locale }),
+  camp_site: (locale) => m.search_kind_camp_site({}, { locale }),
+  hostel: (locale) => m.search_kind_hostel({}, { locale }),
+  hotel: (locale) => m.search_kind_hotel({}, { locale }),
+  restaurant: (locale) => m.search_kind_restaurant({}, { locale }),
+  cafe: (locale) => m.search_kind_cafe({}, { locale }),
+  parking: (locale) => m.search_kind_parking({}, { locale }),
+  church: (locale) => m.search_kind_church({}, { locale }),
+  chapel: (locale) => m.search_kind_chapel({}, { locale }),
+  attraction: (locale) => m.search_kind_attraction({}, { locale }),
+  museum: (locale) => m.search_kind_museum({}, { locale }),
 };
 
 interface PhotonProperties {
@@ -122,7 +133,7 @@ function boundsOf(extent: unknown): [number, number, number, number] | undefined
  * Search results of a Photon response. A hit without a name is shown as street and house number,
  * and left out if it has no street either.
  */
-export function parsePhoton(json: unknown): SearchResult[] {
+export function parsePhoton(json: unknown, locale?: Locale): SearchResult[] {
   const features = (json as { features?: unknown } | null)?.features;
   if (!Array.isArray(features)) return [];
   const out: SearchResult[] = [];
@@ -140,7 +151,9 @@ export function parsePhoton(json: unknown): SearchResult[] {
     const parts = [place, ...area].filter(
       (x, i, a) => x !== "" && x !== label && a.indexOf(x) === i,
     );
-    const kind = KIND_NAMES[text(p.osm_value)] ?? (text(p.osm_key) === "highway" ? "Straße" : "");
+    const kind =
+      KIND_NAMES[text(p.osm_value)]?.(locale) ??
+      (text(p.osm_key) === "highway" ? m.search_kind_street({}, { locale }) : "");
     const detail = [parts.join(", "), kind].filter((x) => x !== "").join(" · ");
     const bounds = boundsOf(p.extent);
     out.push({
@@ -158,7 +171,7 @@ export function parsePhoton(json: unknown): SearchResult[] {
 
 function el<T extends HTMLElement>(id: string): T {
   const node = document.getElementById(id);
-  if (!node) throw new Error(`#${id} fehlt`);
+  if (!node) throw new Error(`Missing element #${id}`);
   return node as T;
 }
 
@@ -235,6 +248,7 @@ export function initSearch(map: MapLibreMap): void {
     const result = results[index];
     if (!result) return;
     jumpTo(map, result);
+    collapseSheet();
     input.value = result.label;
     setOpen(false);
     say("");
@@ -282,7 +296,7 @@ export function initSearch(map: MapLibreMap): void {
       timedOut = true;
       mine.abort();
     }, TIMEOUT_MS);
-    say("Suche …");
+    say(m.search_searching());
     try {
       const c = map.getCenter();
       const response = await fetch(photonUrl(query, c), {
@@ -294,15 +308,15 @@ export function initSearch(map: MapLibreMap): void {
       results = parsePhoton(await response.json());
       stale = false;
       render();
-      say(results.length === 0 ? "Keine Treffer" : "");
+      say(results.length === 0 ? m.search_none() : "");
       if (jumpToFirst && results.length > 0) choose(0);
     } catch (err) {
       // Superseded by a newer search or cleared: stay silent.
       if (mine.signal.aborted && !timedOut) return;
-      console.warn("Photon-Suche:", err);
+      console.warn("Photon search:", err);
       results = [];
       render();
-      say("Suche nicht erreichbar – Internetverbindung prüfen", true);
+      say(m.search_unreachable(), true);
     } finally {
       window.clearTimeout(timeout);
       if (controller === mine) controller = null;

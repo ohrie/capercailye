@@ -4,6 +4,8 @@
 //
 // Everything is computed in global paper millimetres at the layout zoom (placement/geo.ts), where
 // Web-Mercator is linear: the area and every sheet are true rectangles on screen and on paper.
+import type { Locale } from "../i18n";
+import { m } from "../paraglide/messages.js";
 import { lngLatToMm, mmToLngLat, type RectMm } from "../placement/geo";
 import { BLEED_MM, LEGEND_STRIP_MM, type Orientation, printableArea, type SizeMm } from "./paper";
 import { formatScale, zoomForScale } from "./scale";
@@ -270,17 +272,26 @@ export function recenterArea(area: Area, center: [number, number]): Area {
   );
 }
 
-/** "capercailye-1-25000-hoch.pdf", with several sheets "capercailye-1-21000-hoch-6-seiten.pdf". */
+/** "capercailye-1-25000-portrait.pdf", with several sheets "...-portrait-6-pages.pdf" (en; "hoch", "seiten" in de). */
 export function layoutFilename(
   layout: Pick<SheetLayout, "scale" | "orientation" | "count">,
+  locale?: Locale,
 ): string {
-  const o = layout.orientation === "portrait" ? "hoch" : "quer";
-  const pages = layout.count > 1 ? `-${layout.count}-seiten` : "";
+  const o =
+    layout.orientation === "portrait"
+      ? m.print_file_portrait({}, { locale })
+      : m.print_file_landscape({}, { locale });
+  const pages =
+    layout.count > 1 ? `-${m.print_file_pages({ count: layout.count }, { locale })}` : "";
   return `capercailye-1-${layout.scale}-${o}${pages}.pdf`;
 }
 
-/** "6 × A4 hoch · 1:21 000" */
-export function layoutLabel(layout: Pick<SheetLayout, "scale" | "orientation" | "count">): string {
-  const o = layout.orientation === "portrait" ? "hoch" : "quer";
-  return `${layout.count} × A4 ${o} · ${formatScale(layout.scale)}`;
+/** "6 × A4 portrait · 1:21,000" (en) or "6 × A4 hoch · 1:21 000" (de). */
+export function layoutLabel(
+  layout: Pick<SheetLayout, "scale" | "orientation" | "count">,
+  locale?: Locale,
+): string {
+  const message =
+    layout.orientation === "portrait" ? m.print_label_portrait : m.print_label_landscape;
+  return message({ count: layout.count, scale: formatScale(layout.scale, locale) }, { locale });
 }

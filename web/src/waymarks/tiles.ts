@@ -6,7 +6,7 @@
 // converted to global z12 tile units (`gx = tx * 4096 + x`); pieces of neighbouring tiles then meet
 // at the tile edge (waymarks/graph.ts joins them). Urban restaurants/cafés, toilets and hotels
 // (`urban`, kinds of THIN_GROUPS) of the `poi` layer are read in the same pass for the greedy
-// thinning (placement/thin.ts); they are delivered whether "Wanderrouten" is on or not.
+// thinning (placement/thin.ts); they are delivered whether "Hiking routes" is on or not.
 import { VectorTile } from "@mapbox/vector-tile";
 import { PbfReader } from "pbf";
 import { PMTiles } from "pmtiles";
@@ -58,7 +58,7 @@ interface DecodedTile {
 }
 
 export interface RegionData {
-  /** Pieces with the ids of their visible routes (tile order); empty while "Wanderrouten" is off. */
+  /** Pieces with the ids of their visible routes (tile order); empty while "Hiking routes" is off. */
   pieces: RoutePiece[];
   /** The visible routes by id. */
   routes: Map<string, RouteInfo>;
@@ -177,9 +177,7 @@ export async function loadRegionData(
   if (tiles.length > MAX_WAYMARK_TILES) {
     if (!warned) {
       warned = true;
-      console.warn(
-        `Wegzeichen: Gebiet braucht ${tiles.length} Kacheln (Grenze ${MAX_WAYMARK_TILES}).`,
-      );
+      console.warn(`Waymarks: area needs ${tiles.length} tiles (limit ${MAX_WAYMARK_TILES}).`);
     }
     return undefined;
   }

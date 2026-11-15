@@ -97,4 +97,4 @@ capercailye gibt es nur, weil andere ihre Arbeit offen teilen:
   [maplibre-contour](https://github.com/onthegomap/maplibre-contour),
   [OsmcToSVG](https://github.com/mueschel/OsmcToSVG), [jsPDF](https://github.com/parallax/jsPDF)
 
-Lizenzen und Quellenangaben im Einzelnen: [site/quellen](site/quellen/index.html).
+Lizenzen und Quellenangaben im Einzelnen: [web/src/pages/quellen](web/src/pages/quellen/index.astro).

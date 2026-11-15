@@ -82,7 +82,12 @@ body {
   letter-spacing: 0.02em;
 }
 
-.brand::before {
+.brand a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand a::before {
   content: "";
   display: inline-block;
   width: 20px;
@@ -670,4 +675,59 @@ span.switch__legend {
   inset: 0;
   pointer-events: none;
   z-index: 1;
+}
+
+/* Narrow screens (MOBILE_QUERY in sheet.ts): the sidebar lives in a bottom sheet (Cupertino Pane,
+   src/mobile-sheet.ts) and the map fills the screen. Until the sheet has taken the sidebar out of
+   .app it stays hidden. */
+@media (max-width: 767px) {
+  .app {
+    height: 100dvh;
+  }
+
+  .app > .sidebar,
+  .map__expand,
+  .sidebar-collapsed .map__expand,
+  #sidebar-collapse {
+    display: none;
+  }
+
+  /* Inside the sheet: no column, the sheet scrolls. */
+  .mobile-sheet__host .sidebar,
+  .sidebar-collapsed .mobile-sheet__host .sidebar {
+    display: flex;
+    flex: none;
+    width: auto;
+    border-right: none;
+    overflow: visible;
+  }
+
+  /* Cupertino Pane look: its own tokens, then the parts it hard-codes. */
+  .cupertino-pane-wrapper.mobile-sheet {
+    --cupertino-pane-background: var(--bg);
+    --cupertino-pane-color: var(--fg);
+    --cupertino-pane-border-radius: calc(var(--radius) * 3);
+    --cupertino-pane-shadow: 0 -2px 12px rgba(31, 31, 31, 0.12), 0 0 0 1px var(--line-strong);
+    --cupertino-pane-move-background: var(--line-strong);
+  }
+
+  /* The pane spans the whole width (the library caps it at 500px); the padding is the grip area
+     (GRIP_PX in mobile-sheet.ts). */
+  .cupertino-pane-wrapper.mobile-sheet .pane {
+    max-width: none;
+    padding-top: 22px;
+  }
+
+  .cupertino-pane-wrapper.mobile-sheet .draggable {
+    padding-top: 9px;
+  }
+
+  .cupertino-pane-wrapper.mobile-sheet .move {
+    width: 20px;
+    height: 3px;
+  }
+
+  .mobile-sheet__host .sidebar__header {
+    padding-block: var(--space-3);
+  }
 }

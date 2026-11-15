@@ -80,10 +80,10 @@ export function managedLayers(layers: readonly LayerSpecification[]): ManagedLay
     const role = placementRole(spec);
     if (!role) continue;
     if (role === "displace" && spec.type !== "symbol") {
-      throw new Error(`${spec.id}: "displace" gilt nur für Symbol-Layer`);
+      throw new Error(`${spec.id}: "displace" applies to symbol layers only`);
     }
     if (role === "fixed" && spec.type !== "symbol" && spec.type !== "circle") {
-      throw new Error(`${spec.id}: "fixed" gilt nur für Symbol- und Kreis-Layer`);
+      throw new Error(`${spec.id}: "fixed" applies to symbol and circle layers only`);
     }
     out.push({ id: spec.id, role, spec, clones: role === "displace" ? cloneIds(spec) : [] });
   }

@@ -22,8 +22,7 @@ const rasterCache = new Map<string, Promise<ImageData | undefined>>();
 
 /** Registers an SVG provider for image ids "<prefix>:<name>". */
 export function registerImageProvider(prefix: string, provider: ImageProvider): void {
-  if (prefix.includes(":"))
-    throw new Error(`Bildpräfix darf keinen Doppelpunkt enthalten: ${prefix}`);
+  if (prefix.includes(":")) throw new Error(`Image prefix must not contain a colon: ${prefix}`);
   providers.set(prefix, provider);
   for (const id of rasterCache.keys()) if (id.startsWith(`${prefix}:`)) rasterCache.delete(id);
 }
@@ -47,7 +46,7 @@ async function rasterise(image: SvgImage): Promise<ImageData> {
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("2D-Canvas nicht verfügbar");
+  if (!ctx) throw new Error("2D canvas not available");
   ctx.drawImage(img, 0, 0, w, h);
   return ctx.getImageData(0, 0, w, h);
 }
@@ -82,7 +81,7 @@ export function installIcons(map: MapLibreMap): void {
       const data = await rasterImage(id);
       if (data && map.style) addRaster(map, id, data);
     } catch (err) {
-      console.warn(`Piktogramm ${id} konnte nicht erzeugt werden:`, err);
+      console.warn(`Pictogram ${id} could not be created:`, err);
     }
   });
 }

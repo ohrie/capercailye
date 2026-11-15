@@ -244,7 +244,7 @@ describe("style", () => {
 
   test("the bus stop group has a sidebar toggle and no OSM bus stops remain", () => {
     const g = GROUPS.find((x) => x.id === "busstops");
-    expect(g?.label).toBe("Bushaltestellen");
+    expect(g?.label).toBe("Bus stops");
     expect(g?.source).toBe("busstops");
     for (const l of style.layers) {
       if (l.id.startsWith("busstops-")) expect((l as { source: string }).source).toBe("busstops");
@@ -255,7 +255,7 @@ describe("style", () => {
 
   test("the contour group has a toggle and its layers sit between hillshade and water", () => {
     const g = GROUPS.find((x) => x.id === "contours");
-    expect(g?.label).toBe("Höhenlinien");
+    expect(g?.label).toBe("Contour lines");
     expect(g?.source).toBe("contours");
     const ids = style.layers.map((l) => l.id);
     const contourIds = ids.filter((id) => id.startsWith("contours-"));
@@ -416,7 +416,7 @@ describe("M6 switches", () => {
     expect(
       ids.slice(ids.indexOf("poi") + 1, ids.indexOf("poi") + 1 + POI_CATEGORIES.length),
     ).toEqual(POI_CATEGORIES.map((c) => c.id));
-    expect(GROUPS.find((g) => g.id === "poi")?.label).toBe("Weitere Symbole");
+    expect(GROUPS.find((g) => g.id === "poi")?.label).toBe("More symbols");
   });
 
   test("small kinds of a category keep their minor layer, guideposts split by name", () => {
@@ -597,7 +597,7 @@ describe("M6 switches", () => {
     const g = GROUPS.find((x) => x.id === "waymarks")!;
     expect(g.label).toBeUndefined();
     expect(g.toggledBy).toBe("routes");
-    expect(GROUPS.find((x) => x.id === "routes")?.label).toBe("Wanderrouten");
+    expect(GROUPS.find((x) => x.id === "routes")?.label).toBe("Hiking routes");
   });
 });
 

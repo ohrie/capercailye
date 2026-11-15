@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { OSM_CREDIT, RELIEF_CREDIT, RELIEF_CREDITS } from "./config";
+import { busstopsCredit, osmCredit, reliefCredit, reliefCredits } from "./config";
 import {
   buildCredits,
   creditHtml,
@@ -11,51 +11,55 @@ import {
   partText,
 } from "./credits";
 
-describe("credits", () => {
+const de = "de";
+const OSM_CREDIT = osmCredit(de);
+const RELIEF_CREDIT = reliefCredit(de);
+
+describe("credits (de)", () => {
   test("formatStand takes the UTC date part", () => {
-    expect(formatStand("2026-11-12T21:23:05Z")).toBe("12.11.2026");
-    expect(formatStand("2026-08-02")).toBe("02.08.2026");
-    expect(formatStand("gestern")).toBeUndefined();
+    expect(formatStand("2026-11-12T21:23:05Z", de)).toBe("12.11.2026");
+    expect(formatStand("2026-08-02", de)).toBe("02.08.2026");
+    expect(formatStand("gestern", de)).toBeUndefined();
   });
 
   test("osmStand reads the Planetiler key", () => {
-    expect(osmStand({ "planetiler:osm:osmosisreplicationtime": "2026-11-12T21:23:05Z" })).toBe(
+    expect(osmStand({ "planetiler:osm:osmosisreplicationtime": "2026-11-12T21:23:05Z" }, de)).toBe(
       "12.11.2026",
     );
-    expect(osmStand({ name: "x" })).toBeUndefined();
-    expect(osmStand(undefined)).toBeUndefined();
-    expect(osmStand({ "planetiler:osm:osmosisreplicationtime": 5 })).toBeUndefined();
+    expect(osmStand({ name: "x" }, de)).toBeUndefined();
+    expect(osmStand(undefined, de)).toBeUndefined();
+    expect(osmStand({ "planetiler:osm:osmosisreplicationtime": 5 }, de)).toBeUndefined();
   });
 
   test("gtfsStand reads feed_date from the description", () => {
-    expect(gtfsStand({ description: "capercailye bus stops; feed_date=2026-11-07" })).toBe(
+    expect(gtfsStand({ description: "capercailye bus stops; feed_date=2026-11-07" }, de)).toBe(
       "07.11.2026",
     );
-    expect(gtfsStand({ description: "capercailye bus stops" })).toBeUndefined();
-    expect(gtfsStand({})).toBeUndefined();
-    expect(gtfsStand(null)).toBeUndefined();
+    expect(gtfsStand({ description: "capercailye bus stops" }, de)).toBeUndefined();
+    expect(gtfsStand({}, de)).toBeUndefined();
+    expect(gtfsStand(null, de)).toBeUndefined();
   });
 
   test("pattern: name (licence, Stand date); without a date only the Stand drops out", () => {
-    expect(creditText(OSM_CREDIT, "12.11.2026")).toBe(
+    expect(creditText(OSM_CREDIT, "12.11.2026", de)).toBe(
       "© OpenStreetMap-Mitwirkende (ODbL, Stand 12.11.2026)",
     );
-    expect(creditText(OSM_CREDIT)).toBe("© OpenStreetMap-Mitwirkende (ODbL)");
-    expect(creditText({ name: "Quelle" })).toBe("Quelle");
+    expect(creditText(OSM_CREDIT, undefined, de)).toBe("© OpenStreetMap-Mitwirkende (ODbL)");
+    expect(creditText({ name: "Quelle" }, undefined, de)).toBe("Quelle");
   });
 
   test("creditHtml links the name and escapes everything", () => {
-    expect(creditHtml(OSM_CREDIT, "12.11.2026")).toBe(
+    expect(creditHtml(OSM_CREDIT, "12.11.2026", de)).toBe(
       '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">' +
         "© OpenStreetMap-Mitwirkende</a> (ODbL, Stand 12.11.2026)",
     );
-    expect(creditHtml({ name: "A & <b>", license: '"x"' })).toBe(
+    expect(creditHtml({ name: "A & <b>", license: '"x"' }, undefined, de)).toBe(
       "A &amp; &lt;b&gt; (&quot;x&quot;)",
     );
   });
 
   test("the website texts carry the dates; OSM links to its copyright page, the rest to /quellen/", () => {
-    const c = buildCredits({ osm: "12.11.2026", gtfs: "07.11.2026" });
+    const c = buildCredits({ osm: "12.11.2026", gtfs: "07.11.2026", locale: de });
     expect(c.osm).toContain('href="https://www.openstreetmap.org/copyright"');
     expect(c.osm).toContain("(ODbL, Stand 12.11.2026)");
     expect(c.busstops).toContain('href="/quellen/"');
@@ -79,7 +83,7 @@ describe("credits", () => {
   });
 
   test("every relief credit says it is modified and links to the sources page", () => {
-    for (const [area, credit] of Object.entries(RELIEF_CREDITS)) {
+    for (const [area, credit] of Object.entries(reliefCredits(de))) {
       expect(credit.name, area).toContain("bearbeitet");
       expect(credit.href, area).toBe("/quellen/");
       expect(credit.print, area).toContain("bearbeitet");
@@ -88,8 +92,13 @@ describe("credits", () => {
   });
 
   test("the PDF line never has a data date and names OSM URL, modification and sources page", () => {
-    const withDates = buildCredits({ osm: "12.11.2026", gtfs: "07.11.2026", host: "example.org" });
-    const without = buildCredits({ host: "example.org" });
+    const withDates = buildCredits({
+      osm: "12.11.2026",
+      gtfs: "07.11.2026",
+      host: "example.org",
+      locale: de,
+    });
+    const without = buildCredits({ host: "example.org", locale: de });
     expect(withDates.line).toBe(without.line);
     expect(withDates.line).not.toContain("Stand");
     expect(withDates.line).toBe(
@@ -104,11 +113,11 @@ describe("credits", () => {
   });
 
   test("without a host the pointer to the sources page is left out", () => {
-    expect(buildCredits().line).not.toContain("Lizenzen:");
+    expect(buildCredits({ locale: de }).line).not.toContain("Lizenzen:");
   });
 
   test("without dates and without the bus stop file", () => {
-    const c = buildCredits({ busstopsAvailable: false, relief: { name: "Relief: X" } });
+    const c = buildCredits({ busstopsAvailable: false, relief: { name: "Relief: X" }, locale: de });
     expect(c.line).toBe(
       "© OpenStreetMap-Mitwirkende (ODbL), openstreetmap.org/copyright · Relief: X",
     );
@@ -117,5 +126,57 @@ describe("credits", () => {
       "Relief: X",
       "Suche: Photon (komoot)",
     ]);
+  });
+});
+
+describe("credits (en)", () => {
+  const en = "en";
+  const osm = osmCredit(en);
+
+  test("date and pattern in English", () => {
+    expect(formatStand("2026-11-12T21:23:05Z", en)).toBe("Nov 12, 2026");
+    expect(creditText(osm, formatStand("2026-11-12", en), en)).toBe(
+      "© OpenStreetMap contributors (ODbL, as of Nov 12, 2026)",
+    );
+    expect(creditText(osm, undefined, en)).toBe("© OpenStreetMap contributors (ODbL)");
+  });
+
+  test("the sidebar and the PDF line are English and keep the modification notices", () => {
+    const c = buildCredits({
+      osm: "Nov 12, 2026",
+      gtfs: "Nov 7, 2026",
+      host: "example.org",
+      locale: en,
+    });
+    expect(c.sidebar.map(partText)).toEqual([
+      "© OpenStreetMap contributors (ODbL, as of Nov 12, 2026)",
+      partText(c.sidebar[1]!),
+      "Timetable data: DELFI e.V. / gtfs.de, analysed (CC BY 4.0, as of Nov 7, 2026)",
+      "Search: Photon (komoot)",
+    ]);
+    expect(c.sidebar[1]!.name).toContain("modified");
+    expect(c.line).toBe(
+      [
+        "© OpenStreetMap contributors (ODbL), openstreetmap.org/copyright",
+        creditPrint(reliefCredit(en), en),
+        "Timetable data: DELFI/gtfs.de, analysed (CC BY 4.0)",
+        "Licences: example.org/quellen",
+      ].join(" · "),
+    );
+    expect(c.line).toContain("analysed");
+    expect(c.line).not.toContain("as of");
+    // Licence names and publisher names stay the same in both languages.
+    expect(busstopsCredit(en).license).toBe(busstopsCredit(de).license);
+    expect(reliefCredit(en).href).toBe("/quellen/");
+  });
+
+  test("every relief credit says it is modified in both languages", () => {
+    for (const locale of ["en", "de"] as const) {
+      const word = locale === "en" ? "modified" : "bearbeitet";
+      for (const [area, credit] of Object.entries(reliefCredits(locale))) {
+        expect(credit.name, `${locale} ${area}`).toContain(word);
+        expect(credit.print, `${locale} ${area}`).toContain(word);
+      }
+    }
   });
 });

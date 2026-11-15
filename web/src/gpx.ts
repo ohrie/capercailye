@@ -6,6 +6,7 @@
 // end point, each tagged with `_kind`.
 import { gpx as gpxToGeoJson } from "@tmcw/togeojson";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
+import { m } from "./paraglide/messages.js";
 import type { Area } from "./print/layout";
 
 export type Position = [number, number];
@@ -22,9 +23,6 @@ export interface Track {
 }
 
 export type TrackResult = { track: Track } | { error: string };
-
-export const ERROR_NO_TRACK = "Keine Spur in der Datei";
-export const ERROR_UNREADABLE = "Datei ist kein lesbares GPX";
 
 const EARTH_RADIUS_M = 6_371_008.8;
 const rad = (deg: number) => (deg * Math.PI) / 180;
@@ -67,7 +65,10 @@ function linesOf(geometry: Geometry | null): Position[][] {
  * Normalises the GeoJSON of togeojson: lines only, start = first point of the first line, end =
  * last point of the last line. Without any line: `{ error }`.
  */
-export function normalizeTrack(fc: FeatureCollection, fallbackName = "GPX-Track"): TrackResult {
+export function normalizeTrack(
+  fc: FeatureCollection,
+  fallbackName: string = m.gpx_default_name(),
+): TrackResult {
   const features: Feature[] = [];
   const all: Position[][] = [];
   let name = "";
@@ -85,7 +86,7 @@ export function normalizeTrack(fc: FeatureCollection, fallbackName = "GPX-Track"
           : { type: "MultiLineString", coordinates: lines },
     });
   }
-  if (all.length === 0) return { error: ERROR_NO_TRACK };
+  if (all.length === 0) return { error: m.gpx_error_no_track() };
 
   const start = all[0]![0]!;
   const lastLine = all[all.length - 1]!;
@@ -138,13 +139,13 @@ export function areaForTrack(bounds: Bounds): Area {
 export function parseGpx(text: string, fallbackName?: string): TrackResult {
   const doc = new DOMParser().parseFromString(text, "application/xml");
   if (doc.querySelector("parsererror") || doc.documentElement.localName.toLowerCase() !== "gpx") {
-    return { error: ERROR_UNREADABLE };
+    return { error: m.gpx_error_unreadable() };
   }
   let fc: FeatureCollection;
   try {
     fc = gpxToGeoJson(doc) as FeatureCollection;
   } catch {
-    return { error: ERROR_UNREADABLE };
+    return { error: m.gpx_error_unreadable() };
   }
   return normalizeTrack(fc, fallbackName);
 }
@@ -155,7 +156,7 @@ export async function readGpxFile(file: File): Promise<TrackResult> {
   try {
     text = await file.text();
   } catch {
-    return { error: ERROR_UNREADABLE };
+    return { error: m.gpx_error_unreadable() };
   }
   return parseGpx(text, file.name.replace(/\.gpx$/i, "") || undefined);
 }

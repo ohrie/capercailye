@@ -3,8 +3,9 @@
 import type { LayerSpecification, StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
-import { BUSSTOPS_CREDIT, OSM_CREDIT, RELIEF_CREDIT } from "../config";
+import { busstopsCredit, osmCredit, reliefCredit } from "../config";
 import { creditHtml } from "../credits";
+import { m } from "../paraglide/messages.js";
 import { buildingLayers } from "./buildings";
 import { cliffLayers } from "./cliffs";
 import { contourLayers, hillshadeLayers } from "./hillshade";
@@ -40,18 +41,34 @@ import {
 import { transportLayers } from "./transport";
 import { waterLayers } from "./water";
 
-/** Sections of the sidebar panel "Ebenen". */
+/** Sections of the sidebar panel "Layers". */
 export type LayerSection = "routes" | "terrain" | "symbols";
 
-export const SECTIONS: readonly { id: LayerSection; label: string }[] = [
-  { id: "routes", label: "Routen" },
-  { id: "terrain", label: "Gelände und Karte" },
-  { id: "symbols", label: "Symbole" },
+// Labels are getters: they read the active language when the sidebar is built, not at import.
+export const SECTIONS: readonly { id: LayerSection; readonly label: string }[] = [
+  {
+    id: "routes",
+    get label() {
+      return m.section_routes();
+    },
+  },
+  {
+    id: "terrain",
+    get label() {
+      return m.section_terrain();
+    },
+  },
+  {
+    id: "symbols",
+    get label() {
+      return m.section_symbols();
+    },
+  },
 ];
 
 export interface LayerGroup {
   id: string;
-  /** German label for the sidebar; groups without label are not toggleable on their own. */
+  /** Label for the sidebar (a getter, in the active language); groups without one are not toggleable on their own. */
   label?: string;
   /** Sidebar section of a labelled group. */
   section?: LayerSection;
@@ -81,7 +98,9 @@ export const GROUPS: LayerGroup[] = [
   { id: "landcover", defaultVisible: true, layers: landcoverLayers },
   {
     id: "hillshade",
-    label: "Schummerung",
+    get label() {
+      return m.layer_hillshade();
+    },
     section: "terrain",
     defaultVisible: true,
     layers: hillshadeLayers,
@@ -90,7 +109,9 @@ export const GROUPS: LayerGroup[] = [
   // other lines and symbols: the numbers are placed last and yield to waymarks, names and icons.
   {
     id: "contours",
-    label: "Höhenlinien",
+    get label() {
+      return m.layer_contours();
+    },
     section: "terrain",
     defaultVisible: true,
     source: CONTOUR_SOURCE,
@@ -98,7 +119,9 @@ export const GROUPS: LayerGroup[] = [
   },
   {
     id: "protected",
-    label: "Schutzgebiete",
+    get label() {
+      return m.layer_protected();
+    },
     section: "terrain",
     defaultVisible: true,
     layers: protectedLayers,
@@ -107,32 +130,38 @@ export const GROUPS: LayerGroup[] = [
   { id: "cliffs", defaultVisible: true, layers: cliffLayers },
   {
     id: "buildings",
-    label: "Gebäude",
+    get label() {
+      return m.layer_buildings();
+    },
     section: "terrain",
     defaultVisible: true,
     layers: buildingLayers,
   },
   {
     id: "routes",
-    label: "Wanderrouten",
+    get label() {
+      return m.layer_routes();
+    },
     section: "routes",
     defaultVisible: true,
     layers: routeLayers,
   },
-  // Network sub-switches of "Wanderrouten" (B3): no layers of their own. They control band AND
+  // Network sub-switches of "Hiking routes" (B3): no layers of their own. They control band AND
   // waymark signs: they set filter, width and opacity of routes-band (also built into the style from
   // the visibility, for the export) and, per route, decide which routes get signs (waymarks/routes.ts;
   // main.ts recomputes the signs).
   ...(
     [
-      ["iwn", "International"],
-      ["nwn", "National"],
-      ["rwn", "Regional"],
-      ["lwn", "Lokal"],
+      ["iwn", () => m.layer_net_iwn()],
+      ["nwn", () => m.layer_net_nwn()],
+      ["rwn", () => m.layer_net_rwn()],
+      ["lwn", () => m.layer_net_lwn()],
     ] as const
   ).map(([net, label]): LayerGroup => ({
     id: NETWORK_GROUPS[net],
-    label,
+    get label() {
+      return label();
+    },
     section: "routes",
     parent: "routes",
     defaultVisible: true,
@@ -149,13 +178,15 @@ export const GROUPS: LayerGroup[] = [
     defaultVisible: true,
     layers: () => withoutShieldRefs(nameLayers()),
   },
-  // Road number shields (Autobahn / Bundesstrasse); follow the "Beschriftung" toggle.
+  // Road number shields (motorway / federal road); follow the "Labels" toggle.
   { id: "shields", toggledBy: "labels", defaultVisible: true, layers: shieldLayers },
   // The pictogram kinds without a switch of their own (churches, stations, caves, springs, towers,
   // crosses …); the others are the categories below.
   {
     id: "poi",
-    label: "Weitere Symbole",
+    get label() {
+      return m.layer_poi();
+    },
     section: "symbols",
     defaultVisible: true,
     layers: poiLayers,
@@ -163,7 +194,9 @@ export const GROUPS: LayerGroup[] = [
   // One group per pictogram category (M6): own layers, switched by visibility.
   ...POI_CATEGORIES.map((cat): LayerGroup => ({
     id: cat.id,
-    label: cat.label,
+    get label() {
+      return cat.label;
+    },
     section: "symbols",
     defaultVisible: cat.defaultVisible,
     layers: (v = {}) => poiCategoryLayers(cat, { guidepostNames: isOn("guidepostnames", v) }),
@@ -171,7 +204,9 @@ export const GROUPS: LayerGroup[] = [
   // Viewpoints: only named ones are in the tiles; on by default. View towers stay in "poi".
   {
     id: "viewpoints",
-    label: "Aussichtspunkte",
+    get label() {
+      return m.layer_viewpoints();
+    },
     section: "symbols",
     defaultVisible: true,
     layers: viewpointLayers,
@@ -180,7 +215,9 @@ export const GROUPS: LayerGroup[] = [
   // switch only changes the text-field of guideposts-main.
   {
     id: "guidepostnames",
-    label: "Wegweisernamen",
+    get label() {
+      return m.layer_guidepostnames();
+    },
     section: "symbols",
     parent: "guideposts",
     defaultVisible: false,
@@ -191,7 +228,9 @@ export const GROUPS: LayerGroup[] = [
   // stop (priority 21) must not be covered by restaurants, parking etc. Its names are placed first.
   {
     id: "busstops",
-    label: "Bushaltestellen",
+    get label() {
+      return m.layer_busstops();
+    },
     section: "symbols",
     defaultVisible: true,
     source: BUSSTOPS_SOURCE,
@@ -199,13 +238,15 @@ export const GROUPS: LayerGroup[] = [
   },
   {
     id: "labels",
-    label: "Beschriftung",
+    get label() {
+      return m.layer_labels();
+    },
     section: "terrain",
     defaultVisible: true,
     layers: labelLayers,
   },
   // M3: waymark signs on top, so they win collisions against all other labels. Part of the routes
-  // (SPEC.md 4.4), no switch of their own: "Wanderrouten" and the network switches decide (the signs
+  // (SPEC.md 4.4), no switch of their own: "Hiking routes" and the network switches decide (the signs
   // are recomputed in waymarks/index.ts). The layer draws the points of the source `waymark-signs`
   // that waymarks/index.ts computes: one image per sign, placed along the routes by the app. Like
   // `shields` this is a sign group that follows its toggle (`toggledBy`).
@@ -286,14 +327,17 @@ export interface SourceCredits {
   busstops: string;
 }
 
-const DEFAULT_CREDITS: SourceCredits = {
-  osm: creditHtml(OSM_CREDIT),
-  relief: creditHtml(RELIEF_CREDIT),
-  busstops: creditHtml(BUSSTOPS_CREDIT),
-};
+/** Credits in the active language, for callers that pass none (tests). */
+function defaultCredits(): SourceCredits {
+  return {
+    osm: creditHtml(osmCredit()),
+    relief: creditHtml(reliefCredit()),
+    busstops: creditHtml(busstopsCredit()),
+  };
+}
 
 export function buildStyle(opts: StyleOptions): StyleSpecification {
-  const credits = opts.credits ?? DEFAULT_CREDITS;
+  const credits = opts.credits ?? defaultCredits();
   const sources: StyleSpecification["sources"] = {
     [OSM_SOURCE]: osmSource(opts.pmtilesUrl, credits.osm),
     [DEM_SOURCE]: demSource(opts.relief.dem, credits.relief),

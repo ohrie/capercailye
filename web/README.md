@@ -1,24 +1,38 @@
-# capercailye – Web-App
+# capercailye – Website und Web-App
 
-Bun + Vite + TypeScript (ohne Framework), MapLibre GL JS, PMTiles, jsPDF. Funktionen: Ebenen-Schalter,
-Photon-Suche, GPX-Upload, Blattschnitt und mehrseitiger PDF-Export.
+Ein Astro-Projekt (Bun) für die ganze Website: die statische Landingpage auf Englisch (`/`) und
+Deutsch (`/de/`), die nur deutschen Rechtsseiten (`/impressum/`, `/datenschutz/`, `/quellen/`) und
+die Karten-App (`/app/`, Deutsch und Englisch). Sprachen: siehe „Sprachen (i18n)“.
+Die App ist TypeScript ohne Framework (MapLibre GL JS, PMTiles, jsPDF) und wird von
+`src/pages/app/index.astro` als Client-Skript geladen. Auch das Bottom Sheet für schmale Bildschirme
+([Cupertino Pane](https://github.com/roman-rr/cupertino-pane), siehe „Mobil“) ist Vanilla-TypeScript. Funktionen: Ebenen-Schalter, Photon-Suche,
+GPX-Upload, Blattschnitt und mehrseitiger PDF-Export. Spec der Landingpage: `../SPEC.md`, Abschnitt 4.9.
 
 ## Befehle
 
 ```sh
 bun install          # Abhängigkeiten
-bun run dev          # Dev-Server auf http://localhost:5173
-bun run build        # Typprüfung (tsc) + Produktions-Build nach dist/
-bun run preview      # Build ansehen (liefert /data/ ebenfalls aus)
-bun test             # Unit-Tests (Maßstab/Zoom, Papiermaße, Blattschnitt, Stil gegen Spec und Tile-Schema)
+bun run dev          # Dev-Server auf http://localhost:5173 (Landingpage /, /de/, App /app/)
+bun run i18n         # Texte kompilieren: messages/*.json -> src/paraglide/ (nicht im Repo)
+bun run build        # i18n, Typprüfung (tsc) + Produktions-Build nach dist/
+bun run preview      # Build ansehen (ohne Kartendaten, siehe „Daten“)
+bun test             # Unit-Tests (Maßstab/Zoom, Papiermaße, Blattschnitt, Stil gegen Spec und Tile-Schema,
+                     # Textkataloge, Spracherkennung); kompiliert die Texte vorher (bunfig.toml)
 bun run fmt          # Formatieren mit oxfmt
 bun run fmt:check    # Formatierung prüfen
+bun run logo         # public/logo.svg, favicon.svg und app/logo.svg aus der Pixelmatrix erzeugen
+bun run snapshots    # Landingpage-Bilder nach public/img/ rendern (siehe „Landingpage“)
 ```
+
+Die Typprüfung läuft mit `tsc --noEmit` über die TypeScript-Dateien. `astro check` unterstützt
+TypeScript 7 noch nicht, die `.astro`-Dateien werden deshalb nicht typgeprüft; oxfmt kennt `.astro`
+nicht und lässt sie aus (`.oxfmtrc.json`).
 
 ## Daten
 
-Die PMTiles werden nicht ins Repo kopiert. Der Dev-Server liefert `/data/*` aus
-dem Verzeichnis `CAPERCAILYE_DATA` mit Range-Requests (206) aus. Der Wert kommt aus der Umgebung
+Die PMTiles werden nicht ins Repo kopiert. `astro preview` ruft die Preview-Hooks von Vite-Plugins nicht
+auf, `/app/data/` gibt es deshalb nur im Dev-Server. Der Dev-Server liefert `/app/data/*` aus
+dem Verzeichnis `CAPERCAILYE_DATA` mit Range-Requests (206) aus (`/app/data/*`). Der Wert kommt aus der Umgebung
 (`CAPERCAILYE_DATA=/pfad bun run dev`) oder aus der gitignorten Datei `web/.env.local`; Standard ist
 `~/.local/share/capercailye`. Erwartet wird die Datei aus `PMTILES_PATH` in `src/config.ts` (Standard `capercailye-rp.pmtiles`) (Schema:
 `../tiles/SCHEMA.md`). Optional ist `capercailye-busstops.pmtiles` (GTFS-Bushaltestellen aus
@@ -30,15 +44,18 @@ Die Quellenangabe der Haltestellen steht als `BUSSTOPS_CREDIT` in `src/config.ts
 
 ### Build-Variablen (Deployment)
 
-| Variable            | Standard                      | Wirkung                                                                                                                                                                    |
-| ------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_BASE`         | `/`                           | URL-Präfix der App (mit `/` am Anfang und Ende); Assets, Schriften, Worker und Daten hängen daran. Der Dev-/Preview-Server liefert die Daten dann unter `<base>data/` aus. |
-| `VITE_PMTILES_PATH` | `data/capercailye-rp.pmtiles` | PMTiles-Datei relativ zur Basis; aus dem Namen (`capercailye-<gebiet>.pmtiles`) wird das Relief-Credit-Gebiet abgeleitet (`rp`, `bw`, `de`).                               |
+| Variable            | Standard                      | Wirkung                                                                                                                                       |
+| ------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_PMTILES_PATH` | `data/capercailye-rp.pmtiles` | PMTiles-Datei relativ zu `/app/`; aus dem Namen (`capercailye-<gebiet>.pmtiles`) wird das Relief-Credit-Gebiet abgeleitet (`rp`, `bw`, `de`). |
 
-Beispiel: Deutschland-Build unter `/app/`
+Die Seite läuft an der Wurzel (`base: "/"`), die App liegt fest unter `/app/` (`APP_BASE` in
+`src/config.ts`); Schriften (`/app/fonts/`) und Daten (`/app/data/`) hängen daran. Astro gibt
+Variablen sonst nur mit Präfix `PUBLIC_` frei, `vite.envPrefix` in `astro.config.mjs` ergänzt `VITE_`.
+
+Beispiel: Deutschland-Build
 
 ```sh
-VITE_BASE=/app/ VITE_PMTILES_PATH=data/capercailye-de.pmtiles bun run build
+VITE_PMTILES_PATH=data/capercailye-de.pmtiles bun run build
 ```
 
 Das Relief (Schummerung und Höhenlinien) kommt online vom Mapterhorn-Kacheldienst (Terrarium-DEM,
@@ -59,7 +76,10 @@ src/
 ├── gpx.ts           GPX-Upload (normalizeTrack, areaForTrack, trackLengthKm rein und getestet; Datei, Drag-and-drop)
 ├── state.ts         kleiner beobachtbarer App-Zustand (Modus, Druck, Druckansicht, Sichtbarkeit, GPX-Track)
 ├── tiles.ts         MapLibre-Worker, pmtiles://-Protokoll, DemSource (maplibre-contour), Kachel-Log
-├── config.ts        Startansicht, Pfade, Quellenangabe
+├── config.ts        Startansicht, Pfade, Quellenangaben (Funktionen, je Sprache)
+├── i18n.ts          Sprache der App (Paraglide-Strategie: ?lang=, Browser, en), detectLocale, Zahlenformat
+├── translate-dom.ts Statisches App-Markup in die aktive Sprache setzen (data-i18n), ganz zu Beginn
+├── paraglide/       ERZEUGT aus ../messages/*.json (gitignored): `m.<schlüssel>()`, runtime
 ├── style/           Stil als TS-Module, je Feature-Gruppe ein Baustein (index.ts setzt zusammen;
 │                    gpx.ts Track-Linie und Start/Ende; palette.ts Farben, units.ts mm/pt + Zoom-Skalierung, style.test.ts prüft
 │                    Spec, Layer-Ids und alle Attribute gegen ../tiles/SCHEMA.md)
@@ -80,10 +100,176 @@ src/
 └── print/           scale.ts (Maßstab↔Zoom), paper.ts, layout.ts (Blattschnitt, rein, getestet),
                      frame.ts (Gebiet, Griffe, Blattrahmen), draw.ts (Gebiet aufziehen), render.ts (versteckte Karte),
                      pdf.ts (jsPDF, Blattrand), export.ts (Schleife über die Blätter)
-public/fonts/        Noto Sans Regular/Italic/Medium als Glyph-PBF (Bereiche 0–511, 8192–8447;
-                     aus protomaps/basemaps-assets, Lizenz OFL 1.1, siehe OFL.txt)
-vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
+public/app/fonts/    Noto Sans Regular/Italic/Medium als Glyph-PBF (Bereiche 0–511, 8192–8447;
+                     aus protomaps/basemaps-assets, Lizenz OFL 1.1, siehe OFL.txt), unter /app/fonts/
+vite-plugin-serve-data.ts   /app/data/ mit Range-Unterstützung
 ```
+
+Außerhalb von `src/` (Website und Konfiguration):
+
+```
+astro.config.mjs    Astro- und Vite-Konfiguration (serveData, envPrefix, Build-Ziel, Lizenzdatei)
+src/pages/          index.astro (Landingpage en, /), de/index.astro (Landingpage de, /de/; beide rendern
+                    components/Landing.astro), impressum/, datenschutz/, quellen/ (nur deutsch),
+                    app/index.astro (App-Hülle, lädt src/main.ts)
+src/layouts/        Base.astro (<head>, Analytics), Site.astro (+ Stylesheet, theme-color),
+                    Legal.astro (Rechtsseiten: Kopf, Fuß, mail.js)
+src/components/     Analytics.astro, SiteFooter.astro, Landing.astro (die Landingpage, Sprache als Prop)
+messages/           en.json, de.json: alle übersetzten Texte (Paraglide, inlang-Nachrichtenformat)
+project.inlang/     inlang-Projekt (Sprachen, Plugin); paraglide.config.mjs: Compiler-Optionen
+bunfig.toml         kompiliert die Texte vor `bun test`
+src/site.css        Farb-Tokens (aus src/style/palette.ts) und Layout der Landingpage und Rechtsseiten
+public/             wird unverändert nach / kopiert: logo.svg, favicon.svg, robots.txt, sitemap.xml,
+                    mail.js, img/ (Karten-Screenshots), app/ (Schriften, logo.svg, licenses-extra.txt)
+scripts/            logo.ts (Logo aus Pixelmatrix), snapshots.ts (Screenshots), sample-dahn.gpx
+```
+
+## Mobil
+
+Unter 768 px Breite (`MOBILE_QUERY` in `src/sheet.ts`, dieselbe Grenze in `app.css`) liegt die
+Sidebar nicht mehr als Spalte neben der Karte, sondern in einem Bottom Sheet ([Cupertino
+Pane](https://github.com/roman-rr/cupertino-pane), framework-frei). Die Karte füllt den Bildschirm.
+Das Sheet ist immer offen, ohne Backdrop, nicht schließbar (kein Close-Button, kein Wegwischen nach
+unten) und hat drei Rastpunkte: eingeklappt (Griff, Kopfzeile, Suchfeld; die Höhe wird gemessen),
+halb, fast ganz. Der Inhalt scrollt nur im obersten Rastpunkt; darunter und bei Inhalt ganz oben
+zieht ein Wisch das Sheet (Verhalten der Bibliothek).
+
+- `src/mobile-sheet.ts` baut die Sidebar nicht nach: das vorhandene `#sidebar` wird per
+  `appendChild` in das Pane verschoben und beim Wechsel auf Desktop an seinen Platz in `.app`
+  zurückgesetzt (das Pane wird dabei zerstört, beim Zurückwechseln neu angelegt). Die Listener aus
+  `sidebar.ts` bleiben, die Reihenfolge der Initialisierung ist egal (`sidebar.ts` sucht per Id im
+  Dokument). Initialisiert wird in einem eigenen `<script>` auf `src/pages/app/index.astro`,
+  unabhängig vom Start der Karte.
+- Die Bibliothek wird nur auf schmalen Bildschirmen per dynamischem `import()` geladen (eigener
+  Chunk, rund 64 kB roh, 14 kB gzip); auf dem Desktop wird sie nicht abgerufen.
+- Die Rastpunkte sind Pixelhöhen (halbe Fensterhöhe, Fensterhöhe minus 40 px, gemessene
+  Einklapphöhe) und werden bei Größenänderung und Drehen neu gesetzt.
+- Die Optik kommt aus den CSS-Variablen `--cupertino-pane-*` und wenigen Überschreibungen am Ende
+  von `app.css` (Tokens der App, keine eigenen Farben).
+- `collapseSheet()` (`src/sheet.ts`) klappt das Sheet ein; `main.ts` ruft es beim Wechsel in den Modus
+  „Zeichnen“ oder „Seiten“ und beim Exportstart, `search.ts` nach der Wahl eines Suchtreffers. Ein
+  Fokus im Suchfeld öffnet das Sheet auf halbe Höhe, damit die Trefferliste sichtbar ist.
+- `#sidebar-collapse` und `#sidebar-expand` sind mobil ausgeblendet.
+
+## Landingpage
+
+Statische Seite in zwei Sprachen (`src/components/Landing.astro`, aufgerufen von `src/pages/index.astro`
+(en) und `src/pages/de/index.astro` (de); `src/site.css`, kein Client-Framework), SEO-Meta, Open Graph
+und JSON-LD stehen im `<head>` der Seite (je Sprache übersetzt, mit `canonical`, `hreflang` und
+`og:locale`). Spec: `../SPEC.md`, Abschnitt 4.9.
+
+- `public/mail.js` setzt die Kontaktadresse erst im Browser zusammen (Impressum, Datenschutz).
+- `src/pages/impressum/`, `datenschutz/`: Rechtsseiten (deutsch). `quellen/`: Quellen und Lizenzen
+  (deutsch; OSM, Relief je Land, Haltestellen, Schriften, Bibliotheken); verlinkt aus dem Fuß, der
+  App-Sidebar und der Karten-Attribution; noindex, nicht in der Sitemap.
+- `public/img/`: Karten-Screenshots (`dahn`, `calmont`, `schwarzwald`, `feldberg`, `gpx`, `print`, je
+  `.jpg` und `@2x.jpg`) und `og-image.jpg`, erzeugt von `scripts/snapshots.ts`. Das Skript braucht
+  zwei Dev-Server (`bunx astro dev --port 5180` für Rheinland-Pfalz, ein zweiter auf 5181 mit einem
+  `CAPERCAILYE_DATA`-Verzeichnis, in dem `capercailye-rp.pmtiles` auf die Baden-Württemberg-Datei
+  zeigt) und einen Chrome (`CHROME_PATH`), Details im Kopf des Skripts.
+- Die Domain steht fest in `canonical`, `hreflang`, `og:*`, `twitter:image`, JSON-LD (`ORIGIN` in
+  `Landing.astro`), `robots.txt` und `sitemap.xml` (mit `/de/` und `xhtml:link`-Alternativen).
+
+### Sprachen (i18n)
+
+Alles Übersetzte (Landingpage und App) steht in einem Katalog: `messages/en.json` (Basissprache) und
+`messages/de.json`, verwaltet mit [Paraglide JS](https://paraglidejs.com) (`@inlang/paraglide-js`
+2.x, inlang-Projekt in `project.inlang/`). Impressum, Datenschutz und Quellen sind bewusst nur
+deutsch (deutsches Recht), es gibt keine Sprachumschalter in der Oberfläche und keinen
+verlinkten Wechsel zwischen den Sprachen (nur `hreflang` im `<head>`).
+
+**Wie die Sprache bestimmt wird**
+
+- _Landingpage:_ Die Sprache steckt in der URL, `/` ist Englisch (Standardsprache, ohne Präfix),
+  `/de/` Deutsch (Astro-i18n-Routing, `astro.config.mjs`). Beide Seiten rendern dieselbe Komponente
+  mit `locale` als Prop; jede Nachricht wird zur Bauzeit mit `m.schlüssel(eingaben, { locale })`
+  geholt, nichts hängt am Browser. Wer von `/` nach `/de/` kommt, entscheidet nginx anhand von
+  `Accept-Language` (`../deploy/web/nginx.conf`): ist die erste Sprache Deutsch, gibt es auf `/` ein
+  302 nach `/de/`, sonst die englische Seite (`Vary: Accept-Language`). Es gibt weder Cookie noch
+  Merken; `/de/` und alle anderen Pfade werden nie umgeleitet. Im Dev-Server gibt es die
+  Weiterleitung nicht, `/de/` ruft man direkt auf.
+- _App:_ Die App ist eine einzige statische HTML-Datei, die Sprache wird im Browser bestimmt
+  (`detectLocale` in `src/i18n.ts`, als eigene Paraglide-Client-Strategie `custom-appLanguage`,
+  siehe `paraglide.config.mjs`): 1. URL-Parameter `?lang=de|en` (zum Testen und Verlinken, wird nicht
+  gespeichert), 2. die erste Sprache in `navigator.languages`, die mit `de` oder `en` beginnt, 3. sonst Englisch. Es gibt keine Cookie- und keine localStorage-Strategie.
+  `src/pages/app/index.astro` wird einmal auf Englisch gerendert (Texte per `data-i18n="schlüssel"`,
+  Attribute per `data-i18n-title`, `-aria-label`, `-placeholder`, `-alt`); `src/translate-dom.ts`
+  setzt als erstes Skript der Seite `<html lang>`, `<title>` und alle Texte in die aktive Sprache,
+  bevor die Karte startet. Bis dahin ist die Sidebar per Inline-Style unsichtbar (kein Aufflackern).
+  Alle Texte im TypeScript kommen aus `m.…()` (Zeilen der Sidebar, Suche, Exportstatus, PDF-Rand,
+  Quellenangaben); Zahlen und Daten nutzen die aktive Locale (`formatNumber` in `src/i18n.ts`,
+  `formatStand` in `credits.ts`, `formatScale`/`formatDistance` in `print/scale.ts`). Die Suche
+  fragt Photon mit `lang=<Sprache>`; Ortsnamen auf der Karte bleiben, wie sie in OSM stehen. Die
+  Meldungen des Dev-Servers (`vite-plugin-serve-data.ts`) sind nicht übersetzt.
+
+**Wo die Texte liegen und wie man einen hinzufügt**
+
+1. Schlüssel (`bereich_name`, Kleinbuchstaben und Unterstriche) mit Text in beiden Dateien eintragen,
+   gleicher Schlüssel, gleiche Platzhalter (`{name}`): `"app_status_page": "Seite {n} von {total} …"`.
+   Mehrzahl: Variantennachricht mit `local countPlural = count: plural` (Beispiel `app_pages_count`).
+   Enthält ein Text Links oder `<b>`, endet der Schlüssel auf `_html` und kommt per `set:html` in die
+   Seite (nur Konstanten einsetzen); Link-Ziele als Platzhalter (`{url}`).
+2. `bun run i18n` (oder `bun run dev`, das beim Start und bei Änderungen neu kompiliert). Danach gibt
+   es `m.neuer_schluessel(eingaben?, { locale? })` aus `src/paraglide/messages.js` (typisiert, Tippfehler
+   scheitern an `tsc`).
+3. Im Code `m.neuer_schluessel(...)` aufrufen (ohne `locale` gilt die aktive Sprache), im App-Markup
+   `data-i18n` ergänzen (und denselben Text im Markup per `t("…")` einsetzen), in `Landing.astro`
+   `t("…")` verwenden. Texte nie beim Import in Konstanten auswerten (die Sprache steht erst nach
+   dem Laden von `src/i18n.ts` fest): Getter oder Funktionen, wie `LayerGroup.label` und `osmCredit()`.
+4. `bun test`: `src/messages.test.ts` prüft, dass beide Dateien dieselben Schlüssel, keine leeren Werte
+   und je Schlüssel dieselben Platzhalter haben und dass alle im Markup verwendeten Schlüssel
+   existieren.
+
+`src/paraglide/` ist erzeugt und nicht im Repo. Es entsteht bei `astro dev` und `astro build` (Vite-
+Plugin) und durch `bun run i18n` (`scripts/i18n-compile.ts`), das `bun run build` vor `tsc` und
+`bun test` über `bunfig.toml` vorab ausführt; der Docker-Build ruft `bun run build` auf und braucht
+nichts weiter. Tests, die Texte prüfen, geben die Sprache ausdrücklich mit (`buildCredits({ locale })`,
+`formatScale(…, "de")`); ohne Angabe gilt im Test Englisch.
+
+**Begriffe (de ↔ en)**: App und Landingpage verwenden dieselben Wörter.
+
+| Deutsch                                                                                | Englisch                                                             |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Seiten (A4-Seiten des Blattschnitts), Seitenzahl; im PDF „Blatt 3 von 6“               | pages, number of pages; in the PDF "Page 3 of 6"                     |
+| Gebiet (zu druckender Ausschnitt), Gebiet zeichnen                                     | area, draw area                                                      |
+| Erkunden · Zeichnen · Seiten (Modi 1–3)                                                | Explore · Draw · Pages                                               |
+| Maßstab, Druckansicht, Druckzoom, Ausrichtung Hoch/Quer                                | scale, print view, print zoom, orientation Portrait/Landscape        |
+| A4-PDF exportieren                                                                     | export an A4 PDF                                                     |
+| Ebenen, Schummerung, Höhenlinien                                                       | layers, hillshade, contour lines                                     |
+| Wanderrouten, Wegzeichen, Wegweiser                                                    | hiking routes, waymarks, guideposts                                  |
+| Schutzhütten, Einkehr, Wanderparkplätze, Rast- und Grillplätze                         | shelters, places to eat, hiking car parks, picnic and barbecue sites |
+| GPX-Track, Gebiet auf Track setzen                                                     | GPX track, set area to track                                         |
+| bearbeitet, ausgewertet, Stand                                                         | modified, analysed, as of                                            |
+| Impressum, Datenschutz, Quellen und Lizenzen (Fuß; Ziele bleiben die deutschen Seiten) | Legal notice, Privacy, Sources and licences                          |
+
+Die Lizenznamen (ODbL, CC BY 4.0, dl-de/by-2-0 …) und die Herausgeber (GeoBasis-DE, LVermGeoRP, LGL,
+DELFI) bleiben in beiden Sprachen gleich; der Hinweis auf die Bearbeitung („bearbeitet“/„modified“,
+„ausgewertet“/„analysed“) muss in jeder Fassung stehen (Lizenzpflicht, siehe `credits.test.ts`).
+
+### Logo
+
+`MATRIX` in `scripts/logo.ts` bearbeiten (24 × 24, ein Zeichen je Pixel, `.` = leer) und
+`bun run logo` ausführen. Ein `<path>` je Farbe, `shape-rendering="crispEdges"`. Legende: `K` Körper
+`#1f1f1f`, `T` Schwanzfedern `#3a3a3a`, `B` Flügel `#6e5a46`, `G` Brustschimmer `#3c7d3f`, `R`
+Rose `#be2230`, `W` Schnabel / weiße Flecken `#eeebc6`. Geschrieben werden `public/logo.svg`,
+`public/favicon.svg` und `public/app/logo.svg` (Favicon der App).
+
+### Bilder-Rückfall
+
+Die Galerie hat eine einzeilige Bildquelle (OSM, Relief, Bushaltestellen, Link auf `/quellen/`); sie
+muss zu dem passen, was die Screenshots zeigen.
+
+Jedes Bild steckt in einer `.shot`-Figure mit Hintergrund `--forest-light` und Seitenverhältnis 3:2.
+Das `<img>` zeigt schon auf seine endgültige Datei und ist in der Figure absolut positioniert.
+Fehlt die Datei, hat das Bild `color: transparent; font-size: 0` (Alt-Text unsichtbar), und ein
+`img::after` in der Platzhalterfarbe verdeckt das Symbol für das kaputte Bild (Chrome und Firefox
+zeichnen Pseudo-Elemente auf kaputten Bildern, geladene Bilder nicht). Der Alt-Text bleibt für
+Screenreader erhalten.
+
+### Bereitstellung
+
+Landingpage unter `/`, App unter `/app/`; alle Buttons verlinken auf `/app/`. Astros gehashte Dateien
+liegen unter `/_astro/` (der MapLibre-Worker `.mjs` auch).
 
 ## Hinweise
 
@@ -363,14 +549,14 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   - **Links und Lizenzpflichten:** `SourceCredit` hat `href` (OSM: `openstreetmap.org/copyright`, Relief und
     Haltestellen: `/quellen/`) und `print` (PDF-Wortlaut). Die Karten-Attribution bekommt HTML (`creditHtml`,
     MapLibre bereinigt es; `a` mit `href`/`target`/`rel` bleibt), der Sidebar-Fuß wird aus `CreditPart`s mit
-    DOM-APIs gebaut (`setAttribution`, kein `innerHTML`). Die Lizenzseite ist `site/quellen/`; Hintergrund und
+    DOM-APIs gebaut (`setAttribution`, kein `innerHTML`). Die Lizenzseite ist `src/pages/quellen/`; Hintergrund und
     Pflichten: SPEC.md 4.8.
   - Datenfluss: `buildStyle({ credits })` (Standard: ohne Stand) für die Karten-Attribution,
     `setAttribution(credits.sidebar)` für den Fuß, `ExportOptions.credits` für das PDF.
     `window.__capercailye.credits` enthält die gebauten Texte (`osm`/`relief`/`busstops` als HTML, `sidebar` als
     Teile, `line` für das PDF).
-  - **Bibliothekslizenzen:** `build.license` in `vite.config.ts` schreibt `dist/third-party-licenses.txt`;
-    `public/licenses-extra.txt` ergänzt, was darin ohne Text bleibt (pmtiles) oder nicht erfasst ist (in MapLibres
+  - **Bibliothekslizenzen:** `build.license` in `astro.config.mjs` schreibt `dist/app/third-party-licenses.txt`;
+    `public/app/licenses-extra.txt` ergänzt, was darin ohne Text bleibt (pmtiles) oder nicht erfasst ist (in MapLibres
     Bundles eingebaute Bibliotheken). Beide sind unter `/app/` erreichbar und auf der Lizenzseite verlinkt.
 - Beim Drucken „Tatsächliche Größe“ / 100 % wählen, nicht „An Seite anpassen“; die
   Maßstabsleiste auf dem Ausdruck nachmessen.

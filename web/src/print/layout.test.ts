@@ -174,14 +174,18 @@ describe("helpers", () => {
 
   test("layoutFilename", () => {
     const one = computeLayout(settings({ area: defaultArea([7.78, 49.15], "portrait", 25000) }));
-    expect(layoutFilename(one)).toBe("capercailye-1-25000-hoch.pdf");
+    expect(layoutFilename(one, "de")).toBe("capercailye-1-25000-hoch.pdf");
+    expect(layoutFilename(one, "en")).toBe("capercailye-1-25000-portrait.pdf");
     const six = computeLayout(settings({ mode: "pages", pages: 6 }));
-    expect(layoutFilename(six)).toBe(`capercailye-1-${six.scale}-hoch-6-seiten.pdf`);
-    expect(layoutFilename({ scale: 21000, orientation: "portrait", count: 6 })).toBe(
+    expect(layoutFilename(six, "de")).toBe(`capercailye-1-${six.scale}-hoch-6-seiten.pdf`);
+    expect(layoutFilename({ scale: 21000, orientation: "portrait", count: 6 }, "de")).toBe(
       "capercailye-1-21000-hoch-6-seiten.pdf",
     );
-    expect(layoutFilename({ scale: 25000, orientation: "landscape", count: 1 })).toBe(
+    expect(layoutFilename({ scale: 25000, orientation: "landscape", count: 1 }, "de")).toBe(
       "capercailye-1-25000-quer.pdf",
+    );
+    expect(layoutFilename({ scale: 21000, orientation: "landscape", count: 6 }, "en")).toBe(
+      "capercailye-1-21000-landscape-6-pages.pdf",
     );
   });
 

@@ -23,7 +23,7 @@ The tiles are a derivative database of OpenStreetMap data and fall under the ODb
 metadata `attribution` (profile method `attribution()`) therefore names the licence next to the OSM
 copyright: `<a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>
 (<a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a>)` (HTML, like Planetiler's default). The web app's style sets its own attribution per source, which overrides the TileJSON one, so
-this text only reaches people who download the file (`/app/data/`). Human-readable sources and licences: the sources page (`site/quellen/`).
+this text only reaches people who download the file (`/app/data/`). Human-readable sources and licences: the sources page (`web/src/pages/quellen/`).
 
 ## Zoom and detail
 

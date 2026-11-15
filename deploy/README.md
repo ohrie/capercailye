@@ -1,6 +1,6 @@
 # deploy/ – Betrieb mit Docker Compose
 
-Die Karten-App läuft als ein nginx-Container (`web`) hinter **Traefik**: Landingpage unter `/`, App unter `/app/`, PMTiles unter `/app/data/`. Begründungen,
+Die Karten-App läuft als ein nginx-Container (`web`) hinter **Traefik**: Landingpage unter `/` (englisch) und `/de/` (deutsch), App unter `/app/`, PMTiles unter `/app/data/`. Begründungen,
 Messwerte und Risiken: [../SPEC.md](../SPEC.md), Abschnitt 6.
 
 ```
@@ -9,7 +9,7 @@ compose.local.yaml    Zusatz für lokale Tests: Wegwerf-Traefik auf http://local
 .env.example          Vorlage für die Server-Konfiguration (.env, nur auf dem Server)
 deploy.sh             Deploy vom Entwicklungsrechner per scp (ohne Registry, ohne CI)
 deploy.env.example    Vorlage für deploy/deploy.env (DEPLOY_HOST, DEPLOY_DIR; nicht im Repo)
-web/Dockerfile        Bun-Build der App + Landingpage mit eingetragener Domain → nginx
+web/Dockerfile        Bun-Build (Astro) von Landingpage und App mit eingetragener Domain → nginx
 web/nginx.conf        Pfade, Cache-Header, Range-Requests, Gzip
 updater/              Image für den wöchentlichen Neuaufbau (Dockerfile, update.sh, check.ts, crontab)
 ```
@@ -92,8 +92,18 @@ deploy/deploy.sh --update-now    # zusätzlich sofort einen Daten-Update starten
 Weitere Optionen: `--allow-dirty` (trotz uncommitteter Änderungen; deployt trotzdem nur den
 committeten HEAD und listet die ausgelassenen Dateien auf), `--no-up` (nur hochladen und `app/`
 austauschen, nichts bauen), `--help`. `DEPLOY_HOST`/`DEPLOY_DIR` stehen in `deploy/deploy.env` oder
-in der Umgebung. Die Domain der Landingpage (`canonical`, `og:*`, `robots.txt`,
-`sitemap.xml`) steht fest in `site/`; `DOMAIN` in `.env` steuert nur die Traefik-Regel.
+in der Umgebung. Die Domain der Landingpage (`canonical`, `hreflang`, `og:*`, `robots.txt`,
+`sitemap.xml`) steht fest in `web/src/components/Landing.astro` und `web/public/`; `DOMAIN` in `.env` steuert nur die Traefik-Regel.
+
+### Sprachen der Landingpage
+
+Die Landingpage gibt es unter `/` (englisch) und `/de/` (deutsch). `web/nginx.conf` leitet nur bei
+exakt `/` weiter: Ist die **erste** Sprache im `Accept-Language`-Header Deutsch (`de`, `de-DE`,
+`de-AT`, `de-CH` …), gibt es ein 302 auf `/de/`, sonst die englische Seite; die Antwort auf `/`
+trägt `Vary: Accept-Language`. Kein Cookie, kein Merken, `/de/` und alle anderen Pfade werden nie
+umgeleitet. Die Rechtsseiten (`/impressum/`, `/datenschutz/`, `/quellen/`) gibt es nur deutsch. Die
+Sprache der App wird im Browser bestimmt, nginx ist daran nicht beteiligt (siehe `web/README.md`,
+„Sprachen (i18n)“).
 
 Der Build auf dem Server (Bun-Build der App, Planetiler-JAR, tippecanoe aus dem Quelltext) dauert beim
 ersten Mal einige Minuten; danach nutzt Docker seinen Schichtcache.
@@ -146,7 +156,12 @@ docker compose -f compose.yaml -f compose.local.yaml up -d --build
 Das startet zusätzlich einen Wegwerf-Traefik (HTTP, Port 8080) im Netzwerk `capercailye_network`. Prüfen:
 
 ```sh
-curl -sI http://localhost:8080/               # 200, Landingpage
+curl -sI http://localhost:8080/               # 200, Landingpage (englisch), Vary: Accept-Language
+curl -sI -H 'Accept-Language: de-AT,en;q=0.8' http://localhost:8080/
+                                              # 302, Location: /de/
+curl -sI -H 'Accept-Language: fr,de;q=0.8' http://localhost:8080/
+                                              # 200 (erste Sprache ist nicht Deutsch)
+curl -sI -H 'Accept-Language: de' http://localhost:8080/de/   # 200, keine Weiterleitung
 curl -sI http://localhost:8080/app            # 301, Location: /app/
 curl -sI http://localhost:8080/app/           # 200, Cache-Control: no-cache
 curl -sI http://localhost:8080$(curl -s http://localhost:8080/app/ | grep -o '/app/assets/[^"]*\.js' | head -1)

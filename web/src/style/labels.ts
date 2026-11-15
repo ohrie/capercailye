@@ -3,7 +3,7 @@
 //   settlements > peaks > [poi group: guidepost names, pictograms] > water names > Flurnamen
 //   > road refs > road names.
 // `labelLayers` (group "labels") sits above the POI group, `nameLayers` (group "names") below it.
-// Both follow the "Beschriftung" toggle (index.ts).
+// Both follow the "Labels" toggle (index.ts).
 import type { ExpressionSpecification, LayerSpecification } from "@maplibre/maplibre-gl-style-spec";
 import { all, kindIn, matchAttr } from "./expr";
 import { FONT_ITALIC, FONT_MEDIUM, FONT_REGULAR, halo } from "./fonts";

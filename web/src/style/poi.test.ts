@@ -95,7 +95,7 @@ describe("poiLayers", () => {
       if (Array.isArray(f)) for (const name of f) fonts.add(name as string);
     }
     for (const name of fonts) {
-      const glyphs = new URL(`../../public/fonts/${name}/0-255.pbf`, import.meta.url);
+      const glyphs = new URL(`../../public/app/fonts/${name}/0-255.pbf`, import.meta.url);
       expect(Bun.file(glyphs).size, name).toBeGreaterThan(0);
     }
   });

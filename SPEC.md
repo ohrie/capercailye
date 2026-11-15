@@ -4,7 +4,7 @@ Maßgebliches Dokument für Coding-Agents: was das Projekt ist, wie es gebaut is
 Beschrieben ist, was **gebaut ist** (Stand 2026-11-15, geprüft am Code). Was nur geplant oder
 zurückgestellt ist, steht in 4.10 und 8. Bei Widerspruch zwischen Doku und Code gilt der Code; dann die
 Doku korrigieren. Tiefendokumentation je Bereich: `web/README.md`, `tiles/SCHEMA.md`,
-`transit/README.md`, `deploy/README.md`, `site/README.md`.
+`transit/README.md`, `deploy/README.md`.
 
 ## 1. Zweck und Umfang
 
@@ -47,7 +47,7 @@ Nicht neu verhandeln, solange der Nutzer sie nicht ausdrücklich öffnet.
 | Wegzeichen und Schalter | Kein eigener Schalter; Zeichen gehören zur Route und folgen „Wanderrouten“ plus Netz-Schalter | Nie ein Zeichen auf nicht gezeichneter Hinterlegung. |
 | Bushaltestellen | Aus dem deutschlandweiten GTFS-Feed (gtfs.de, DELFI e.V., CC BY 4.0), nicht aus OSM; eigene PMTiles-Datei; nur Haltestellen mit ≥ 4 Abfahrten am Samstag **und** Sonntag | Nur Haltestellen mit brauchbarem Angebot; OSM kennt Takt nicht. Das OSM-Schema enthält kein `bus_stop`. |
 | Farbpalette | Eine Palette aus `web/src/style/palette.ts` für Karte, App und Landingpage; einziger Akzent `#be2230` (Routenrot); GPX magenta `#d4007f`; nur helles Schema | Papier-Look wie die gedruckte Karte. |
-| Landingpage | Statisch (`site/`: HTML + CSS, zwei winzige Skripte), Englisch, kein Build, App unter `/app/` | Kein Framework nötig, SEO. |
+| Landingpage | Statisch (Astro-Seite in `web/src/pages/`, HTML + CSS, ein winziges Skript), Englisch (`/`) und Deutsch (`/de/`), App unter `/app/` | Landingpage, Rechtsseiten und App teilen sich Layout, Head und Build; SEO. |
 | Deployment | Ein nginx-Container hinter Traefik, Landingpage `/`, App `/app/`, Tiles `/app/data/`; Deploy per `scp` vom Entwicklungsrechner, Images werden auf dem Server gebaut, keine Registry, kein CI; wöchentlicher Updater-Container | Klein und reproduzierbar; Tiles sind jederzeit neu erzeugbar, deshalb kein Backup. Details 6. |
 | Sprachen/Lizenz | App-UI Deutsch, Landingpage Englisch, MIT | Zielgruppe; Übersetzung der App ist getrennt zu lösen. |
 
@@ -67,7 +67,7 @@ Photon (Suche, online), GPX-Datei (lokal) ────────────�
 | `web/` | Karten-App (Bun/Vite/TS). Details `web/README.md` |
 | `web/src/main.ts` | Karte, Zustand, Modi, Export-Ablauf, `window.__capercailye` (Automationshaken) |
 | `web/src/state.ts`, `mode.ts` | beobachtbarer App-Zustand; Modi Erkunden/Zeichnen/Seiten (rein) |
-| `web/src/sidebar.ts`, `legend.ts`, `app.css`, `index.html` | Seitenleiste, Ebenen-Schalter mit Legendensymbolen, Gestaltung, Gerüst |
+| `web/src/sidebar.ts`, `legend.ts`, `app.css`, `pages/app/index.astro` | Seitenleiste, Ebenen-Schalter mit Legendensymbolen, Gestaltung, Gerüst |
 | `web/src/style/` | Stil als Module je Feature-Gruppe; `index.ts` setzt zusammen (`GROUPS`, `UI_ORDER`); `palette.ts` Farben, `units.ts` mm/pt, `sizes.ts` Symbolgrößen, `hierarchy.ts` Rangfolge, `sources.ts` Quellen/Relief-Schwellen, `poi.ts` Piktogramm-Kategorien, `routes.ts`, `transport.ts`, `hillshade.ts`, `shields.ts` (Nummernschilder) u. a.; `style.test.ts` prüft Stil gegen `tiles/SCHEMA.md` |
 | `web/src/osmc/` | OSMC-Grammatik (`parse.ts`), Formen (`shapes.ts`), SVG je Zeichen (`render.ts`) |
 | `web/src/waymarks/` | Platzierung der Wegzeichen entlang der Wege (rein, getestet), liest Layer `routes` der z12-Tiles selbst |
@@ -75,9 +75,9 @@ Photon (Suche, online), GPX-Datei (lokal) ────────────�
 | `web/src/print/` | Maßstab/Zoom (`scale.ts`), Papier (`paper.ts`), Blattschnitt (`layout.ts`), Rahmen/Griffe (`frame.ts`), Zeichnen (`draw.ts`), versteckte Karte (`render.ts`), PDF mit Blattrand (`pdf.ts`), Exportschleife (`export.ts`) |
 | `web/src/icons/` | Piktogramme als SVG, zur Laufzeit in Druckauflösung gerastert |
 | `web/src/search.ts`, `gpx.ts`, `credits.ts`, `data.ts`, `tiles.ts`, `config.ts` | Photon-Suche; GPX-Upload; Quellenangaben mit Datenstand; Datei-/Metadaten-Prüfung; Worker, Protokolle, DemSource; Konstanten (`PMTILES_PATH`, Relief-Credits, Startansicht) |
-| `web/public/fonts/` | Noto Sans als Glyph-PBF (OFL), `web/public/logo.svg` Kopie von `site/logo.svg`, `web/public/licenses-extra.txt` (Lizenztexte, die der Build-Bericht nicht enthält) |
-| `web/vite-plugin-serve-data.ts` | Dev-/Preview-Server liefert `<base>data/` aus `$CAPERCAILYE_DATA` (Standard `~/.local/share/capercailye`) mit Range-Requests |
-| `site/` | Landingpage, Logo-/Screenshot-Skripte (`site/scripts/`), Impressum, Datenschutz, Quellen und Lizenzen |
+| `web/public/app/fonts/` | Noto Sans als Glyph-PBF (OFL), unter `/app/fonts/`; daneben `web/public/app/logo.svg` (Kopie von `web/public/logo.svg`) und `web/public/app/licenses-extra.txt` (Lizenztexte, die der Build-Bericht nicht enthält) |
+| `web/vite-plugin-serve-data.ts` | Dev-Server liefert `/app/data/` aus `$CAPERCAILYE_DATA` (Standard `~/.local/share/capercailye`) mit Range-Requests |
+| `web/astro.config.mjs`, `web/src/pages/`, `layouts/`, `components/`, `web/src/mobile-sheet.ts` (Bottom Sheet der App unter 768 px, Cupertino Pane) | Astro-Projekt: Landingpage, Impressum, Datenschutz, Quellen und Lizenzen (`pages/`), App-Hülle (`pages/app/`), gemeinsames Layout; Logo-/Screenshot-Skripte in `web/scripts/` |
 | `deploy/` | Compose, nginx, Updater (`updater/update.sh`, `check.ts`, `crontab`), `deploy.sh` |
 | `IDEEN.md` | loses Ideen-Backlog, nichts davon eingeplant; bei Widerspruch gilt diese Spezifikation |
 
@@ -217,7 +217,7 @@ Credit-Texte gehören zur Lizenzprüfung und werden nicht ohne Abstimmung umform
   „bearbeitet“ (Schummerung und Höhenlinien sind berechnet) und verlinkt auf die Lizenzseite.
 - **Haltestellen** (DELFI e.V./gtfs.de, CC BY 4.0): „ausgewertet“ (nur Haltestellen mit ≥ 4 Abfahrten am Samstag
   und Sonntag), Link auf die Lizenzseite.
-- **Lizenzseite** `site/quellen/` (`/quellen/`, deutsch, noindex, nicht in der Sitemap wie Impressum/Datenschutz):
+- **Lizenzseite** `web/src/pages/quellen/` (`/quellen/`, deutsch, noindex, nicht in der Sitemap wie Impressum/Datenschutz):
   Quellen mit Lizenz-URLs, Tabelle der deutschen Relief-Hersteller je Land (wörtlich aus
   `download.mapterhorn.com/attribution.json`, abgerufen 2026-11-15; 17 Einträge, Baden-Württemberg hat zwei),
   Änderungsvermerke, Schriften (OFL), Bibliotheken. Verlinkt von Landingpage-Fuß, Impressum, Datenschutz,
@@ -226,29 +226,29 @@ Credit-Texte gehören zur Lizenzprüfung und werden nicht ohne Abstimmung umform
   (CC BY 4.0) · Lizenzen: <Host>/quellen`; der Host kommt zur Laufzeit aus `window.location.host` (die Domain
   steht nicht im App-Code). Die Zeile steht einzeilig über die ganze Streifenbreite, bei Bedarf bis 4 pt
   verkleinert (`creditFontSize`).
-- **Bibliotheken:** `vite.config.ts` schreibt mit `build.license` `third-party-licenses.txt` (alle gebündelten Pakete
-  mit Lizenztext) nach `dist/` (`/app/third-party-licenses.txt`). Was dort fehlt (pmtiles liefert keine
-  Lizenzdatei; in MapLibres fertige Bundles eingebaute Bibliotheken) steht in `web/public/licenses-extra.txt`.
+- **Bibliotheken:** `astro.config.mjs` schreibt mit `build.license` `third-party-licenses.txt` (alle gebündelten Pakete
+  mit Lizenztext) nach `dist/app/` (`/app/third-party-licenses.txt`). Was dort fehlt (pmtiles liefert keine
+  Lizenzdatei; in MapLibres fertige Bundles eingebaute Bibliotheken) steht in `web/public/app/licenses-extra.txt`.
   DOMPurify („MPL-2.0 OR Apache-2.0“) wird unter Apache-2.0 verwendet (Hinweis auf der Lizenzseite).
   Bei neuen oder aktualisierten Abhängigkeiten `licenses-extra.txt` prüfen.
 
-### 4.9 Landingpage (`site/`)
+### 4.9 Landingpage (`web/src/components/Landing.astro`)
 
-- Statisch, `lang="en"`, `site/index.html` + `styles.css` (Tokens = Palette, 1,5-px-Konturen, Radius 4 px, ohne
+- Statisch, zweisprachig: `/` (`lang="en"`) und `/de/` (`lang="de"`), beide aus `web/src/components/Landing.astro` (Texte: `web/messages/`, Paraglide; Sprachwahl: URL, nginx leitet `/` nach `Accept-Language` auf `/de/`), mit `canonical`/`hreflang`/`og:locale`; `web/src/site.css` (Tokens = Palette, 1,5-px-Konturen, Radius 4 px, ohne
   Schatten/Verläufe, Systemschrift). Alle CTAs zeigen auf `/app/`. Feste Domain (`capercailye.chilla.dev`) in
   `canonical`, `og:*`, JSON-LD, `robots.txt`, `sitemap.xml`; `DOMAIN` in `deploy/.env` steuert nur die Traefik-Regel.
 - Abschnitte: Header (sticky), Hero (Dahner Felsenland, Höhenlinien-Ornament), „Less screen, more trail.“,
   Features (Print it, Bring your GPX, A style made for hiking mit POI-Chips), „Paper is harder than screens.“,
   How it works (Schritte 1–3 wie in der App), Galerie (4 Bilder) mit Bildnachweis-Zeile darunter (OSM, Relief "modified", Haltestellen "analysed", Link auf `/quellen/`), Coverage-Satz, „Free and open source“
   (Danksagung/Quellen), Abschluss-CTA, Footer mit Quellen und Links zu Impressum/Datenschutz/Quellen.
-- Bilder `site/img/` (`dahn`, `calmont`, `schwarzwald`, `feldberg`, `gpx`, `print` je `.jpg` und `@2x.jpg`,
-  `og-image.jpg` 1200 × 630), erzeugt mit `site/scripts/snapshots.ts` (`playwright-core`, lokaler Chrome,
-  zwei Dev-Server für RP und BW) aus der echten App; GPX-Beispiel `site/scripts/sample-dahn.gpx`. Logo:
-  8-Bit-Auerhahn, `site/scripts/logo.ts` erzeugt `logo.svg`/`favicon.svg` aus einer 24 × 24-Matrix (nach
-  `web/public/logo.svg` kopiert).
-- Seiten `site/impressum/`, `site/datenschutz/` und `site/quellen/` (Quellen und Lizenzen; deutsch). Skripte: `site/mail.js` (setzt die E-Mail-Adresse
+- Bilder `web/public/img/` (`dahn`, `calmont`, `schwarzwald`, `feldberg`, `gpx`, `print` je `.jpg` und `@2x.jpg`,
+  `og-image.jpg` 1200 × 630), erzeugt mit `web/scripts/snapshots.ts` (`playwright-core`, lokaler Chrome,
+  zwei Dev-Server für RP und BW) aus der echten App; GPX-Beispiel `web/scripts/sample-dahn.gpx`. Logo:
+  8-Bit-Auerhahn, `web/scripts/logo.ts` erzeugt `logo.svg`/`favicon.svg` und die App-Kopie `app/logo.svg` (alle in `web/public/`) aus einer
+  24 × 24-Matrix.
+- Seiten `web/src/pages/impressum/`, `datenschutz/` und `quellen/` (Quellen und Lizenzen; deutsch). Skripte: `web/public/mail.js` (setzt die E-Mail-Adresse
   erst im Browser zusammen) und das Umami-Analytics-Skript (cookielos, eigene Analytics-Subdomain; steht
-  in `site/index.html`, `web/index.html` und ist in der Datenschutzerklärung beschrieben). Die
+  im gemeinsamen Head (`web/src/components/Analytics.astro`) und ist in der Datenschutzerklärung beschrieben). Die
   Seitenleiste der App verlinkt Impressum, Datenschutz und Quellen als absolute Pfade `/impressum/`, `/datenschutz/`,
   `/quellen/`.
 - Landingpage-Texte nennen nur Funktionen, die es gibt; keine erfundenen Zahlen.
@@ -284,16 +284,16 @@ Nicht ohne neuen Auftrag bauen:
 - **Relief:** Mapterhorn-Kacheln (`https://tiles.mapterhorn.com/{z}/{x}/{y}.webp`), eine `DemSource` (`tiles.ts`),
   Höhenlinien-Schwellen nach Kachelzoom (z13/14: 10 m / Zähllinie 50 m; z12: 20/100; z11: 50/250).
 - **Gebietswahl in der App:** nur ein PMTiles-Gebiet je Build (`VITE_PMTILES_PATH`, Standard
-  `data/capercailye-rp.pmtiles`, Startansicht Dahn); keine Umschaltung zur Laufzeit. `VITE_BASE` setzt den URL-Präfix
-  (`/app/` im Deployment). Fehlende Busstops-Datei: App läuft ohne.
+  `data/capercailye-rp.pmtiles`, Startansicht Dahn); keine Umschaltung zur Laufzeit. Die App liegt fest unter `/app/`
+  (`APP_BASE` in `config.ts`). Fehlende Busstops-Datei: App läuft ohne.
 
 ## 6. Deployment und Betrieb
 
 Hier: Form, Begründungen, Messwerte, Risiken. Befehle, Einrichtung, Rollback, Lokaltest und Updater-Betrieb
 stehen in `deploy/README.md` (maßgeblich, nicht hier duplizieren).
 
-- **Form:** Compose-Projekt `capercailye` mit zwei Diensten. `web`: Multi-Stage (Bun-Build der App mit
-  `VITE_BASE=/app/`, `VITE_PMTILES_PATH=data/capercailye-de.pmtiles`) → `nginx:alpine`; liefert `/`, `/app/`
+- **Form:** Compose-Projekt `capercailye` mit zwei Diensten. `web`: Multi-Stage (Bun-Build von Landingpage
+  und App mit `VITE_PMTILES_PATH=data/capercailye-de.pmtiles`) → `nginx:alpine`; liefert `/`, `/app/`
   (SPA-Fallback), `/app/data/` (PMTiles read-only, ohne gzip, Range-Requests). `updater`: Planetiler + bun +
   tippecanoe + supercronic, kein Port, `traefik.enable=false`. **Traefik** terminiert
   TLS und routet per Label (`Host(DOMAIN)`); er hängt sich an das projekteigene Netzwerk `capercailye_network`.
@@ -348,8 +348,8 @@ stehen in `deploy/README.md` (maßgeblich, nicht hier duplizieren).
 - **Befehle** (in `web/`): `bun install`; `bun run dev` (Port 5173, `/data/` aus `$CAPERCAILYE_DATA`);
   `bun test`; `bun run fmt` bzw. **`bun run fmt:check`**; **`bun run build`** (`tsc --noEmit` + Vite). Vor dem
   Abschluss `bun test`, `bun run fmt:check` und `bun run build` grün. Ein zweiter Dev-Server braucht einen eigenen Port
-  (`bunx vite --port 5180`). Tiles: `tiles/build.sh`, `transit/build.sh`; Landingpage-Skripte `bun run logo`,
-  `bun run snapshots` in `site/`.
+  (`bunx astro dev --port 5180`). Tiles: `tiles/build.sh`, `transit/build.sh`; Landingpage-Skripte `bun run logo`,
+  `bun run snapshots` in `web/`.
 - **Sprachen:** App-Oberfläche Deutsch; Landingpage Englisch (Impressum/Datenschutz Deutsch); Code-Kommentare
   Englisch; Dokumentation (`*.md`) Deutsch (`tiles/SCHEMA.md` ist englisch). Übersetzung der App ist nicht Teil dieser
   Spezifikation und wird getrennt behandelt.
@@ -360,7 +360,7 @@ stehen in `deploy/README.md` (maßgeblich, nicht hier duplizieren).
   kurzer Statusbericht, Weiterarbeit nach Freigabe.
 - **Das Repo ist öffentlich.** Nie committen: Hostnamen, IPs, Benutzernamen des Servers, Namen anderer Projekte auf
   dem Server. Echte Werte nur in den gitignorten Dateien `deploy/.env` und `deploy/deploy.env` (Vorlagen mit
-  Platzhaltern). Die öffentliche Domain der Seite darf vorkommen (steht in `site/`). Vor dem Abschluss
+  Platzhaltern). Die öffentliche Domain der Seite darf vorkommen (steht in `web/src/pages/`). Vor dem Abschluss
   `git grep` nach Server-Namen/IPs.
 - **Lizenz/Quellen:** Der Projektcode ist MIT. Fremde GPL-Quellen (z. B. Waymarked Trails) nicht kopieren. Änderungen an
   Quellenangaben (`config.ts`, Landingpage-Danksagung, Datenschutz) nur mit Absicht und Prüfung der Lizenzen.

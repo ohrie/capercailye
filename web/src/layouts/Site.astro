@@ -1,0 +1,22 @@
+---
+// Landing page and legal pages: shared stylesheet and theme colour on top of Base.
+import "../site.css";
+import Base from "./Base.astro";
+
+interface Props {
+  title: string;
+  lang?: string;
+  noindex?: boolean;
+}
+
+const { title, lang, noindex = false } = Astro.props;
+---
+
+<Base title={title} lang={lang}>
+  <Fragment slot="head">
+    <slot name="head" />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta name="theme-color" content="#fcfbf6" />
+  </Fragment>
+  <slot />
+</Base>

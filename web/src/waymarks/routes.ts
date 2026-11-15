@@ -2,7 +2,7 @@
 //
 // The tiles (tiles/SCHEMA.md) list every route of a way segment individually in slot-aligned
 // |-joined lists (`ids`, `networks`, `symbols`, `refs`, `names`, `colours`). Waymarks belong to the
-// routes (SPEC.md 4.4): a route shows its sign exactly if the group "Wanderrouten" is on AND the
+// routes (SPEC.md 4.4): a route shows its sign exactly if the group "Hiking routes" is on AND the
 // switch of its OWN network is on (iwn -> net-iwn, nwn -> net-nwn, rwn -> net-rwn, everything else
 // incl. no network -> net-lwn); missing switches count as on. The band (style/routes.ts) uses the
 // same rule per segment through the tile attribute `nets` (the same mapping per route, built by the
@@ -38,13 +38,13 @@ export function networkGroup(network: string): "net-iwn" | "net-nwn" | "net-rwn"
   }
 }
 
-/** Whether the group "Wanderrouten" is on (missing counts as on). */
+/** Whether the group "Hiking routes" is on (missing counts as on). */
 export function routesOn(visibility: Readonly<Record<string, boolean>>): boolean {
   return visibility["routes"] !== false;
 }
 
 /**
- * Whether a route shows its sign: "Wanderrouten" is on and the switch of the route's own network
+ * Whether a route shows its sign: "Hiking routes" is on and the switch of the route's own network
  * is on (missing switches count as on).
  */
 export function routeVisible(r: RouteInfo, visibility: Readonly<Record<string, boolean>>): boolean {

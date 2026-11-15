@@ -1,7 +1,7 @@
 // POI pictogram layers (tile layer `poi`, tiles/SCHEMA.md). Layer ids must start with "poi-".
 //
 // Images are "poi:<name>" ids rasterised at runtime from SVG (src/icons). Two layers for the
-// kinds without a switch of their own (group "poi", sidebar "Weitere Symbole"):
+// kinds without a switch of their own (group "poi", sidebar "More symbols"):
 //   poi-main   boxed pictograms and churches, optional names; placed first.
 //   poi-minor  small plain symbols without names (crosses, masts …),
 //              only at 1:25 000 (z >= 12.5); fills the gaps the main layer leaves.
@@ -23,7 +23,7 @@
 //                `count` and `bbq` are not drawn (yet).
 //   parking      only with hiking=yes, a name containing "Wanderparkplatz", or area_m2 >= 2500
 //                (≈ 80–100 cars); never access=private/no/customers/permit/… (no name label).
-//   guidepost    named: yellow flag, in guideposts-main; the name only with the "Wegweisernamen"
+//   guidepost    named: yellow flag, in guideposts-main; the name only with the "Guidepost names"
 //                switch. Unnamed: small flag in guideposts-minor, lowest priority (drops out first).
 //   viewpoint    only named ones are in the tiles; own layer `viewpoints-main` (group "viewpoints",
 //                on by default); view towers stay in poi-main.
@@ -40,6 +40,7 @@ import type {
   LayerSpecification,
 } from "@maplibre/maplibre-gl-style-spec";
 import type { Map as MapLibreMap } from "maplibre-gl";
+import { m } from "../paraglide/messages.js";
 import { flagGeometry, POI_ICONS, type PoiKind } from "../icons/registry";
 import { nameCloneId } from "../placement/layers";
 import {
@@ -105,8 +106,8 @@ export { BUSSTOP_PRIORITY, UNNAMED_GUIDEPOST_PRIORITY };
 export interface PoiCategory {
   /** Group id; the layers are `<id>-main` and (small kinds only) `<id>-minor`. */
   id: string;
-  /** German label for the sidebar. */
-  label: string;
+  /** Label for the sidebar (a getter, in the active language). */
+  readonly label: string;
   kinds: PoiKind[];
   /** One or two kinds (subset of `kinds`) shown next to the sidebar switch as its legend. */
   legend: PoiKind[];
@@ -120,63 +121,81 @@ export interface PoiCategory {
 export const POI_CATEGORIES: readonly PoiCategory[] = [
   {
     id: "shelters",
-    label: "Schutzhütten",
+    get label() {
+      return m.layer_shelters();
+    },
     kinds: ["shelter", "wilderness_hut"],
     legend: ["shelter", "wilderness_hut"],
     defaultVisible: true,
   },
   {
     id: "food",
-    label: "Einkehr",
+    get label() {
+      return m.layer_food();
+    },
     kinds: ["alpine_hut", "restaurant", "cafe"],
     legend: ["restaurant", "alpine_hut"],
     defaultVisible: true,
   },
   {
     id: "parking",
-    label: "Wanderparkplätze",
+    get label() {
+      return m.layer_parking();
+    },
     kinds: ["parking"],
     legend: ["parking"],
     defaultVisible: true,
   },
   {
     id: "picnic",
-    label: "Rast- und Grillplätze",
+    get label() {
+      return m.layer_picnic();
+    },
     kinds: ["picnic_site", "bbq"],
     legend: ["picnic_site", "bbq"],
     defaultVisible: true,
   },
   {
     id: "lodging",
-    label: "Unterkünfte",
+    get label() {
+      return m.layer_lodging();
+    },
     kinds: ["camp_site", "caravan_site", "hostel", "hotel"],
     legend: ["hotel", "camp_site"],
     defaultVisible: true,
   },
   {
     id: "toilets",
-    label: "Toiletten",
+    get label() {
+      return m.layer_toilets();
+    },
     kinds: ["toilets"],
     legend: ["toilets"],
     defaultVisible: true,
   },
   {
     id: "drinking",
-    label: "Trinkwasser, Brunnen",
+    get label() {
+      return m.layer_drinking();
+    },
     kinds: ["drinking_water", "fountain"],
     legend: ["drinking_water", "fountain"],
     defaultVisible: true,
   },
   {
     id: "heritage",
-    label: "Burgen, Ruinen, Denkmäler",
+    get label() {
+      return m.layer_heritage();
+    },
     kinds: ["castle", "castle_ruins", "ruins", "monument", "memorial"],
     legend: ["castle", "ruins"],
     defaultVisible: true,
   },
   {
     id: "guideposts",
-    label: "Wegweiser",
+    get label() {
+      return m.layer_guideposts();
+    },
     kinds: ["guidepost"],
     legend: ["guidepost"],
     defaultVisible: true,
@@ -297,7 +316,7 @@ export const GUIDEPOST_NAME_LAYER = "guideposts-main";
 
 /**
  * `text-field` of the main layers: the name of every named kind; guideposts only with
- * `guidepostNames` (sidebar switch "Wegweisernamen", off by default: the flags stay).
+ * `guidepostNames` (sidebar switch "Guidepost names", off by default: the flags stay).
  */
 export function poiNameField(guidepostNames: boolean): ExpressionSpecification {
   const kinds = guidepostNames ? NAMED_KINDS : NAMED_KINDS.filter((k) => k !== "guidepost");
@@ -380,7 +399,7 @@ function minorLayer(id: string, filter: FilterSpecification): LayerSpecification
 /** Kinds of the minor layer without a category: the small plain symbols. */
 const MINOR_REST: PoiKind[] = MINOR_KINDS.filter((k) => !CATEGORY_KINDS.includes(k));
 
-/** The kinds without a switch of their own: group "poi" ("Weitere Symbole"). */
+/** The kinds without a switch of their own: group "poi" ("More symbols"). */
 export function poiLayers(): LayerSpecification[] {
   const main = mainLayer(
     "poi-main",

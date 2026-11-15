@@ -2,10 +2,10 @@
 //
 //   bun scripts/snapshots.ts [name ...] [--rp http://localhost:5180] [--bw http://localhost:5181]
 //
-// Needs two dev servers (from web/): `bunx vite --port 5180` for the Rhineland-Palatinate data and a
+// Needs two dev servers (from web/): `bunx astro dev --port 5180` for the Rhineland-Palatinate data and a
 // second one on 5181 whose CAPERCAILYE_DATA directory has `capercailye-rp.pmtiles` symlinked to the
 // Baden-Württemberg file (the app always loads that name), see README.md. Without names, all images
-// are rendered. Output goes to ../img as JPEG (@1x and @2x; the OG image only @1x).
+// are rendered. Output goes to ../public/img as JPEG (@1x and @2x; the OG image only @1x).
 // The Chrome/Chromium binary comes from the CHROME_PATH environment variable (default
 // /opt/google/chrome/chrome).
 import { readFileSync, statSync } from "node:fs";
@@ -14,8 +14,8 @@ import { fileURLToPath } from "node:url";
 import { type Page, chromium } from "playwright-core";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const OUT = join(HERE, "..", "img");
-// @2x is lower: the pixel density hides the artefacts, and it keeps img/ under about 6 MB.
+const OUT = join(HERE, "..", "public", "img");
+// @2x is lower: the pixel density hides the artefacts, and it keeps public/img/ under about 6 MB.
 const QUALITY = { 1: 80, 2: 62 } as const;
 
 type Region = "rp" | "bw";
@@ -77,28 +77,25 @@ const SHOTS: Shot[] = [
     zoomOut: 1.5,
     prepare: async (page) => {
       // Two portrait sheets side by side at 1:25 000 around the Feldberg, in print view.
-      await page.evaluate(
-        ([lng, lat]) => {
-          const c = window.__capercailye;
-          const dLat = 3300 / 111320;
-          const dLon = 4700 / (111320 * Math.cos((lat * Math.PI) / 180));
-          c.setState({
-            mode: "sheets",
-            printView: true,
-            print: {
-              mode: "scale",
-              scale: 25000,
-              pages: 2,
-              orientation: "portrait",
-              area: { west: lng - dLon, east: lng + dLon, south: lat - dLat, north: lat + dLat },
-            },
-          });
-          c.map.jumpTo({ center: [lng, lat] });
-          const l = c.layout();
-          console.log(`print layout: ${l.cols} x ${l.rows} sheets, zoom ${l.zoom.toFixed(2)}`);
-        },
-        FELDBERG,
-      );
+      await page.evaluate(([lng, lat]) => {
+        const c = window.__capercailye;
+        const dLat = 3300 / 111320;
+        const dLon = 4700 / (111320 * Math.cos((lat * Math.PI) / 180));
+        c.setState({
+          mode: "sheets",
+          printView: true,
+          print: {
+            mode: "scale",
+            scale: 25000,
+            pages: 2,
+            orientation: "portrait",
+            area: { west: lng - dLon, east: lng + dLon, south: lat - dLat, north: lat + dLat },
+          },
+        });
+        c.map.jumpTo({ center: [lng, lat] });
+        const l = c.layout();
+        console.log(`print layout: ${l.cols} x ${l.rows} sheets, zoom ${l.zoom.toFixed(2)}`);
+      }, FELDBERG);
     },
   },
   {
@@ -166,7 +163,7 @@ async function render(
   page.on("console", (m) => {
     if (m.text().startsWith("print layout")) console.log(`  ${m.text()}`);
   });
-  await page.goto(base);
+  await page.goto(new URL("/app/", base).href);
   await page.waitForFunction(() => window.__capercailye, null, { timeout: 60_000 });
   await page.click("#sidebar-collapse");
   await page.addStyleTag({

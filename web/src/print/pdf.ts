@@ -8,6 +8,7 @@ import {
   type Orientation,
   type SizeMm,
 } from "./paper";
+import { m } from "../paraglide/messages.js";
 import { formatDistance, formatScale, scaleBarLength } from "./scale";
 
 /** PNG keeps line work crisp; JPEG would be faster and smaller. */
@@ -134,7 +135,7 @@ function drawLegendStrip(
   let blattWidth = 0;
   let grid: GridBox | undefined;
   if (sheet) {
-    blattText = `Blatt ${sheet.number}`;
+    blattText = m.pdf_sheet({ number: sheet.number });
     doc.setFontSize(8);
     blattWidth = doc.getTextWidth(blattText);
     grid = gridBox(sheet);
@@ -176,14 +177,14 @@ function drawLegendStrip(
     doc.text(blattText, cursor, top + 4.4);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(5.5);
-    doc.text(`von ${sheet.total}`, cursor, top + STRIP_UPPER_MM - 0.5);
+    doc.text(m.pdf_sheet_of({ total: sheet.total }), cursor, top + STRIP_UPPER_MM - 0.5);
     cursor += blattWidth + 4;
     if (grid) drawGrid(doc, cursor, top, sheet, grid);
   }
 
   // Print hint in the upper row at the right; the credits get the whole width of the lower row.
   // They are shrunk (down to CREDIT_MIN_PT) only if the line is still wider than the strip.
-  const hint = "Drucken mit 100 % (nicht „An Seite anpassen“)";
+  const hint = m.pdf_print_hint();
   doc.setFont("helvetica", "normal");
   doc.setFontSize(CREDIT_PT);
   doc.setTextColor(70);

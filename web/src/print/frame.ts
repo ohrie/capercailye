@@ -5,6 +5,7 @@
 // Dragging a handle only redraws this frame (draft area); the app state is set on pointerup, so
 // zoom and placement do not recompute on every pixel.
 import type { Map as MapLibreMap } from "maplibre-gl";
+import { m } from "../paraglide/messages.js";
 import type { RectMm } from "../placement/geo";
 import { mmToLngLat } from "../placement/geo";
 import type { PrintSettings } from "../state";
@@ -186,7 +187,7 @@ export class PrintFrame {
     // Label above the grid's top left corner (above the area if there is no grid).
     const top = layout.tooLarge ? a : g;
     this.label.textContent = layout.tooLarge
-      ? `Gebiet zu groß: ${layout.count} Seiten (höchstens ${MAX_SHEETS})`
+      ? m.app_area_too_large({ count: layout.count, max: MAX_SHEETS })
       : layoutLabel(layout);
     this.label.setAttribute("x", String(Math.max(6, top.x)));
     this.label.setAttribute("y", String(Math.max(16, top.y - 6)));

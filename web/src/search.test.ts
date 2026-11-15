@@ -3,7 +3,7 @@ import { parsePhoton, photonUrl } from "./search";
 
 describe("photonUrl", () => {
   test("carries only q, lang, limit and the rounded centre", () => {
-    const url = new URL(photonUrl("Dahn", { lng: 7.776543, lat: 49.150498 }));
+    const url = new URL(photonUrl("Dahn", { lng: 7.776543, lat: 49.150498 }, "de"));
     expect(url.origin + url.pathname).toBe("https://photon.komoot.io/api");
     expect([...url.searchParams.keys()]).toEqual(["q", "lang", "limit", "lat", "lon"]);
     expect(url.searchParams.get("q")).toBe("Dahn");
@@ -11,6 +11,12 @@ describe("photonUrl", () => {
     expect(url.searchParams.get("limit")).toBe("8");
     expect(url.searchParams.get("lat")).toBe("49.150");
     expect(url.searchParams.get("lon")).toBe("7.777");
+  });
+
+  test("lang follows the language (Photon knows de and en)", () => {
+    const center = { lng: 7.7, lat: 49.1 };
+    expect(new URL(photonUrl("Dahn", center, "en")).searchParams.get("lang")).toBe("en");
+    expect(new URL(photonUrl("Dahn", center)).searchParams.get("lang")).toBe("en");
   });
 
   test("umlauts and spaces are percent-encoded and decode back", () => {
@@ -68,7 +74,7 @@ const FIXTURE = {
 };
 
 describe("parsePhoton", () => {
-  const results = parsePhoton(FIXTURE);
+  const results = parsePhoton(FIXTURE, "de");
 
   test("a place with an extent gets bounds in west/south/east/north order", () => {
     const dahn = results[0]!;
@@ -93,6 +99,13 @@ describe("parsePhoton", () => {
     expect(other.detail).toBe("");
     expect(other.bounds).toBeUndefined();
     expect(results).toHaveLength(4);
+  });
+
+  test("kind names follow the language, the place names stay as they are", () => {
+    const en = parsePhoton(FIXTURE, "en");
+    expect(en[0]!.label).toBe("Dahn");
+    expect(en[0]!.detail).toBe("Südwestpfalz, Rheinland-Pfalz · Town");
+    expect(en[1]!.detail).toBe("Dahn, Rheinland-Pfalz · Peak");
   });
 
   test("garbage in, empty list out", () => {

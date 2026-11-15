@@ -77,7 +77,7 @@ describe("normalizeTrack", () => {
       type: "Point",
       coordinates: [1.3, 50.3],
     });
-    expect(a.track.name).toBe("GPX-Track");
+    expect(a.track.name).toBe("GPX track");
 
     const b = normalizeTrack(
       fc(
@@ -112,10 +112,10 @@ describe("normalizeTrack", () => {
       properties: { name: "Gipfel" },
       geometry: { type: "Point", coordinates: [7, 49] },
     };
-    expect(normalizeTrack(fc(wpt))).toEqual({ error: "Keine Spur in der Datei" });
-    expect(normalizeTrack(fc())).toEqual({ error: "Keine Spur in der Datei" });
+    expect(normalizeTrack(fc(wpt))).toEqual({ error: "No track in the file" });
+    expect(normalizeTrack(fc())).toEqual({ error: "No track in the file" });
     // A line with a single point is no track either.
-    expect(normalizeTrack(fc(line([[7, 49]])))).toEqual({ error: "Keine Spur in der Datei" });
+    expect(normalizeTrack(fc(line([[7, 49]])))).toEqual({ error: "No track in the file" });
     const mixed = normalizeTrack(
       fc(
         wpt,

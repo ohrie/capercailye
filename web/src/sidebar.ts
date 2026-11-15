@@ -1,8 +1,10 @@
 // Sidebar wiring: mode switch, print settings, GPX panel, layer toggles with legend symbols
 // (sections, sub-switches), collapse.
 import type { CreditPart } from "./credits";
+import { formatNumber } from "./i18n";
 import { legendDataUrl, legendSvg, LEGEND_CELL, LEGEND_SCALE } from "./legend";
 import { MAP_MODES, type MapMode } from "./mode";
+import { m } from "./paraglide/messages.js";
 import { MAX_SHEETS, type PrintMode, type SheetLayout } from "./print/layout";
 import type { Orientation } from "./print/paper";
 import { formatScale } from "./print/scale";
@@ -12,31 +14,36 @@ import { type LayerGroup, SECTIONS, uiGroups } from "./style";
 
 function el<T extends HTMLElement>(id: string): T {
   const node = document.getElementById(id);
-  if (!node) throw new Error(`#${id} fehlt`);
+  if (!node) throw new Error(`Missing element #${id}`);
   return node as T;
 }
 
 /** Grey line under the mode switch; none in mode "sheets". */
-const MODE_HINTS: Record<MapMode, string> = {
-  explore: "Zum Drucken ein Gebiet zeichnen.",
-  draw: "Rechteck auf der Karte aufziehen · Esc bricht ab",
-  sheets: "",
-};
+function modeHint(mode: MapMode): string {
+  switch (mode) {
+    case "explore":
+      return m.app_hint_explore();
+    case "draw":
+      return m.app_hint_draw();
+    case "sheets":
+      return "";
+  }
+}
 
 export interface SidebarHooks {
   /** The mode was chosen in the switch. */
   onMode: (mode: MapMode) => void;
   /** Groups without data: their switch is shown disabled. */
   unavailableGroups?: readonly string[];
-  /** Button "PDF exportieren". */
+  /** Button "Export PDF". */
   onExport: () => void;
-  /** The same button while an export runs ("Abbrechen"). */
+  /** The same button while an export runs ("Cancel"). */
   onCancel: () => void;
   /** A GPX file was chosen in the panel. */
   onGpxFile: (file: File) => void;
-  /** Button "Gebiet auf Track setzen". */
+  /** Button "Set area to track". */
   onGpxArea: () => void;
-  /** Button "Track entfernen". */
+  /** Button "Remove track". */
   onGpxRemove: () => void;
   onCollapseChange: () => void;
 }
@@ -60,8 +67,9 @@ export function initSidebar(hooks: SidebarHooks): void {
     const mode = getState().mode;
     for (const input of modeInputs) input.checked = input.value === mode;
     const hint = el("mode-hint");
-    hint.textContent = MODE_HINTS[mode];
-    hint.hidden = MODE_HINTS[mode] === "";
+    const text = modeHint(mode);
+    hint.textContent = text;
+    hint.hidden = text === "";
     el("print-panel").hidden = mode !== "sheets";
   };
   syncMode();
@@ -140,27 +148,35 @@ export function initSidebar(hooks: SidebarHooks): void {
   el("sidebar-expand").addEventListener("click", () => setCollapsed(false));
 }
 
-const nf = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
-const nf2 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+const ONE_DECIMAL = { maximumFractionDigits: 1, minimumFractionDigits: 1 } as const;
+const TWO_DECIMALS = { maximumFractionDigits: 2, minimumFractionDigits: 2 } as const;
 
-/** "6 Seiten (3 × 2) · 1:21 000 · 11,8 × 11,1 km · Druckzoom 13,19" plus a hint if needed. */
+/** "6 pages (3 × 2) · 1:21,000 · 11.8 × 11.1 km · print zoom 13.19" plus a hint if needed. */
 export function updatePrintInfo(layout: SheetLayout): void {
-  const km = (mm: number) => nf.format((mm * layout.scale) / 1e6);
+  const km = (mm: number) => formatNumber((mm * layout.scale) / 1e6, ONE_DECIMAL);
+  const zoom = formatNumber(layout.zoom, TWO_DECIMALS);
   const w = layout.gridMm.maxX - layout.gridMm.minX;
   const h = layout.gridMm.maxY - layout.gridMm.minY;
   const note = el("print-note");
   let warning = "";
   if (layout.tooLarge) {
-    warning = `Gebiet zu groß: ${layout.count} Seiten (höchstens ${MAX_SHEETS})`;
-    el("print-info").textContent =
-      `${formatScale(layout.scale)} · Druckzoom ${nf2.format(layout.zoom)}`;
+    warning = m.app_area_too_large({ count: layout.count, max: MAX_SHEETS });
+    el("print-info").textContent = m.app_print_info_large({
+      scale: formatScale(layout.scale),
+      zoom,
+    });
   } else {
-    const pages = `${layout.count} ${layout.count === 1 ? "Seite" : "Seiten"}`;
-    el("print-info").textContent =
-      `${pages} (${layout.cols} × ${layout.rows}) · ${formatScale(layout.scale)} · ` +
-      `${km(w)} × ${km(h)} km · Druckzoom ${nf2.format(layout.zoom)}`;
+    el("print-info").textContent = m.app_print_info({
+      pages: m.app_pages_count({ count: layout.count }),
+      cols: layout.cols,
+      rows: layout.rows,
+      scale: formatScale(layout.scale),
+      width: km(w),
+      height: km(h),
+      zoom,
+    });
     if (!layout.areaCovered) {
-      warning = `Gebiet passt nicht auf ${layout.count} Seiten, mehr Seiten wählen`;
+      warning = m.app_area_not_covered({ count: layout.count });
     }
   }
   note.textContent = warning;
@@ -177,8 +193,8 @@ function refreshExportButton(): void {
   button.disabled = !exportBusy && !exportAllowed;
   // Only the label changes; the download icon stays except while the button cancels.
   el("export-pdf").querySelector(".button__label")!.textContent = exportBusy
-    ? "Abbrechen"
-    : "PDF exportieren";
+    ? m.app_export_cancel()
+    : m.app_export_pdf();
   button.classList.toggle("button--cancel", exportBusy);
   // The mode cannot be changed while an export runs.
   for (const input of document.querySelectorAll<HTMLInputElement>('input[name="map-mode"]')) {
@@ -223,15 +239,15 @@ export function setStatus(text: string, kind: "info" | "warn" | "error" = "info"
   status.classList.toggle("status--error", kind === "error");
 }
 
-const nf1 = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
-
 /** Name and length of the loaded track, or the hint to load one. */
 function updateGpxPanel(gpx: Track | null): void {
   el("gpx-info").hidden = gpx === null;
   el("gpx-hint").hidden = gpx !== null;
   if (gpx) {
     el("gpx-name").textContent = gpx.name;
-    el("gpx-length").textContent = `${nf1.format(gpx.lengthKm)} km`;
+    el("gpx-length").textContent = m.app_gpx_length({
+      km: formatNumber(gpx.lengthKm, ONE_DECIMAL),
+    });
     setGpxStatus("");
   }
 }
@@ -269,9 +285,9 @@ function legendCell(groupId: string): HTMLElement {
 }
 
 /**
- * One switch per labelled style group, in the sections of the panel "Ebenen" (collapsible
+ * One switch per labelled style group, in the sections of the panel "Layers" (collapsible
  * <details>). Sub-switches are indented below their parent and disabled, keeping their value,
- * while the parent is off (the four route networks under "Wanderrouten", the guidepost names).
+ * while the parent is off (the four route networks under "Hiking routes", the guidepost names).
  */
 function initLayerToggles(unavailable: readonly string[]): void {
   const root = el<HTMLDivElement>("layer-toggles");
@@ -325,7 +341,7 @@ function initLayerToggles(unavailable: readonly string[]): void {
       input.checked = !missing && isOn(group);
       input.disabled = missing || parentOff;
       label.classList.toggle("switch--disabled", input.disabled);
-      label.title = missing ? "Datei nicht vorhanden" : "";
+      label.title = missing ? m.layer_missing() : "";
     }
   };
   sync();

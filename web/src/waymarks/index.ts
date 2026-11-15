@@ -15,7 +15,7 @@
 // of all sheets plus bleed, at the layout zoom); the preview and every export page use that one
 // result, so the overlaps of neighbouring sheets are identical. The same pass thins the urban
 // restaurants/cafés, toilets and hotels greedily over the layout (`urban`, placement/thin.ts), also
-// while "Wanderrouten" is off (then there are no signs). Outside the print view
+// while "Hiking routes" is off (then there are no signs). Outside the print view
 // the same computation runs for the current viewport at the current zoom (paper mm = screen mm).
 import type { FeatureCollection, Point } from "geojson";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
@@ -46,7 +46,7 @@ export interface WaymarkResult {
   data: FeatureCollection<Point>;
   /** Boxes of the signs (global paper mm): obstacles for the pictograms. */
   boxes: Obstacle[];
-  /** Identity of the inputs (URL, region, zoom, "Wanderrouten" switch, network switches). */
+  /** Identity of the inputs (URL, region, zoom, "Hiking routes" switch, network switches). */
   key: string;
   /** Urban restaurants/cafés, toilets and hotels that stay, for the region plus margin; absent without data. */
   urban?: UrbanKeep;
@@ -164,7 +164,7 @@ const KEEP_RESULTS = 4;
 
 /**
  * Signs (and the greedy urban decision) for a region. Zoom below WAYMARK_MIN_ZOOM: empty result
- * without `urban`; "Wanderrouten" off: no signs, the urban decision is still computed. The last few results are cached by key, so the export gets the
+ * without `urban`; "Hiking routes" off: no signs, the urban decision is still computed. The last few results are cached by key, so the export gets the
  * very result the preview used.
  */
 export function computeWaymarks(req: WaymarkRequest): Promise<WaymarkResult> {
@@ -244,7 +244,7 @@ export class WaymarkController {
     try {
       result = await computeWaymarks(this.request());
     } catch (err) {
-      console.warn("Wegzeichen:", err);
+      console.warn("Waymarks:", err);
       return;
     }
     if (run !== this.run) return;

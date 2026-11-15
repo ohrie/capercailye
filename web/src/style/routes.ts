@@ -26,7 +26,7 @@ const BAND_LOCAL_OPACITY = 0.58;
 // ---------------------------------------------------------------------------------------------
 // Network switches (B3)
 
-/** Switch group per network: "Wanderrouten" has four sub-switches without layers of their own. */
+/** Switch group per network: "Hiking routes" has four sub-switches without layers of their own. */
 export const NETWORK_GROUPS = {
   iwn: "net-iwn",
   nwn: "net-nwn",

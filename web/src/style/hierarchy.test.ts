@@ -201,9 +201,9 @@ describe("switches: viewpoints and guidepost names", () => {
   test("viewpoints are on and guidepost names off by default, each with its own sidebar toggle", () => {
     const vp = GROUPS.find((g) => g.id === "viewpoints")!;
     const gn = GROUPS.find((g) => g.id === "guidepostnames")!;
-    expect(vp.label).toBe("Aussichtspunkte");
+    expect(vp.label).toBe("Viewpoints");
     expect(vp.defaultVisible).toBe(true);
-    expect(gn.label).toBe("Wegweisernamen");
+    expect(gn.label).toBe("Guidepost names");
     expect(gn.defaultVisible).toBe(false);
     expect(defaultVisibility().viewpoints).toBe(true);
     expect(defaultVisibility().guidepostnames).toBe(false);

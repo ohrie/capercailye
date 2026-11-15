@@ -1,11 +1,13 @@
 // Application-wide constants.
+import type { Locale } from "./i18n";
+import { m } from "./paraglide/messages.js";
 
-/** Initial view: Dahn im Pfälzerwald (Rheinland-Pfalz). BW: Veringenstadt [9.2103, 48.1836]. */
+/** Initial view: Dahn in the Palatinate Forest (Rhineland-Palatinate). BW: Veringenstadt [9.2103, 48.1836]. */
 export const INITIAL_CENTER: [number, number] = [7.7765, 49.1505];
 export const INITIAL_ZOOM = 13;
 
 /**
- * PMTiles file, relative to the app base. Set `VITE_PMTILES_PATH` at build time to override it
+ * PMTiles file, relative to the app base (`APP_BASE`). Set `VITE_PMTILES_PATH` at build time to override it
  * (e.g. `data/capercailye-de.pmtiles`). The dev server serves `data/` from $CAPERCAILYE_DATA
  * (default ~/.local/share/capercailye). `import.meta.env` is undefined under `bun test`.
  */
@@ -31,10 +33,10 @@ export const DEM_MAXZOOM = 14;
 export const RELIEF_TIMEOUT_MS = 15_000;
 
 /**
- * Source credits. Pattern per source: `<name> (<licence>, Stand <date>)`; the date part is added
+ * Source credits. Pattern per source: `<name> (<licence>, as of <date>)`; the date part is added
  * by src/credits.ts (OSM and GTFS: read from the data files, relief: static, see below).
  * The credits are part of the licence compliance (SPEC.md 4.8): where the licence asks for it
- * the name says that the data was changed ("bearbeitet", "ausgewertet"), and the full references
+ * the name says that the data was changed ("modified", "analysed"), and the full references
  * (licence texts and URIs, per-state producers) are on the sources page `SOURCES_PATH`.
  */
 export interface SourceCredit {
@@ -51,25 +53,30 @@ export interface SourceCredit {
   print?: string;
 }
 
-/** The sources and licences page of the site (German), root-absolute like the legal pages. */
+/** The sources and licences page of the site (German only), root-absolute like the legal pages. */
 export const SOURCES_PATH = "/quellen/";
 /** The OSM copyright page the OSM credit links to (OSMF attribution guidelines). */
 export const OSM_COPYRIGHT_URL = "https://www.openstreetmap.org/copyright";
 
-export const OSM_CREDIT: SourceCredit = {
-  name: "© OpenStreetMap-Mitwirkende",
-  license: "ODbL",
-  href: OSM_COPYRIGHT_URL,
-  // The OSMF guidelines want the copyright URL printed where the map is printed.
-  print: "© OpenStreetMap-Mitwirkende (ODbL), openstreetmap.org/copyright",
-};
+/** OSM credit; the OSMF guidelines want the copyright URL printed where the map is printed. */
+export function osmCredit(locale?: Locale): SourceCredit {
+  return {
+    name: m.credit_osm_name({}, { locale }),
+    license: "ODbL",
+    href: OSM_COPYRIGHT_URL,
+    print: m.credit_osm_print({}, { locale }),
+  };
+}
+
 /** Only stops with at least 4 departures on Saturday and Sunday are kept (transit/README.md). */
-export const BUSSTOPS_CREDIT: SourceCredit = {
-  name: "Fahrplandaten: DELFI e.V. / gtfs.de, ausgewertet",
-  license: "CC BY 4.0",
-  href: SOURCES_PATH,
-  print: "Fahrplandaten: DELFI/gtfs.de, ausgewertet (CC BY 4.0)",
-};
+export function busstopsCredit(locale?: Locale): SourceCredit {
+  return {
+    name: m.credit_busstops_name({}, { locale }),
+    license: "CC BY 4.0",
+    href: SOURCES_PATH,
+    print: m.credit_busstops_print({}, { locale }),
+  };
+}
 
 /**
  * Elevation sources inside the Mapterhorn tiles, per area (key = `<area>` of
@@ -84,49 +91,61 @@ export const BUSSTOPS_CREDIT: SourceCredit = {
  * "2025/2026". The licences differ per state: dl-de/by-2-0 (BW, BB, HH, RP, SL, SN, ST, TH),
  * CC BY 4.0 (BY, HB, MV, NI, SH) and dl-de/zero-2-0 (BE, HE, NW). The credit therefore names the
  * three licences and credits the state surveying administrations in general; the per-state
- * producer texts, licence names and URIs are on the sources page (site/quellen/, from
+ * producer texts, licence names and URIs are on the sources page (src/pages/quellen/, from
  * attribution.json, retrieved 2026-11-15), which also points to mapterhorn.com/attribution.
  *
- * All names say "bearbeitet": hillshade and contour lines are computed from the elevation model
- * (dl-de/by-2-0 section 2 and CC BY 4.0 section 3(a) ask for an indication of changes).
+ * All names say that the data was modified (German "bearbeitet"): hillshade and contour lines are
+ * computed from the elevation model (dl-de/by-2-0 section 2 and CC BY 4.0 section 3(a) ask for an
+ * indication of changes). The producer names and licence names are the same in every language.
  */
-export const RELIEF_CREDITS: Record<string, SourceCredit> = {
-  bw: {
-    name: "Relief: Mapterhorn, LGL, www.lgl-bw.de, bearbeitet",
-    license: "dl-de/by-2-0",
-    stand: "2025/2026",
-    href: SOURCES_PATH,
-    print: "Relief: Mapterhorn, LGL, bearbeitet",
-  },
-  rp: {
-    name: "Relief: Mapterhorn, ©GeoBasis-DE / LVermGeoRP, bearbeitet",
-    license: "dl-de/by-2-0",
-    stand: "2025",
-    href: SOURCES_PATH,
-    print: "Relief: Mapterhorn, GeoBasis-DE/LVermGeoRP, bearbeitet",
-  },
-  de: {
-    name: "Relief: Mapterhorn, © GeoBasis-DE / Vermessungsverwaltungen der Länder, bearbeitet",
-    license: "dl-de/by-2-0, CC BY 4.0, dl-de/zero-2-0 je nach Land",
-    stand: "2025/2026",
-    href: SOURCES_PATH,
-    print: "Relief: Mapterhorn, GeoBasis-DE/Länder, bearbeitet",
-  },
-};
+export function reliefCredits(locale?: Locale): Record<string, SourceCredit> {
+  return {
+    bw: {
+      name: m.credit_relief_bw_name({}, { locale }),
+      license: "dl-de/by-2-0",
+      stand: "2025/2026",
+      href: SOURCES_PATH,
+      print: m.credit_relief_bw_print({}, { locale }),
+    },
+    rp: {
+      name: m.credit_relief_rp_name({}, { locale }),
+      license: "dl-de/by-2-0",
+      stand: "2025",
+      href: SOURCES_PATH,
+      print: m.credit_relief_rp_print({}, { locale }),
+    },
+    de: {
+      name: m.credit_relief_de_name({}, { locale }),
+      license: m.credit_relief_de_license({}, { locale }),
+      stand: "2025/2026",
+      href: SOURCES_PATH,
+      print: m.credit_relief_de_print({}, { locale }),
+    },
+  };
+}
 
 /** Area key of the loaded PMTiles file, e.g. "rp" for data/capercailye-rp.pmtiles. */
 export const AREA = /capercailye-([^/]+)\.pmtiles$/.exec(PMTILES_PATH)?.[1] ?? "";
 
 /** Relief credit for the loaded area; unknown areas point to Mapterhorn's full source list, no date. */
-export const RELIEF_CREDIT: SourceCredit = RELIEF_CREDITS[AREA] ?? {
-  name: "Relief: Mapterhorn, bearbeitet, Quellen: mapterhorn.com/attribution",
-  href: SOURCES_PATH,
-};
+export function reliefCredit(locale?: Locale): SourceCredit {
+  return (
+    reliefCredits(locale)[AREA] ?? {
+      name: m.credit_relief_unknown_name({}, { locale }),
+      href: SOURCES_PATH,
+    }
+  );
+}
 
 /** Place search; named in the sidebar footer only (the sheet margin lists what is printed on it). */
-export const SEARCH_ATTRIBUTION = "Suche: Photon (komoot)";
+export function searchAttribution(locale?: Locale): string {
+  return m.credit_search({}, { locale });
+}
+
+/** URL prefix of the app page; its fonts and data (`fonts/`, `data/`) live below it. */
+export const APP_BASE = "/app/";
 
 /** Absolute URL relative to the app base (MapLibre needs absolute URLs for glyphs and pmtiles). */
 export function appUrl(path: string): string {
-  return new URL(import.meta.env.BASE_URL + path, window.location.origin).href;
+  return new URL(APP_BASE + path, window.location.origin).href;
 }

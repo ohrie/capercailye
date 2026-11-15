@@ -1,0 +1,302 @@
+---
+import Base from "../../layouts/Base.astro";
+import { m } from "../../paraglide/messages.js";
+import { formatScale } from "../../print/scale";
+
+// This page is one static HTML file for both languages. It is rendered here in English (the base
+// language, which is also what shows without JavaScript); src/translate-dom.ts swaps in the
+// language of the browser first thing in the client script. Every translated element carries its
+// message key in `data-i18n` (text) or `data-i18n-<attribute>`.
+const locale = "en";
+const t = (key: keyof typeof m): string => (m[key] as (i: object, o: object) => string)({}, { locale });
+---
+
+<Base title={t("app_title")} lang="en" favicon="/app/logo.svg">
+  <!-- Hides the sidebar until the texts are translated (translate-dom.ts removes this). -->
+  <style slot="head" id="i18n-pending" is:inline>
+    .sidebar {
+      visibility: hidden;
+    }
+  </style>
+  <div class="app">
+    <aside
+      class="sidebar"
+      id="sidebar"
+      aria-label={t("app_sidebar_label")}
+      data-i18n-aria-label="app_sidebar_label"
+    >
+      <header class="sidebar__header">
+        <h1 class="brand"><a href="/">capercailye</a></h1>
+        <button
+          class="icon-button"
+          id="sidebar-collapse"
+          type="button"
+          title={t("app_sidebar_collapse")}
+          aria-label={t("app_sidebar_collapse")}
+          data-i18n-title="app_sidebar_collapse"
+          data-i18n-aria-label="app_sidebar_collapse"
+        >
+          ‹
+        </button>
+      </header>
+
+      <section
+        class="panel panel--search"
+        role="search"
+        aria-label={t("app_search_region")}
+        data-i18n-aria-label="app_search_region"
+      >
+        <label class="visually-hidden" for="search-input" data-i18n="app_search_label"
+          >{t("app_search_label")}</label
+        >
+        <input
+          class="search__input"
+          id="search-input"
+          type="search"
+          placeholder={t("app_search_label")}
+          data-i18n-placeholder="app_search_label"
+          autocomplete="off"
+          spellcheck="false"
+          role="combobox"
+          aria-expanded="false"
+          aria-controls="search-results"
+          aria-autocomplete="list"
+          aria-keyshortcuts="/"
+        />
+        <ul
+          class="search__results"
+          id="search-results"
+          role="listbox"
+          aria-label={t("app_search_results")}
+          data-i18n-aria-label="app_search_results"
+          hidden
+        ></ul>
+        <p class="hint" id="search-state" role="status" aria-live="polite" hidden></p>
+      </section>
+
+      <section
+        class="panel panel--mode"
+        aria-label={t("app_mode_region")}
+        data-i18n-aria-label="app_mode_region"
+      >
+        <div
+          class="segmented"
+          role="radiogroup"
+          aria-label={t("app_mode_group")}
+          data-i18n-aria-label="app_mode_group"
+        >
+          <label
+            ><input type="radio" name="map-mode" value="explore" checked /><span
+              data-i18n="app_mode_explore"
+              ><b class="step" aria-hidden="true">1</b>{t("app_mode_explore")}</span
+            ></label
+          >
+          <label title={t("app_mode_draw_title")} data-i18n-title="app_mode_draw_title"
+            ><input type="radio" name="map-mode" value="draw" /><span data-i18n="app_mode_draw"
+              ><b class="step" aria-hidden="true">2</b>{t("app_mode_draw")}</span
+            ></label
+          >
+          <label
+            ><input type="radio" name="map-mode" value="sheets" /><span data-i18n="app_mode_sheets"
+              ><b class="step" aria-hidden="true">3</b>{t("app_mode_sheets")}</span
+            ></label
+          >
+        </div>
+        <p class="hint" id="mode-hint"></p>
+      </section>
+
+      <section class="panel" id="print-panel" aria-labelledby="print-heading" hidden>
+        <h2 class="panel__title" id="print-heading" data-i18n="app_print_heading">
+          {t("app_print_heading")}
+        </h2>
+
+        <div class="field">
+          <span class="field__label" data-i18n="app_print_preset">{t("app_print_preset")}</span>
+          <div
+            class="segmented"
+            role="radiogroup"
+            aria-label={t("app_print_preset")}
+            data-i18n-aria-label="app_print_preset"
+          >
+            <label
+              ><input type="radio" name="print-mode" value="pages" /><span
+                data-i18n="app_print_pages">{t("app_print_pages")}</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="print-mode" value="scale" checked /><span
+                data-i18n="app_print_scale">{t("app_print_scale")}</span
+              ></label
+            >
+          </div>
+        </div>
+
+        <label class="field" id="field-scale">
+          <span class="field__label" data-i18n="app_print_scale">{t("app_print_scale")}</span>
+          <select id="print-scale">
+            <option value="15000">{formatScale(15000, locale)}</option>
+            <option value="25000" selected>{formatScale(25000, locale)}</option>
+            <option value="50000">{formatScale(50000, locale)}</option>
+          </select>
+        </label>
+
+        <label class="field" id="field-pages" hidden>
+          <span class="field__label" data-i18n="app_print_pages">{t("app_print_pages")}</span>
+          <select id="print-pages">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="6" selected>6</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="12">12</option>
+          </select>
+        </label>
+
+        <div class="field">
+          <span class="field__label" data-i18n="app_print_orientation"
+            >{t("app_print_orientation")}</span
+          >
+          <div
+            class="segmented"
+            role="radiogroup"
+            aria-label={t("app_print_orientation")}
+            data-i18n-aria-label="app_print_orientation"
+          >
+            <label
+              ><input type="radio" name="orientation" value="portrait" checked /><span
+                data-i18n="app_orientation_portrait">{t("app_orientation_portrait")}</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="orientation" value="landscape" /><span
+                data-i18n="app_orientation_landscape">{t("app_orientation_landscape")}</span
+              ></label
+            >
+          </div>
+        </div>
+
+        <label class="switch">
+          <input type="checkbox" id="print-view" />
+          <span class="switch__track" aria-hidden="true"></span>
+          <span data-i18n="app_print_view">{t("app_print_view")}</span>
+        </label>
+
+        <p class="hint" id="print-info"></p>
+        <p class="hint hint--warn" id="print-note" hidden></p>
+
+        <button class="button button--primary" id="export-pdf" type="button">
+          <svg
+            class="button__icon"
+            viewBox="0 0 16 16"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M8 2v7.5M4.75 6.5 8 9.75l3.25-3.25M2.5 10.5v3h11v-3" />
+          </svg>
+          <span class="button__label" data-i18n="app_export_pdf">{t("app_export_pdf")}</span>
+        </button>
+        <p class="status" id="export-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="gpx-heading">
+        <h2 class="panel__title" id="gpx-heading" data-i18n="app_gpx_heading">
+          {t("app_gpx_heading")}
+        </h2>
+        <input id="gpx-file" type="file" accept=".gpx,application/gpx+xml,text/xml" hidden />
+        <button class="button" id="gpx-load" type="button">
+          <svg
+            class="button__icon"
+            viewBox="0 0 16 16"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M8 9.5V2M4.75 5.25 8 2l3.25 3.25M2.5 10.5v3h11v-3" />
+          </svg>
+          <span class="button__label" data-i18n="app_gpx_load">{t("app_gpx_load")}</span>
+        </button>
+        <p class="hint" id="gpx-hint" data-i18n="app_gpx_hint">{t("app_gpx_hint")}</p>
+        <div class="track" id="gpx-info" hidden>
+          <p class="track__name" id="gpx-name"></p>
+          <p class="hint" id="gpx-length"></p>
+          <div class="button-row">
+            <button class="button" id="gpx-area" type="button" data-i18n="app_gpx_area">
+              {t("app_gpx_area")}
+            </button>
+            <button class="button" id="gpx-remove" type="button" data-i18n="app_gpx_remove">
+              {t("app_gpx_remove")}
+            </button>
+          </div>
+        </div>
+        <p class="status status--error" id="gpx-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="layers-heading">
+        <h2 class="panel__title" id="layers-heading" data-i18n="app_layers_heading">
+          {t("app_layers_heading")}
+        </h2>
+        <div id="layer-toggles" class="layers"></div>
+      </section>
+
+      <!-- Filled by main.ts (credits with the data dates). -->
+      <footer class="sidebar__footer" id="attribution"></footer>
+      <nav
+        class="sidebar__legal"
+        aria-label={t("app_legal_label")}
+        data-i18n-aria-label="app_legal_label"
+      >
+        <a href="/impressum/" target="_blank" rel="noopener" data-i18n="legal_notice"
+          >{t("legal_notice")}</a
+        >
+        <a href="/datenschutz/" target="_blank" rel="noopener" data-i18n="legal_privacy"
+          >{t("legal_privacy")}</a
+        >
+        <a href="/quellen/" target="_blank" rel="noopener" data-i18n="legal_sources"
+          >{t("legal_sources")}</a
+        >
+      </nav>
+    </aside>
+
+    <main class="map" id="map">
+      <button
+        class="icon-button map__expand"
+        id="sidebar-expand"
+        type="button"
+        title={t("app_sidebar_expand")}
+        aria-label={t("app_sidebar_expand")}
+        data-i18n-title="app_sidebar_expand"
+        data-i18n-aria-label="app_sidebar_expand"
+      >
+        ›
+      </button>
+    </main>
+  </div>
+  <!-- First script: the texts are translated before anything else runs (no flash of English). -->
+  <script>
+    import { translateDocument } from "../../translate-dom.ts";
+    translateDocument();
+  </script>
+
+  <!-- Own script: the bottom sheet (narrow screens) must not depend on the map starting. -->
+  <script>
+    import { initMobileSheet } from "../../mobile-sheet.ts";
+    initMobileSheet();
+  </script>
+
+  <script>
+    import "../../main.ts";
+  </script>
+</Base>
