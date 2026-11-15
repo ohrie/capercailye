@@ -4,66 +4,146 @@ Die Karten-App läuft als ein nginx-Container (`web`) hinter **Traefik**: Landin
 Hintergründe: [../DEPLOY-PLAN.md](../DEPLOY-PLAN.md).
 
 ```
-compose.yaml        Dienste web (Traefik-Labels, Volume mit den PMTiles) und updater
-compose.local.yaml  Zusatz für lokale Tests: Wegwerf-Traefik auf http://localhost:8080
-.env.example        Vorlage für deploy/.env
-web/Dockerfile      Bun-Build der App + Landingpage mit eingetragener Domain → nginx
-web/nginx.conf      Pfade, Cache-Header, Range-Requests, Gzip
-updater/            Image für den wöchentlichen Neuaufbau (Dockerfile, update.sh, check.ts, crontab)
+compose.yaml          Dienste web (Traefik-Labels, Volume mit den PMTiles) und updater, eigenes Netzwerk
+compose.local.yaml    Zusatz für lokale Tests: Wegwerf-Traefik auf http://localhost:8080
+.env.example          Vorlage für die Server-Konfiguration (.env, nur auf dem Server)
+deploy.sh             Deploy vom Entwicklungsrechner per scp (ohne Registry, ohne CI)
+deploy.env.example    Vorlage für deploy/deploy.env (DEPLOY_HOST, DEPLOY_DIR; nicht im Repo)
+web/Dockerfile        Bun-Build der App + Landingpage mit eingetragener Domain → nginx
+web/nginx.conf        Pfade, Cache-Header, Range-Requests, Gzip
+updater/              Image für den wöchentlichen Neuaufbau (Dockerfile, update.sh, check.ts, crontab)
+```
+
+## Ablauf
+
+`deploy.sh` packt den committeten Stand (`git archive HEAD`), kopiert ihn per `scp` auf den Server
+und startet dort `docker compose up -d --build`. Die Images werden **auf dem Server** gebaut (dessen
+Architektur), es gibt keine Registry. Layout auf dem Server (`DEPLOY_DIR`):
+
+```
+/srv/capercailye/
+├── .env      Konfiguration, nur auf dem Server; deploy.sh fasst sie nie an
+├── app/      entpackter Code des letzten Deploys (REVISION = Commit); wird bei jedem Deploy ersetzt
+├── app.prev/ der Stand davor (für den Rollback)
+├── live/     PMTiles, die nginx ausliefert
+└── work/     Updater: OSM-Auszug, GTFS, Zwischenstände, prev/, logs/
 ```
 
 ## Voraussetzungen
 
-- Docker mit Compose-Plugin (v2.24 oder neuer)
-- Ein laufender Traefik mit Docker-Provider. Gebraucht werden sein **Netzwerkname**
-  (`docker network ls`), der Name des **HTTPS-Entrypoints** und des **Zertifikats-Resolvers**
-- DNS-Eintrag der Domain auf den Server
+- Server mit Docker und Compose-Plugin (v2.24 oder neuer); der Benutzer darf `docker` aufrufen
+- ssh-Zugang vom Entwicklungsrechner (Schlüssel, ohne Passwortabfrage: `deploy.sh` nutzt `BatchMode`)
+- Ein laufender Traefik mit Docker-Provider, Entrypoints `web` (HTTP) und `websecure` (HTTPS) und einem
+  Zertifikats-Resolver `letsencrypt` (andere Namen: `TRAEFIK_ENTRYPOINT`, `TRAEFIK_CERTRESOLVER` in `.env`)
+- DNS-Eintrag (A und gegebenenfalls AAAA) der Domain auf den Server
 
-## Einrichtung
+## Einmalige Einrichtung
 
-```sh
-cd deploy
-cp .env.example .env        # DOMAIN, TRAEFIK_NETWORK, TRAEFIK_ENTRYPOINT, TRAEFIK_CERTRESOLVER anpassen
-sudo mkdir -p /srv/capercailye/{live,work}    # DATA_ROOT aus .env
-sudo chown -R 1000:1000 /srv/capercailye      # der Updater schreibt hier (UID siehe „Updater“)
-```
-
-Die Kacheln entstehen beim ersten Updater-Lauf (siehe „Updater“, dauert für Deutschland länger).
-Wer sie schon lokal gebaut hat, kopiert sie stattdessen von Hand nach `live/`:
+Auf dem Server (Pfad = `DEPLOY_DIR`):
 
 ```sh
-cp $CAPERCAILYE_DATA/capercailye-de.pmtiles /srv/capercailye/live/
-cp $CAPERCAILYE_DATA/capercailye-busstops.pmtiles /srv/capercailye/live/
+sudo mkdir /srv/capercailye
+sudo chown "$USER": /srv/capercailye     # der Updater im Container läuft mit UID 1000, siehe „Rechte“
 ```
 
-Der Dateiname `capercailye-de.pmtiles` ist im App-Build festgelegt (`VITE_PMTILES_PATH` im
-Dockerfile).
-
-## Start
+Auf dem Entwicklungsrechner:
 
 ```sh
-cd deploy
-docker compose up -d --build
+cp deploy/deploy.env.example deploy/deploy.env     # DEPLOY_HOST (ssh-Ziel) eintragen
+scp deploy/.env.example <ssh-ziel>:/srv/capercailye/.env
+ssh <ssh-ziel> nano /srv/capercailye/.env          # DOMAIN prüfen, RAM-Werte anpassen
 ```
 
-Die Domain steckt beim Build in `canonical`, `og:*`, `robots.txt` und `sitemap.xml`; nach einer
-Änderung von `DOMAIN` also neu bauen (der Befehl oben).
+**Traefik an das Projektnetzwerk hängen.** `compose.yaml` legt das Netzwerk `capercailye_network`
+selbst an; der Traefik muss darin Mitglied sein, sonst erreicht er den Container nicht. Das Netzwerk
+muss dafür **zuerst existieren**, also zuerst einmal deployen (Traefik kennt es noch nicht, der
+Container läuft aber schon):
+
+```sh
+deploy/deploy.sh
+```
+
+Danach im Compose-File des Proxys den Dienst `traefik` zusätzlich in dieses Netzwerk hängen:
+
+```yaml
+services:
+  traefik:
+    networks:
+      - capercailye_network      # zu den vorhandenen Netzwerken hinzufügen
+networks:
+  capercailye_network:
+    external: true
+```
+
+und den Proxy neu starten (im Verzeichnis dieses Compose-Files, mit `sudo`, falls es root gehört):
+`docker compose up -d`. Ohne diesen Schritt liefert die Domain „Gateway Timeout“ oder 404.
+Das Zertifikat holt Traefik beim ersten HTTPS-Aufruf selbst (Resolver `letsencrypt`).
+
+Traefik veröffentlicht Container möglicherweise standardmäßig
+(`exposedbydefault=true`); der Updater hat deshalb `traefik.enable=false`.
+
+## Deploy
+
+```sh
+deploy/deploy.sh                 # committeten HEAD bauen und starten
+deploy/deploy.sh --update-now    # zusätzlich sofort einen Daten-Update starten (erste Daten!)
+```
+
+Weitere Optionen: `--allow-dirty` (trotz uncommitteter Änderungen; deployt trotzdem nur den
+committeten HEAD und listet die ausgelassenen Dateien auf), `--no-up` (nur hochladen und `app/`
+austauschen, nichts bauen), `--help`. `DEPLOY_HOST`/`DEPLOY_DIR` stehen in `deploy/deploy.env` oder
+in der Umgebung. Die Domain steckt beim Image-Build in `canonical`, `og:*`, `robots.txt` und
+`sitemap.xml`; nach einer Änderung von `DOMAIN` in `.env` also neu deployen.
+
+Der Build auf dem Server (Bun-Build der App, Planetiler-JAR, tippecanoe aus dem Quelltext) dauert beim
+ersten Mal einige Minuten; danach nutzt Docker seinen Schichtcache.
+
+### Erste Daten
+
+Die Kacheln entstehen beim ersten Updater-Lauf (Auszug ~4–5 GB, dauert für Deutschland länger):
+
+```sh
+deploy/deploy.sh --update-now
+# Log verfolgen (der Befehl wird am Ende ausgegeben):
+ssh <ssh-ziel> 'tail -n +1 -f "$(ls -t /srv/capercailye/work/logs/update-*.log | head -1)"'
+```
+
+Bis die Kacheln in `live/` liegen, zeigt die App keine Karte. Wer sie schon lokal gebaut hat, kopiert
+sie stattdessen: `scp capercailye-de.pmtiles capercailye-busstops.pmtiles <ssh-ziel>:/srv/capercailye/live/`.
+Der Dateiname `capercailye-de.pmtiles` ist im App-Build festgelegt (`VITE_PMTILES_PATH` im Dockerfile).
+
+### Rollback
+
+- **App:** der vorige Stand liegt in `app.prev/`:
+  ```sh
+  cd /srv/capercailye && rm -rf app.bad && mv app app.bad && mv app.prev app
+  cd app/deploy && docker compose --env-file /srv/capercailye/.env up -d --build
+  ```
+- **Daten:** `work/prev/` (siehe „Betrieb“ unter „Updater“).
+
+### Speichergrenzen
+
+Der Updater wird über diese Werte in `.env` eingestellt:
+`UPDATER_MEM_LIMIT=5g`, `JAVA_XMX=3g`, `UPDATER_CPUS=4` (alles in `.env`). Planetiler legt
+Knotendaten in mmap-Dateien: bei Speicherdruck wird der Lauf langsamer statt abgebrochen. Reicht das
+Limit nicht (Container wird beendet, `docker inspect` zeigt `OOMKilled`), `JAVA_XMX` senken oder das
+Limit erhöhen. nginx braucht unter 100 MB.
 
 ## Lokal testen
 
-Ohne Traefik des Zielsystems, auf einem Entwicklungsrechner:
+Ohne Traefik des Zielsystems, auf dem Entwicklungsrechner (Docker-Build der eigenen Architektur):
 
 ```sh
 cd deploy
 cp .env.example .env
-# in .env: DOMAIN=localhost und DATA_ROOT=$HOME/capercailye-data (absoluter Pfad)
+# in .env: DOMAIN=localhost und DATA_ROOT=$HOME/capercailye-data (absoluter Pfad); die lokale .env steht in .gitignore
 mkdir -p ~/capercailye-data/live
 cp $CAPERCAILYE_DATA/capercailye-de.pmtiles ~/capercailye-data/live/   # oder -rp/-bw umbenannt
 
 docker compose -f compose.yaml -f compose.local.yaml up -d --build
 ```
 
-Das startet zusätzlich einen Wegwerf-Traefik (HTTP, Port 8080) und legt das Netzwerk an. Prüfen:
+Das startet zusätzlich einen Wegwerf-Traefik (HTTP, Port 8080) im Netzwerk `capercailye_network`. Prüfen:
 
 ```sh
 curl -sI http://localhost:8080/               # 200, Landingpage
@@ -77,17 +157,6 @@ curl -sI -H 'Range: bytes=0-16383' http://localhost:8080/app/data/capercailye-de
 ```
 
 Im Browser: <http://localhost:8080/>. Aufräumen: `docker compose -f compose.yaml -f compose.local.yaml down`.
-
-## Aktualisieren der App
-
-```sh
-git pull
-cd deploy
-docker compose up -d --build
-```
-
-Die Daten in `live/` bleiben dabei unberührt; nginx liest eine ersetzte PMTiles-Datei beim
-nächsten Request neu ein.
 
 ## Updater
 
@@ -106,21 +175,23 @@ fehlt; sonst steht im Log „Haltestellen: kein neuer Fahrplan, übersprungen“
 ### Rechte
 
 Der Container läuft als Benutzer mit UID 1000 (Build-Arg `UPDATER_UID`, z. B. `docker compose build --build-arg UPDATER_UID=1001 updater`). `DATA_ROOT` (`/srv/capercailye`) muss für diese UID beschreibbar sein:
-`sudo chown -R 1000:1000 /srv/capercailye`. nginx liest `live/` nur (`:ro`); die Dateien sind
+`sudo chown -R 1000:1000 /srv/capercailye` (hat der Benutzer, der deployt, die UID 1000, passt das schon). nginx liest `live/` nur (`:ro`); die Dateien sind
 weltlesbar (umask 022).
 
 ### Erster Lauf von Hand
 
+Auf dem Server (Alternative zu `deploy.sh --update-now`, im Vordergrund):
+
 ```sh
-cd deploy
-docker compose build updater
-docker compose run --rm updater /opt/capercailye/update.sh
+cd /srv/capercailye/app/deploy
+docker compose --env-file /srv/capercailye/.env build updater
+docker compose --env-file /srv/capercailye/.env run --rm updater /opt/capercailye/update.sh
 ```
 
 Das lädt den Auszug (~4–5 GB) und den GTFS-Feed (~0,3 GB), baut alles und füllt `live/`. Läuft im Vordergrund
 (Strg-C bricht ab, `live/` bleibt unberührt). Speicher beobachten, in einem zweiten Terminal:
-`docker stats` (Spalte MEM USAGE; Obergrenze: Speichergrenze des Containers). Am Ende druckt das Skript eine Zusammenfassung mit
-Dauer und größtem Speicherverbrauch (RSS) je Schritt. Danach `docker compose up -d`: der Updater läuft dann
+`docker stats` (Spalte MEM USAGE; Obergrenze `UPDATER_MEM_LIMIT`). Am Ende druckt das Skript eine Zusammenfassung mit
+Dauer und größtem Speicherverbrauch (RSS) je Schritt. Danach `deploy/deploy.sh`: der Updater läuft dann
 dauerhaft und startet nach Zeitplan.
 
 ### Betrieb
@@ -129,7 +200,7 @@ dauerhaft und startet nach Zeitplan.
   auf Sonntage, der Termin entfällt also nie und läuft nie doppelt.
 - **Logs:** `docker compose logs updater` (Cron-Meldungen und die Ausgabe jedes Laufs); je Lauf eine Datei
   `work/logs/update-JJJJMMTT-HHMM.log`, die letzten 8 bleiben.
-- **Von Hand während der Dienst läuft:** `docker compose exec updater /opt/capercailye/update.sh`.
+- **Von Hand während der Dienst läuft:** `deploy/deploy.sh --update-now` oder auf dem Server (im Verzeichnis `app/deploy`, mit `--env-file`) `docker compose exec -d updater /opt/capercailye/update.sh`.
   Eine Sperre (`work/update.lock`) verhindert zwei Läufe gleichzeitig; der zweite bricht sofort ab.
   Für einen anderen Auszug lässt sich z. B. `-e PBF_URL=… -e AREA=…` an `exec` anhängen (nur zum Testen).
 - **Rollback:** Die Vorgängerversion jeder getauschten Datei liegt in `work/prev/`. Zurück:
@@ -139,16 +210,16 @@ dauerhaft und startet nach Zeitplan.
   (gleich für `capercailye-busstops.pmtiles`; laufende Anfragen beenden sich auf dem alten Inode).
 - **Healthcheck:** `HEALTHCHECK_URL` in `.env` (z. B. healthchecks.io): Ping nach erfolgreichem Lauf, bei
   einem Fehler `<URL>/fail`. Ein fehlgeschlagener Ping lässt den Lauf nie scheitern.
-- **Neues Image** (nach `git pull`): `docker compose up -d --build`. Ein gerade laufender Update-Lauf
-  wird dabei abgebrochen; `live/` bleibt unverändert.
+- **Neues Image** (jeder `deploy.sh`-Lauf baut neu): Wird das Updater-Image dabei ersetzt, bricht ein
+  gerade laufender Update-Lauf ab; `live/` bleibt unverändert.
 
 ### Speicher und Platte
 
-- **RAM:** Container-Limit `mem_limit: 10g`, Java-Heap `JAVA_XMX=6g` (`.env`). Planetiler legt Knotendaten in
+- **RAM:** Container-Limit `UPDATER_MEM_LIMIT` (Standard 5g), Java-Heap `JAVA_XMX` (Standard 3g) in `.env`. Planetiler legt Knotendaten in
   mmap-Dateien (Seitencache, wird bei Druck freigegeben: langsamer statt OOM). Die Schritte laufen nacheinander.
-  Zu wenig Speicher: `JAVA_XMX` senken (z. B. 4g).
+  Zu wenig Speicher: `JAVA_XMX` senken (z. B. 2g).
 - **CPU:** `UPDATER_CPUS=4` (`.env`) begrenzt den Container und setzt die Planetiler-Threads; der Lauf
-  läuft mit `nice -n 10`. Auf dem Server mindestens einen Kern für nginx freilassen.
+  läuft mit `nice -n 10`. Mindestens einen Kern für nginx freilassen.
 - **Platte:** mindestens 60 GB frei auf der Platte von `DATA_ROOT` (`MIN_FREE_GB`; das Skript bricht sonst vor
   dem Download ab): Auszug ~5 GB, Planetiler-Zwischendateien ~20–30 GB (nur während des Laufs), GTFS ~2,5 GB (Zip und entpackt),
   Kacheln je ~5 GB für `live/` und `work/prev/`. `work/` und `live/` müssen auf demselben Dateisystem

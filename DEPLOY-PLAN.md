@@ -5,7 +5,7 @@ app at `/app/`, vector tiles for Germany (`capercailye-de.pmtiles`) plus bus sto
 **Tuesday at 02:23 (Europe/Berlin)** a fresh OSM extract and GTFS feed are downloaded, the tiles are
 rebuilt and swapped in without downtime. Keep it simple; the updater's memory use is capped in `.env`.
 
-Status: Phase 1 and 2 done (2026-11-14, Phase 2 tested locally with compose.local.yaml); Phase 3 written and tested outside Docker (Bremen extract), first Germany run in Docker pending. Replaces the "nur lokal" line in PLAN.md once done.
+Status: deployment target decided (scp deploy, images built on the server; see 2, 3, 6); Phase 1 and 2 done (2026-11-14, Phase 2 tested locally with compose.local.yaml); Phase 3 written and tested outside Docker (Bremen extract), first Germany run in Docker pending. Replaces the "nur lokal" line in PLAN.md once done.
 
 ## 1. Facts this plan builds on
 
@@ -17,7 +17,9 @@ Status: Phase 1 and 2 done (2026-11-14, Phase 2 tested locally with compose.loca
 - Data dates are read from the files at runtime (`planetiler:osm:osmosisreplicationtime`,
   `feed_date=` in the bus stop description) → the "Stand" in the credits updates by itself.
 - Relief (Mapterhorn) and search (Photon/komoot) are external services, called from the browser.
-- The target is a server with Docker and Traefik as reverse proxy (owns ports 80/443, handles TLS).
+- The target is a server with Docker and Traefik as reverse proxy (owns ports 80/443, handles TLS). It runs
+  in its own compose project and joins one external network per project; it may publish containers
+  by default, so every service sets `traefik.enable` explicitly.
 
 ## 2. Architecture (option B: one nginx behind Traefik)
 
@@ -27,7 +29,7 @@ Status: Phase 1 and 2 done (2026-11-14, Phase 2 tested locally with compose.loca
                                                            /app/      → web/dist (map app)
                                                            /app/data/ → /srv/capercailye/live (ro)
 
-      updater  (no ports, not on the proxy network)
+      updater  (no ports, `traefik.enable=false`, only on the project's default network)
         supercronic "23 2 * * 2" → update.sh → builds in work/, swaps into live/
 ```
 
@@ -35,8 +37,8 @@ Status: Phase 1 and 2 done (2026-11-14, Phase 2 tested locally with compose.loca
 
 | Service | Image | Job |
 |---|---|---|
-| `web` | own, multi-stage: `oven/bun` build → `nginx:alpine` | Serves landing page, app and tiles. Joins the Traefik network (external) with a few labels. |
-| `updater` | own: `eclipse-temurin:21-jre` + bun + tippecanoe + supercronic | Weekly build and swap. `mem_limit: 10g`. |
+| `web` | own, multi-stage: `oven/bun` build → `nginx:alpine` | Serves landing page, app and tiles. Joins the project's own network `capercailye_network` (created by this compose project, fixed name) with a few labels: HTTPS router plus an HTTP router that redirects to HTTPS. Traefik is added to that network in the proxy's own compose file. |
+| `updater` | own: `eclipse-temurin:21-jre` + bun + tippecanoe + supercronic | Weekly build and swap. `mem_limit: 5g`. |
 
 Why one nginx instead of two containers routed by Traefik: both parts are static files from one
 repo, deployed together. One Traefik rule (`Host(DOMAIN)`) and nginx does path routing, cache
@@ -53,9 +55,9 @@ Data on the host under one bind mount (one filesystem, so the swap is an atomic 
 
 | Resource | Plan |
 |---|---|
-| RAM | updater `mem_limit: 10g`, `JAVA_XMX=6g`. Planetiler keeps node data in mmap files (page cache, reclaimable) → slower under pressure, not OOM. Steps run sequentially, never in parallel. nginx < 100 MB. |
+| RAM | updater `mem_limit: 5g`, `JAVA_XMX=3g` (both overridable in `.env`). Planetiler keeps node data in mmap files (page cache, reclaimable) → slower under pressure, not OOM. Steps run sequentially, never in parallel. nginx < 100 MB. |
 | Unknown | memory of `transit/busstops.ts` on the full German GTFS feed – measure in Phase 3 |
-| CPU | `cpus:` limit on the updater leaving ≥ 1 core for nginx; `nice -n 10` |
+| CPU | `cpus: 4` and 4 Planetiler threads on the updater (≥ 1 core left for nginx); `nice -n 10` |
 | Disk | PBF 5 GB + Planetiler tmp ~20–30 GB + GTFS ~8 GB + tiles ~5 GB × 2 (live + prev) → ≥ 60 GB free |
 
 ## 4. Phase 1 – app changes (no Docker yet)
@@ -80,9 +82,10 @@ deploy/
 ├── README.md                 setup, first run, manual update, rollback
 ├── compose.yaml
 ├── compose.local.yaml        Wegwerf-Traefik für lokale Tests (HTTP, Port 8080)
-├── .env.example              DOMAIN, TRAEFIK_NETWORK, TRAEFIK_ENTRYPOINT, TRAEFIK_CERTRESOLVER,
-│                             DATA_ROOT=/srv/capercailye, JAVA_XMX=6g, TZ=Europe/Berlin,
-│                             HEALTHCHECK_URL (optional)
+├── deploy.sh                 scp deploy: git archive HEAD → server, `docker compose up -d --build` there
+├── deploy.env.example        DEPLOY_HOST, DEPLOY_DIR (real deploy.env is gitignored)
+├── .env.example              DOMAIN, DATA_ROOT=/srv/capercailye, JAVA_XMX=3g, UPDATER_MEM_LIMIT=5g,
+│                             UPDATER_CPUS=4, HEALTHCHECK_URL; TRAEFIK_ENTRYPOINT/CERTRESOLVER optional
 ├── web/Dockerfile            bun build (VITE_BASE=/app/, VITE_PMTILES_PATH=…-de…; sed DOMAIN into
 │                             site/) → nginx:alpine with site/ at /, dist at /app/
 ├── web/nginx.conf
@@ -98,11 +101,12 @@ deploy/
 
 ### compose.yaml (shape)
 
-- `web`: `networks: [proxy]` with `proxy` declared `external: true, name: ${TRAEFIK_NETWORK}`;
-  labels `traefik.enable=true`, `traefik.http.routers.capercailye.rule=Host(\`${DOMAIN}\`)`,
-  entrypoint and certresolver from `.env`, `traefik.http.services.capercailye.loadbalancer.server.port=80`;
+- top-level `name: capercailye`; `web` joins `capercailye_network` (declared with that fixed name, created
+  by this project; Traefik joins it from the proxy's compose file); labels: router `capercailye`
+  (`Host(\`${DOMAIN}\`)`, `websecure`, tls, certresolver `letsencrypt`) + router `capercailye-http`
+  (`web` entrypoint, `redirectscheme` middleware to https, permanent), service port 80, `traefik.docker.network`;
   volume `${DATA_ROOT}/live:/usr/share/nginx/html/app/data:ro`; healthcheck; `restart: unless-stopped`.
-- `updater`: volume `${DATA_ROOT}:/srv/capercailye`; `mem_limit: 10g`; `cpus:` limit; env
+- `updater`: volume `${DATA_ROOT}:/srv/capercailye`; `mem_limit: ${UPDATER_MEM_LIMIT:-5g}`; `cpus: 4`; `traefik.enable=false`; env
   `JAVA_XMX`, `TZ`, `HEALTHCHECK_URL`; `restart: unless-stopped`; default network only.
 - No compression middleware in Traefik for this router (compressing range responses breaks PMTiles).
 
@@ -123,7 +127,7 @@ deploy/
 2. Download `https://download.geofabrik.de/europe/germany-latest.osm.pbf` with `curl -z` to `.part`,
    verify `.md5`, `mv` into place. Generic user agent `capercailye-updater`.
 3. `nice -n 10 tiles/build.sh work/germany-latest.osm.pbf de` into `work/build/` with
-   `JAVA_XMX=6g` (small change to `tiles/build.sh`: honour `PLANETILER_JAR` for the baked-in jar).
+   `JAVA_XMX` (default 3g; small change to `tiles/build.sh`: honour `PLANETILER_JAR` for the baked-in jar).
 4. Bus stops: download a new GTFS feed only if none exists in `work/gtfs` or the newest is older
    than the last 15 December (Fahrplanwechsel); rebuild the bus stop file only then or when it is
    missing from `live/`. Keep only the newest GTFS dir. On failure keep the old bus stop file and
@@ -143,10 +147,12 @@ fall on Sundays, so Tuesday 02:23 is never skipped or doubled.
 1. **App ready for `/app/` and Germany** (section 4).
 2. **web image + compose**, tested locally against a throwaway Traefik on a test network: `/`,
    `/app/`, `206` on a Range request, no `Content-Encoding` on `.pmtiles`, immutable assets.
-3. **updater image, first Germany build by hand** (`docker compose run --rm updater
-   /opt/capercailye/update.sh`); record duration, peak RAM per step, disk peak, output size.
-4. **Server**: DNS, `git clone`, `.env`, `mkdir -p /srv/capercailye/{live,work}`, initial data (run
-   updater or `rsync` a local build), `docker compose up -d`.
+3. **updater image, first Germany build** (`deploy/deploy.sh --update-now` or by hand on the server
+   with `docker compose run --rm updater /opt/capercailye/update.sh`); record duration, peak RAM per step, disk peak, output size.
+4. **Server**: DNS, `mkdir /srv/capercailye` (owned by the deploy user), `.env` copied from
+   `.env.example`, first `deploy/deploy.sh` from the dev machine (scp, images built on the server, no
+   registry, no CI; creates `capercailye_network`), add Traefik to that network in the proxy's compose
+   file, initial data (`deploy.sh --update-now` or `scp` a local build into `live/`). Details: `deploy/README.md`.
 5. **Schedule and failure paths**: cron fires; failed download leaves live untouched and pings
    `/fail`; `flock` blocks a second run; open app survives the swap; rollback from `work/prev/`.
 6. **Docs**: `deploy/README.md`, README.md, PLAN.md "Betrieb".
@@ -155,7 +161,7 @@ fall on Sundays, so Tuesday 02:23 is never skipped or doubled.
 
 | Point | Risk | Proposal |
 |---|---|---|
-| RAM 10 GB | Planetiler or `busstops.ts` exceed the cap on Germany | Measure in Phase 3; lower `JAVA_XMX`, or stream GTFS in `busstops.ts` if needed |
+| RAM 5 GB | Planetiler or `busstops.ts` exceed the cap on Germany | Measure in Phase 3; lower `JAVA_XMX`, or stream GTFS in `busstops.ts` if needed |
 | Photon (komoot) | Public instance with fair-use limits | Fine at launch; self-host later if traffic grows |
 | Mapterhorn, gtfs.de | Terms for a public site | Check before launch |
 | Origin traffic | Many range requests per map view | No CDN at start; add one for `/app/data/` if needed |

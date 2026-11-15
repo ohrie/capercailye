@@ -15,7 +15,11 @@ RUN git clone --depth 1 --branch "$TIPPECANOE_VERSION" https://github.com/felt/t
 FROM eclipse-temurin:21-jdk-noble
 ARG PLANETILER_VERSION=0.10.2
 ARG SUPERCRONIC_VERSION=0.2.51
-ARG SUPERCRONIC_SHA1=1692066e350a88ff4d7d6474fe3c7a6c41ec5e89
+# SHA1 je Architektur laut Release-Notes von supercronic v0.2.51
+ARG SUPERCRONIC_SHA1_AMD64=1692066e350a88ff4d7d6474fe3c7a6c41ec5e89
+ARG SUPERCRONIC_SHA1_ARM64=9d4c2000493215a1898502b2fc2dada3e8ea8c7a
+# Wird von BuildKit gesetzt (amd64/arm64); ohne BuildKit leer, dann gilt dpkg unten
+ARG TARGETARCH
 # Benutzer im Container; /srv/capercailye auf dem Host muss für diese UID beschreibbar sein
 ARG UPDATER_UID=1000
 
@@ -27,9 +31,15 @@ RUN apt-get update \
 COPY --from=tippecanoe /usr/local/bin/tippecanoe /usr/local/bin/tile-join /usr/local/bin/
 COPY --from=oven/bun:1.4.2 /usr/local/bin/bun /usr/local/bin/bun
 
-RUN curl -fsSL -o /usr/local/bin/supercronic \
-      "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/supercronic-linux-amd64" \
- && echo "${SUPERCRONIC_SHA1}  /usr/local/bin/supercronic" | sha1sum -c - \
+RUN arch="${TARGETARCH:-$(dpkg --print-architecture)}" \
+ && case "$arch" in \
+      amd64) sha1="${SUPERCRONIC_SHA1_AMD64}" ;; \
+      arm64) sha1="${SUPERCRONIC_SHA1_ARM64}" ;; \
+      *) echo "supercronic: Architektur $arch nicht unterstützt" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSL -o /usr/local/bin/supercronic \
+      "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/supercronic-linux-${arch}" \
+ && echo "${sha1}  /usr/local/bin/supercronic" | sha1sum -c - \
  && chmod +x /usr/local/bin/supercronic
 
 RUN mkdir -p /opt/planetiler \

@@ -1,6 +1,7 @@
 # Lokaler Test ohne Traefik des Zielsystems:
 #   docker compose -f compose.yaml -f compose.local.yaml up -d --build   (mit DOMAIN=localhost in .env)
-# Startet einen Wegwerf-Traefik mit HTTP auf Port 8080 und legt das Netzwerk an.
+# Startet einen Wegwerf-Traefik mit HTTP auf Port 8080 im Netzwerk capercailye_network (das Projekt
+# legt es selbst an).
 services:
   traefik:
     image: traefik:v3.7
@@ -13,17 +14,13 @@ services:
       - "8080:80"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks: [proxy]
+    networks: [capercailye]
 
   web:
-    # Labels komplett ersetzen (!override): Klartext-HTTP ohne TLS und ohne Zertifikatsresolver
+    # Labels komplett ersetzen (!override): Klartext-HTTP ohne TLS, Resolver und Weiterleitung
     labels: !override
       - traefik.enable=true
-      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.docker.network=capercailye_network
       - traefik.http.routers.capercailye.rule=Host(`${DOMAIN}`)
       - traefik.http.routers.capercailye.entrypoints=web
       - traefik.http.services.capercailye.loadbalancer.server.port=80
-
-networks:
-  proxy:
-    external: false

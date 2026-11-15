@@ -7,3 +7,4 @@ web/public/data
 .DS_Store
 
 deploy/.env
+deploy/deploy.env

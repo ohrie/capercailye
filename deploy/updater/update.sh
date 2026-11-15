@@ -7,7 +7,7 @@
 #   ROOT            Datenverzeichnis mit live/ und work/            (/srv/capercailye)
 #   PBF_URL         OSM-Auszug; Geofabrik liefert <URL>.md5 mit      (…/europe/germany-latest.osm.pbf)
 #   AREA            Gebietskürzel im Dateinamen capercailye-<AREA>.pmtiles   (de)
-#   JAVA_XMX        Java-Heap für Planetiler                         (6g)
+#   JAVA_XMX        Java-Heap für Planetiler                         (3g)
 #   THREADS         Planetiler-Threads                               (nproc)
 #   MIN_FREE_GB     Abbruch, wenn auf ROOT weniger frei ist          (60)
 #   BUSSTOPS        1 = Bushaltestellen mitbauen, 0 = überspringen   (1)
@@ -27,7 +27,7 @@ umask 022
 ROOT="${ROOT:-/srv/capercailye}"
 PBF_URL="${PBF_URL:-https://download.geofabrik.de/europe/germany-latest.osm.pbf}"
 AREA="${AREA:-de}"
-JAVA_XMX="${JAVA_XMX:-6g}"
+JAVA_XMX="${JAVA_XMX:-3g}"
 THREADS="${THREADS:-$(nproc)}"
 MIN_FREE_GB="${MIN_FREE_GB:-60}"
 BUSSTOPS="${BUSSTOPS:-1}"

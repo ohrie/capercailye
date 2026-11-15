@@ -1,47 +1,64 @@
-# Karten-App hinter Traefik. Einrichtung: README.md, Variablen: .env.
+# Karten-App hinter Traefik. Einrichtung und Deploy: README.md, Variablen: .env.
+name: capercailye
+
 services:
   web:
     build:
       context: ..
       dockerfile: deploy/web/Dockerfile
       args:
-        DOMAIN: ${DOMAIN:?DOMAIN fehlt in deploy/.env}
+        DOMAIN: ${DOMAIN:?DOMAIN fehlt in .env}
     image: capercailye-web
+    container_name: capercailye-web
     restart: unless-stopped
     mem_limit: 256m
-    networks: [proxy]
+    networks: [capercailye]
     volumes:
       # PMTiles-Dateien; schreibt später nur der Updater
-      - ${DATA_ROOT:?DATA_ROOT fehlt in deploy/.env}/live:/usr/share/nginx/html/app/data:ro
+      - ${DATA_ROOT:?DATA_ROOT fehlt in .env}/live:/usr/share/nginx/html/app/data:ro
     labels:
       - traefik.enable=true
-      - traefik.docker.network=${TRAEFIK_NETWORK:?TRAEFIK_NETWORK fehlt in deploy/.env}
+      - traefik.docker.network=capercailye_network
+      # HTTPS-Router
       - traefik.http.routers.capercailye.rule=Host(`${DOMAIN}`)
-      - traefik.http.routers.capercailye.entrypoints=${TRAEFIK_ENTRYPOINT:?TRAEFIK_ENTRYPOINT fehlt in deploy/.env}
+      - traefik.http.routers.capercailye.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
       - traefik.http.routers.capercailye.tls=true
-      - traefik.http.routers.capercailye.tls.certresolver=${TRAEFIK_CERTRESOLVER:?TRAEFIK_CERTRESOLVER fehlt in deploy/.env}
+      - traefik.http.routers.capercailye.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.capercailye.service=capercailye
       - traefik.http.services.capercailye.loadbalancer.server.port=80
-      # Keine Kompression-Middleware an diesem Router (würde Range-Antworten der PMTiles verändern).
+      # HTTP-Router: Weiterleitung auf HTTPS (falls der Traefik keine globale Weiterleitung hat)
+      - traefik.http.routers.capercailye-http.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.capercailye-http.entrypoints=web
+      - traefik.http.routers.capercailye-http.middlewares=capercailye-to-https
+      - traefik.http.routers.capercailye-http.service=capercailye
+      - traefik.http.middlewares.capercailye-to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.capercailye-to-https.redirectscheme.permanent=true
+      # Keine Kompression-Middleware an diesen Routern (würde Range-Antworten der PMTiles verändern).
 
   # Wöchentlicher Neuaufbau der Kacheln (Dienstag 02:23 Europe/Berlin), Tausch in live/. Kein Port,
-  # nicht im Traefik-Netzwerk. Rechte, Zeitplan und Handlauf: README.md.
+  # nur im Standardnetzwerk des Projekts, nicht im Traefik-Netzwerk. Rechte, Zeitplan und Handlauf: README.md.
   updater:
     build:
       context: ..
       dockerfile: deploy/updater/Dockerfile
     image: capercailye-updater
+    container_name: capercailye-updater
     restart: unless-stopped
-    mem_limit: 10g
+    mem_limit: ${UPDATER_MEM_LIMIT:-5g}
     cpus: ${UPDATER_CPUS:-4}
     environment:
-      JAVA_XMX: ${JAVA_XMX:-6g}
+      JAVA_XMX: ${JAVA_XMX:-3g}
       THREADS: ${UPDATER_CPUS:-4}
       TZ: Europe/Berlin
       HEALTHCHECK_URL: ${HEALTHCHECK_URL:-}
     volumes:
-      - ${DATA_ROOT:?DATA_ROOT fehlt in deploy/.env}:/srv/capercailye
+      - ${DATA_ROOT:?DATA_ROOT fehlt in .env}:/srv/capercailye
+    labels:
+      # Hat der Traefik exposedbydefault=true, würde er den Updater sonst veröffentlichen: ausdrücklich abschalten
+      - traefik.enable=false
 
+# Das Netzwerk legt dieses Projekt selbst an (fester Name); der Traefik hängt sich als externes
+# Netzwerk daran (siehe README.md).
 networks:
-  proxy:
-    external: true
-    name: ${TRAEFIK_NETWORK}
+  capercailye:
+    name: capercailye_network
