@@ -15,7 +15,7 @@ const { title, lang, noindex = false } = Astro.props;
 <Base title={title} lang={lang}>
   <Fragment slot="head">
     <slot name="head" />
-    {noindex && <meta name="robots" content="noindex" />}
+    {noindex && <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />}
     <meta name="theme-color" content="#fcfbf6" />
   </Fragment>
   <slot />
