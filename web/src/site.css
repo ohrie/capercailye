@@ -172,16 +172,25 @@ a:hover {
   gap: 20px;
 }
 
-.nav a:not(.btn) {
+.nav a:not(.btn, .nav__github) {
   color: var(--ink);
   font-weight: 600;
   font-size: 15px;
   text-decoration: none;
 }
 
-.nav a:not(.btn):hover {
+.nav a:not(.btn, .nav__github):hover {
   color: var(--trail);
   text-decoration: underline;
+}
+
+.nav__github {
+  display: inline-flex;
+  color: var(--ink);
+}
+
+.nav__github:hover {
+  color: var(--trail);
 }
 
 /* Hero */
@@ -540,7 +549,7 @@ section {
 }
 
 @media (max-width: 639px) {
-  .nav a:not(.btn) {
+  .nav a:not(.btn, .nav__github) {
     display: none;
   }
   section {

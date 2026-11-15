@@ -1,4 +1,8 @@
-# capercailye
+<p align="center">
+  <img src="web/public/logo.svg" width="96" height="96" alt="capercailye-Logo">
+</p>
+
+<h1 align="center">capercailye</h1>
 
 Wanderkarten on demand aus OpenStreetMap: Gebiet wählen, Anzahl A4-Seiten wählen, Vorschau prüfen,
 PDF exportieren und selbst drucken. Alles läuft lokal im Browser (MapLibre GL JS auf eigenen
