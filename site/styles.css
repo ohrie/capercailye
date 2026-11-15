@@ -573,3 +573,18 @@ section {
     scroll-behavior: auto;
   }
 }
+
+/* Open source and thanks */
+.thanks h3 {
+  margin: 32px 0 12px;
+  font-size: 20px;
+}
+
+.credits {
+  display: grid;
+  gap: 10px;
+  max-width: 40em;
+  margin: 0;
+  padding-left: 1.2em;
+  color: var(--ink-muted);
+}
