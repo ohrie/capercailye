@@ -63,7 +63,7 @@ describe("waymarks layer", () => {
       ).visibility;
     expect(visibilityOf(defaultVisibility())).toBe("visible");
     expect(visibilityOf({ ...defaultVisibility(), routes: false })).toBe("none");
-    // A stored value of the former sign switch has no effect any more.
+    // The `waymarks` group has no switch of its own: only `routes` and the network switches count.
     expect(visibilityOf({ ...defaultVisibility(), waymarks: false })).toBe("visible");
   });
 

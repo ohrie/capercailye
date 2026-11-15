@@ -11,7 +11,7 @@ robots.txt, sitemap.xml
 img/            map screenshots (scripts/snapshots.ts): dahn, calmont, schwarzwald, feldberg, gpx, print
                 (each .jpg and @2x.jpg) and og-image.jpg
 scripts/logo.ts generates logo.svg and favicon.svg from a pixel matrix
-scripts/snapshots.ts renders img/ from the running web app (needs two dev servers, see its header)
+scripts/snapshots.ts renders img/ from the running web app (needs two dev servers and a Chrome binary, see its header; `CHROME_PATH` sets the binary)
 mail.js         assembles the contact address in the browser (Impressum, Datenschutz)
 impressum/, datenschutz/   legal pages (German)
 quellen/        sources and licences page (German; OSM, relief per state, bus stops, fonts, libraries); linked

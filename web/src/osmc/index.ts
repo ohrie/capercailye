@@ -21,7 +21,7 @@
 // are unambiguous. Equal attribute sets share an image.
 //
 // `waymarkImageExpression()` builds the same id from the attributes of a `routes` tile feature (for
-// layers that read the tiles directly; the map no longer does).
+// layers that read the tiles directly).
 //
 // The module registers its provider on import (like style/shields.ts).
 import type { ExpressionSpecification } from "@maplibre/maplibre-gl-style-spec";

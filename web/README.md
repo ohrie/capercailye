@@ -1,7 +1,7 @@
 # capercailye – Web-App
 
-Bun + Vite + TypeScript (ohne Framework), MapLibre GL JS, PMTiles, jsPDF. Stand: Meilenstein M6
-(Schalter, Photon-Suche, GPX-Upload, Feinschliff der Oberfläche).
+Bun + Vite + TypeScript (ohne Framework), MapLibre GL JS, PMTiles, jsPDF. Funktionen: Ebenen-Schalter,
+Photon-Suche, GPX-Upload, Blattschnitt und mehrseitiger PDF-Export.
 
 ## Befehle
 
@@ -18,8 +18,9 @@ bun run fmt:check    # Formatierung prüfen
 ## Daten
 
 Die PMTiles werden nicht ins Repo kopiert. Der Dev-Server liefert `/data/*` aus
-`$CAPERCAILYE_DATA/` mit Range-Requests (206) aus; ein anderes Verzeichnis per
-`CAPERCAILYE_DATA=/pfad bun run dev`. Erwartet wird die Datei aus `PMTILES_PATH` in `src/config.ts` (derzeit `capercailye-rp.pmtiles`) (Schema:
+dem Verzeichnis `CAPERCAILYE_DATA` mit Range-Requests (206) aus. Der Wert kommt aus der Umgebung
+(`CAPERCAILYE_DATA=/pfad bun run dev`) oder aus der gitignorten Datei `web/.env.local`; Standard ist
+`~/.local/share/capercailye`. Erwartet wird die Datei aus `PMTILES_PATH` in `src/config.ts` (Standard `capercailye-rp.pmtiles`) (Schema:
 `../tiles/SCHEMA.md`). Optional ist `capercailye-busstops.pmtiles` (GTFS-Bushaltestellen aus
 `../transit/`, Layer `bus_stop`, Attribute `name`, `sat`, `sun`, `min`, Zoom 10–14, SPEC.md 5):
 `src/data.ts` prüft beim Start per Range-Request auf die PMTiles-Kennung; fehlt die Datei, wird
@@ -137,14 +138,14 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   - **Höchstens 24 Blätter** (`MAX_SHEETS`): bei mehr (Maßstab-Modus) gibt es keine Blätter, nur den
     Gebietsumriss und den Hinweis „Gebiet zu groß“; der Export ist gesperrt.
   - **Druckansicht** nutzt `layout.zoom`; die Platzierungsregion ist das Raster (druckbare Flächen)
-    plus 5 mm Zugabe. Im Export wird jedes Blatt einzeln platziert (Blatt + Zugabe, wie bisher):
+    plus 5 mm Zugabe. Im Export wird jedes Blatt einzeln platziert (Blatt + Zugabe):
     in den Überlappungen können verdrängte Symbole oder Namen deshalb leicht abweichen; Linien und
     Flächen sind deckungsgleich.
   - **Blattrand im PDF** (`print/pdf.ts`): Maßstabszahl, Leiste (höchstens 40 mm), Nordpfeil,
     „Blatt n von N“ (nur bei mehr als einem Blatt) laufen über einen Cursor von links nach rechts;
     die Nachbarblätter stehen als Nummer mit Pfeil mittig an jeder Kante außerhalb des Rahmens.
     Dazu der Druckhinweis (oben rechts) und die einzeilige Quellenzeile über die volle Streifenbreite
-    (`creditFontSize`: bis 4 pt verkleinert, wenn sie breiter ist). Die frühere 10-cm-Kontrollstrecke ist entfallen.
+    (`creditFontSize`: bis 4 pt verkleinert, wenn sie breiter ist).
 - **Mehrseitiger Export** (`print/export.ts`): **ein** PDF, die Blätter in Nummernfolge, je Blatt
   eine versteckte Karte mit eigenem Mittelpunkt und gemeinsamem Zoom (300 dpi fest). Der Canvas
   wird nach `addImage` freigegeben. Die Statuszeile zeigt „Seite 3 von 6 wird gerendert …“, der
@@ -192,7 +193,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   Gabelung steht auf jedem Ast das Zeichen der dort laufenden Routen), dazwischen reihum, jedes
   Zeichen spätestens alle 60 mm Papier (`WAYMARK_SPACING_MM`); danach weicht ein Zeichen entlang
   der Linie aus (höchstens 10 mm, `maxShiftMm`), bis seine Box frei ist, sonst entfällt es: Zeichen überdecken
-  einander nie. Gleiche Zeichen mehrerer Routen erscheinen einmal (Rückfallkette wie bisher).
+  einander nie. Gleiche Zeichen mehrerer Routen erscheinen einmal (mit Rückfallkette).
   Ergebnis: GeoJSON-Punktquelle `waymark-signs` (ein Bild je Punkt, `img` = Bild-Id mit genau einer
   Route) und die Kästen der Zeichen. Der Layer zeichnet sie mit `icon-allow-overlap: true`, ab
   z11,5, bei 1:50 000 verkleinert (`SMALL_SCALE_FACTOR`); die Kästen sind **Hindernisse** der
@@ -209,8 +210,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   erscheint, wenn „Wanderrouten“ an ist **und** der Schalter ihres eigenen Netzes an ist
   (`routeVisible`: iwn → `net-iwn`, nwn → `net-nwn`, rwn → `net-rwn`, alles andere inkl. leer →
   `net-lwn`, `networkGroup`). Standard: alles an, also auch lokale Zeichen. „Wanderrouten“ aus:
-  keine Zeichen (die Ausdünnungsdaten werden trotzdem geladen). Ältere gespeicherte Werte der
-  früheren Schalter „Wegzeichen“ und „auch lokale Wege“ haben keine Wirkung mehr.
+  keine Zeichen (die Ausdünnungsdaten werden trotzdem geladen).
 - **Symbolgrößen: `src/style/sizes.ts`** (einzige Stelle, Papier-mm): Kasten-Piktogramme 3,4 mm
   (`ICON_MM`), kleine Kästen 3,0 mm, Wegzeichen-Schild 3,4 mm (`WAYMARK_MM`, Abstand 0,35 mm),
   Plain-Symbole in Stufen relativ dazu. Bei 1:50 000 gilt für Piktogramme, Haltestellen und
@@ -266,8 +266,7 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   (und die Aussichtspunkte) aus; unbekannte Arten bleiben in `poi-main`. Gruppen-IDs dürfen kein
   Präfix fremder Ebenen-IDs sein (daher `drinking`).
 - **Netz-Filter** (B3): Der Tile-Layer `routes` hat je Route `networks`, `network` = _höchstes_
-  Netz des Abschnitts (`iwn > nwn > rwn > lwn`, fehlt sonst; nur noch Doku, nicht mehr für den
-  Filter) und seit 0.3.1 `nets` = die Schalter-Klassen der Routen des Abschnitts (`iwn|nwn|rwn|lwn`,
+  Netz des Abschnitts (`iwn > nwn > rwn > lwn`, fehlt sonst; wird nicht zum Filtern benutzt) und `nets` = die Schalter-Klassen der Routen des Abschnitts (`iwn|nwn|rwn|lwn`,
   alles andere inkl. leer ist `lwn`). Die Netz-Schalter steuern **Hinterlegung und Wegzeichen**:
   Ein Abschnitt bekommt ein Band, wenn **mindestens eine seiner Routen** in einem eingeschalteten
   Netz liegt (`routeNetworkFilter(visibility)` in `style/routes.ts`, rein: Teilsuche `|k|` in

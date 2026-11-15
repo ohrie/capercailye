@@ -7,7 +7,7 @@ PMTiles); Umfang und Entscheidungen stehen in [SPEC.md](SPEC.md).
 ## Voraussetzungen
 
 - **Java 21 oder neuer** (getestet mit 27; Planetiler-Lauf in `tiles/build.sh`; die `planetiler.jar` lädt das Skript beim
-  ersten Mal selbst nach `$CAPERCAILYE_DATA/`), `curl`
+  ersten Mal selbst nach `CAPERCAILYE_DATA`), `curl`
 - **Bun** (Web-App, Bushaltestellen-Skript)
 - **tippecanoe**, `unzip` – nur für `transit/build.sh` (Bushaltestellen)
 - osmium wird nicht gebraucht
@@ -17,16 +17,18 @@ Speicher: Baden-Württemberg und Rheinland-Pfalz laufen mit dem Standard-Heap vo
 
 ## Kartendaten erzeugen
 
-Alle Ergebnisse liegen in `$CAPERCAILYE_DATA/` (Standard `~/.local/share/capercailye`, anderes Verzeichnis: `CAPERCAILYE_DATA=/pfad`,
-das gilt für die Build-Skripte und den Dev-Server).
+Alle Ergebnisse liegen im Verzeichnis `CAPERCAILYE_DATA` (Umgebungsvariable, Standard
+`~/.local/share/capercailye`). Sie gilt für die Build-Skripte und den Dev-Server; dort lässt sie sich
+alternativ in `web/.env.local` setzen (steht in `.gitignore`).
 
 ### 1. OSM-Extrakt laden
 
 Geofabrik-Extrakt eines Bundeslandes (oder `germany`, `europe`), Beispiel Rheinland-Pfalz:
 
 ```sh
+export CAPERCAILYE_DATA="${CAPERCAILYE_DATA:-$HOME/.local/share/capercailye}"
 mkdir -p "$CAPERCAILYE_DATA"
-curl -fL -o $CAPERCAILYE_DATA/rheinland-pfalz-latest.osm.pbf \
+curl -fL -o "$CAPERCAILYE_DATA"/rheinland-pfalz-latest.osm.pbf \
   https://download.geofabrik.de/europe/germany/rheinland-pfalz-latest.osm.pbf
 ```
 
@@ -75,13 +77,13 @@ bun install
 bun run dev        # http://localhost:5173
 ```
 
-Der Dev-Server liefert die Dateien aus `$CAPERCAILYE_DATA/` unter `/data/` aus. Weitere
+Der Dev-Server liefert die Dateien aus dem Verzeichnis `CAPERCAILYE_DATA` unter `/data/` aus. Weitere
 Befehle und der Aufbau: [web/README.md](web/README.md).
 
 ### Gebiet wechseln
 
-Die App lädt die Datei aus `PMTILES_PATH` in `web/src/config.ts`, derzeit
-`data/capercailye-rp.pmtiles` (Rheinland-Pfalz); eine Umschaltung zur Laufzeit gibt es nicht. Für
+Die App lädt die Datei aus `PMTILES_PATH` in `web/src/config.ts` (Standard
+`data/capercailye-rp.pmtiles`, Rheinland-Pfalz); eine Umschaltung zur Laufzeit gibt es nicht. Für
 ein anderes Gebiet dort den Dateinamen ändern (z. B. `data/capercailye-bw.pmtiles`) und die
-Startansicht (`INITIAL_CENTER`, `INITIAL_ZOOM`, derzeit Dahn im Pfälzerwald) ins Gebiet
+Startansicht (`INITIAL_CENTER`, `INITIAL_ZOOM`, Standard Dahn im Pfälzerwald) ins Gebiet
 verschieben. Die Bushaltestellen-Datei braucht keine Anpassung.

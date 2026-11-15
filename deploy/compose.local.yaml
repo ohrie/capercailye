@@ -1,4 +1,4 @@
-# Lokaler Test ohne Traefik des Zielsystems:
+# Lokaler Test mit einem Wegwerf-Traefik:
 #   docker compose -f compose.yaml -f compose.local.yaml up -d --build   (mit DOMAIN=localhost in .env)
 # Startet einen Wegwerf-Traefik mit HTTP auf Port 8080 im Netzwerk capercailye_network (das Projekt
 # legt es selbst an).

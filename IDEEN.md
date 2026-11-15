@@ -15,7 +15,7 @@ Das Modul `web/src/osmc/` als eigenständiges npm-Paket veröffentlichen, damit 
 **Zu klären:**
 
 - Paketaufteilung: ein Kernpaket (Parser + SVG, auch in Node nutzbar) und ein dünnes MapLibre-Zusatzpaket, oder ein Paket mit getrenntem Einstiegspunkt.
-- Schrift für Text im Zeichen: Systemschrift wie bisher, oder Text als Pfade einbetten, damit das Ergebnis überall gleich aussieht.
+- Schrift für Text im Zeichen: Systemschrift oder Text als Pfade einbetten, damit das Ergebnis überall gleich aussieht.
 - Lizenz MIT wie capercailye; die Formen bleiben unabhängig von Waymarked Trails (GPL-3.0), das nur als Verhaltensreferenz dient.
 - Tests und Musterseite (`sample-sheet.ts`) mitnehmen; die BW-Häufigkeitsliste als Testdaten, ggf. um weitere Regionen ergänzen.
 
@@ -24,35 +24,6 @@ Das Modul `web/src/osmc/` als eigenständiges npm-Paket veröffentlichen, damit 
 ## Route-Marker nicht darstellen
 
 Route-Marker (die Wegzeichen-Schilder entlang der Wanderrouten) sollten nicht dargestellt werden. Die Routen blieben über die farbige Hinterlegung erkennbar. Zu klären: ganz entfernen oder als Schalter (Standard aus), und wie Routen ohne Zeichen dann zuzuordnen sind.
-
-## Wegzeichen einzeln und abwechselnd statt in einer Reihe
-
-Heute stehen die Zeichen mehrerer Routen auf einem gemeinsamen Wegabschnitt als horizontale Reihe in einem Bild (höchstens 4). Das ist auf dem Ausdruck unklar: Man sieht nicht, welche Route zu welchem Zeichen gehört, sobald sich die Routen trennen.
-
-Besser: Zeichen einzeln setzen, dafür häufiger, und auf gemeinsamen Abschnitten die verschiedenen Zeichen abwechselnd entlang der Linie. Damit entfällt auch die Grenze von 4 Zeichen.
-
-Dafür braucht es einen eigenen Platzierungs-Algorithmus, der für den festen Druckmaßstab sicherstellt, dass auf dem Blatt immer eindeutig ist, welche Route welches Zeichen hat. Mögliche Regeln:
-
-- Jedes Zeichen erscheint auf jedem Abschnitt seiner Route in einem Höchstabstand (z. B. alle 6 cm Papier), auch dort, wo es sich die Linie mit anderen teilt.
-- Wo sich Routen trennen oder zusammenlaufen, steht kurz nach der Gabelung auf jedem Ast das Zeichen der dort weiterlaufenden Route(n), damit die Zuordnung an jeder Verzweigung klar ist.
-- Auf gemeinsamen Abschnitten werden die Zeichen reihum gesetzt; jedes erscheint mindestens einmal zwischen zwei Gabelungen.
-- Kein Zeichen entfällt durch Kollision (siehe SPEC.md 4.4).
-
-Voraussetzungen: Die Tiles müssten die Routen pro Abschnitt einzeln mit Relation-ID liefern (heute nur die deduplizierte, gekappte Liste), und die Platzierung liefe wie bei den Piktogrammen in der App statt über MapLibres `symbol-placement: line`.
-
-## Nur Aussichtspunkte mit Namen
-
-Derzeit werden Aussichtspunkte standardmäßig ausgeschaltet. Zukünftig soll es standardmäßig angeschaltet sein, aber es sollen nur solche Orte mit Namen sichtbar auf der Karte sein.
-
-## Gastronomie in Städten ausdünnen
-
-Im Gelände und in den Bergen muss jedes Restaurant, jede Hütte und jedes Café auf der Karte stehen. In Städten und anderen dichten Bereichen ist das nicht wichtig, dort ist jedes einzelne Symbol eher Ballast. Heute führt eine Kollision nie zum Ausblenden eines Piktogramms (SPEC.md 4.4), in der Innenstadt werden die Symbole deshalb weit verdrängt und die Karte wird unruhig.
-
-Gesucht ist eine gute Lösung, vermutlich mit einigem Aufwand. Denkbare Ansätze:
-
-- Dichte messen, z. B. Anzahl Gastronomie-Punkte je Fläche auf dem Papier oder Lage innerhalb von Siedlungsflächen (`landuse=residential|commercial`, `place=town|city`), und nur dort ausdünnen.
-- In dichten Bereichen ein Sammelsymbol oder nur die wichtigsten Betriebe zeigen, im Außenbereich weiter alle.
-- Die Regel „Symbole entfallen nie“ ausdrücklich auf den Außenbereich beschränken und die Ausnahme in SPEC.md 4.4 festhalten.
 
 ## Legende
 

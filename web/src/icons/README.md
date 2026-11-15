@@ -32,7 +32,7 @@ Größen: `style/sizes.ts`, Rangfolge: `style/hierarchy.ts`.
 - Benannte Wegweiser: gelbes Fähnchen (Rang 51, Wanderinfrastruktur); der Name nur mit dem
   Schalter „Wegweisernamen“ (Standard aus). Unbenannte: kleines Fähnchen ohne Namen in `guideposts-minor`, weicht als Erstes.
   Benannte und unbenannte Wegweiser gehören zur Kategorie „Wegweiser“ (eigener Schalter, M6).
-- Bushaltestellen kommen nicht mehr aus OSM, sondern aus GTFS (eigene Quelle, Gruppe `busstops`,
+- Bushaltestellen kommen aus GTFS, nicht aus OSM (eigene Quelle, Gruppe `busstops`,
   Layer `busstops-main`): grüne Scheibe mit gelbem Rand und weißem „H“ (allgemeines
   Haltestellenzeichen), 3,0 mm, Rang 12 (`BUSSTOP_PRIORITY`, `style/hierarchy.ts`), Name optional.
 - Aussichtspunkte (`viewpoint`) in eigener Ebene `viewpoints-main`, nur benannte, Standard an (Schalter

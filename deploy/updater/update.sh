@@ -14,7 +14,6 @@
 #   GTFS_REFRESH    auto = Feed nur laden, wenn keiner da ist oder ein neuer Fahrplan begonnen hat (s. u.),
 #                   1 = immer neu laden, 0 = nie laden (vorhandenen nutzen)   (auto)
 #   TODAY           YYYYMMDD, "heute" für die Regel unten (nur zum Testen)
-#   HEALTHCHECK_URL Optional; Ping bei Erfolg, <URL>/fail bei Fehler
 #   TILES_DIR, TRANSIT_DIR  Skripte tiles/ und transit/              (/opt/capercailye/…)
 #
 # Bushaltestellen: Der GTFS-Feed (gtfs.de) wird nur geladen, wenn in work/gtfs noch keiner liegt oder
@@ -33,7 +32,6 @@ MIN_FREE_GB="${MIN_FREE_GB:-60}"
 BUSSTOPS="${BUSSTOPS:-1}"
 GTFS_REFRESH="${GTFS_REFRESH:-auto}"
 TODAY="${TODAY:-$(date +%Y%m%d)}"
-HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
 TILES_DIR="${TILES_DIR:-/opt/capercailye/tiles}"
 TRANSIT_DIR="${TRANSIT_DIR:-/opt/capercailye/transit}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -87,13 +85,6 @@ timed() {
 # kleine Schritte ohne Speichermessung
 mark() { STEPS+=("$(printf '%-12s %5d s' "$1" $((SECONDS - $2)))"); }
 
-ping_health() { # ping_health [/fail]; ein Fehlschlag des Pings lässt das Skript nie scheitern
-  [[ -n "$HEALTHCHECK_URL" ]] || return 0
-  curl -fsS -m 10 --retry 3 -A "$UA" -o /dev/null "${HEALTHCHECK_URL%/}${1:-}" ||
-    log "Warnung: Healthcheck-Ping ${1:-} fehlgeschlagen"
-  return 0
-}
-
 on_exit() {
   local rc=$?
   trap - EXIT
@@ -104,10 +95,8 @@ on_exit() {
   if [[ $rc -eq 0 ]]; then
     for f in "$LIVE"/*.pmtiles; do [[ -e "$f" ]] && printf '  live: %s  %s\n' "$(du -h "$f" | cut -f1)" "$(basename "$f")"; done
     log "Update fertig."
-    ping_health
   else
     log "FEHLER: Update abgebrochen (Status $rc), live/ ist unverändert. Log: $LOG"
-    ping_health /fail
   fi
   exit "$rc"
 }

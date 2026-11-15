@@ -8,3 +8,5 @@ web/public/data
 
 deploy/.env
 deploy/deploy.env
+
+.env.local

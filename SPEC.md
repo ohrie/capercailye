@@ -45,7 +45,7 @@ Nicht neu verhandeln, solange der Nutzer sie nicht ausdrücklich öffnet.
 | Wegzeichen | `osmc:symbol` wird in der App aus SVG gezeichnet (Parser + Formen portiert aus `mueschel/OsmcToSVG`, CC0); jedes Zeichen einzeln, von der App entlang der Wege gesetzt; Rückfallkette `ref`+`colour` → `ref` → Namenskürzel | Echte Zeichen statt Ersatz, auflösungsunabhängig. Waymarked Trails (GPL-3.0) dient nur als Verhaltensreferenz, kein Code/SVG von dort übernommen (Lizenz MIT). |
 | Verschachtelte Routen | Das spezifischste Zeichen gewinnt (Kind-Zeichen vor Elternzeichen desselben Netzes), Regeln in `tiles/SCHEMA.md` | Entspricht dem, was vor Ort angebracht ist. |
 | Wegzeichen und Schalter | Kein eigener Schalter; Zeichen gehören zur Route und folgen „Wanderrouten“ plus Netz-Schalter | Nie ein Zeichen auf nicht gezeichneter Hinterlegung. |
-| Bushaltestellen | Nicht aus OSM, sondern aus dem deutschlandweiten GTFS-Feed (gtfs.de, DELFI e.V., CC BY 4.0), eigene PMTiles-Datei; nur Haltestellen mit ≥ 4 Abfahrten am Samstag **und** Sonntag | Nur Haltestellen mit brauchbarem Angebot; OSM kennt Takt nicht. `bus_stop` ist aus dem OSM-Schema entfernt. |
+| Bushaltestellen | Aus dem deutschlandweiten GTFS-Feed (gtfs.de, DELFI e.V., CC BY 4.0), nicht aus OSM; eigene PMTiles-Datei; nur Haltestellen mit ≥ 4 Abfahrten am Samstag **und** Sonntag | Nur Haltestellen mit brauchbarem Angebot; OSM kennt Takt nicht. Das OSM-Schema enthält kein `bus_stop`. |
 | Farbpalette | Eine Palette aus `web/src/style/palette.ts` für Karte, App und Landingpage; einziger Akzent `#be2230` (Routenrot); GPX magenta `#d4007f`; nur helles Schema | Papier-Look wie die gedruckte Karte. |
 | Landingpage | Statisch (`site/`: HTML + CSS, zwei winzige Skripte), Englisch, kein Build, App unter `/app/` | Kein Framework nötig, SEO. |
 | Deployment | Ein nginx-Container hinter Traefik, Landingpage `/`, App `/app/`, Tiles `/app/data/`; Deploy per `scp` vom Entwicklungsrechner, Images werden auf dem Server gebaut, keine Registry, kein CI; wöchentlicher Updater-Container | Klein und reproduzierbar; Tiles sind jederzeit neu erzeugbar, deshalb kein Backup. Details 6. |
@@ -79,10 +79,10 @@ Photon (Suche, online), GPX-Datei (lokal) ────────────�
 | `web/vite-plugin-serve-data.ts` | Dev-/Preview-Server liefert `<base>data/` aus `$CAPERCAILYE_DATA` (Standard `~/.local/share/capercailye`) mit Range-Requests |
 | `site/` | Landingpage, Logo-/Screenshot-Skripte (`site/scripts/`), Impressum, Datenschutz, Quellen und Lizenzen |
 | `deploy/` | Compose, nginx, Updater (`updater/update.sh`, `check.ts`, `crontab`), `deploy.sh` |
-| `IDEEN.md` | loses Ideen-Backlog, nichts davon eingeplant; Einträge können veraltet sein, diese Spezifikation gewinnt |
+| `IDEEN.md` | loses Ideen-Backlog, nichts davon eingeplant; bei Widerspruch gilt diese Spezifikation |
 
-Große Daten (PMTiles, `planetiler.jar`, GTFS) liegen außerhalb des Repos (`$CAPERCAILYE_DATA/`,
-umstellbar mit `CAPERCAILYE_DATA`).
+Große Daten (PMTiles, `planetiler.jar`, GTFS) liegen außerhalb des Repos im Verzeichnis `CAPERCAILYE_DATA`
+(Standard `~/.local/share/capercailye`; für den Dev-Server auch in `web/.env.local`).
 
 ## 4. Funktionsumfang
 
@@ -140,8 +140,7 @@ Schrittnummern 1 bis 3 in Kreisen, Start in Erkunden.
 - **Blattrand (Vektor, `print/pdf.ts`):** Rahmen, Maßstabszahl, Maßstabsleiste, Nordpfeil, „Blatt n von N“
   (nur bei mehr als einem Blatt), Nachbarblatt-Nummern mit Pfeil an den Kanten,
   einzeilige Quellenzeile über die ganze Streifenbreite (4.8; ohne Datenstand), Hinweis „Drucken mit 100 % (nicht
-  „An Seite anpassen“)“ oben rechts. Eine 10-cm-Kontrollstrecke gibt es nicht mehr (Platz für die Quellenzeile; die
-  Maßstabsleiste dient zur Kontrolle).
+  „An Seite anpassen“)“ oben rechts. Die Maßstabsleiste dient zur Kontrolle.
 - Automatisierter Export: `window.__capercailye.exportPdf({...})` liefert `{ blob, meta }` ohne Download
   (Parameter und `meta` siehe `web/README.md`); `layout()`, `loadGpx(text)`, `clearGpx()`, `setState()`, `credits`.
 
@@ -254,7 +253,7 @@ Credit-Texte gehören zur Lizenzprüfung und werden nicht ohne Abstimmung umform
   `/quellen/`.
 - Landingpage-Texte nennen nur Funktionen, die es gibt; keine erfundenen Zahlen.
 
-### 4.10 Nicht gebaut (bewusst zurückgestellt oder gestrichen)
+### 4.10 Nicht gebaut (bewusst zurückgestellt oder ausgeschlossen)
 
 Nicht ohne neuen Auftrag bauen:
 - Routenlegende am Blattrand (B5), Zeichenerklärung als PDF-Seite, Übersichtsblatt mit Blattschnitt,
@@ -262,7 +261,7 @@ Nicht ohne neuen Auftrag bauen:
 - Routennamen entlang der Linie, Seilbahnen/Lifte, Wegoberfläche als Signatur, Furten/Tore/Schranken,
   Laub-/Nadelwald-Signatur, Einzelbäume/Hecken, Friedhöfe/Sportplätze/Parks, Gemeinde-/Kreisgrenzen, Infotafeln,
   Touristeninfo/Museen/Sehenswürdigkeiten, Bäder, Hochsitze, Bänke
-- Stromleitungen (gestrichen, kein Layer `power`)
+- Stromleitungen (kein Layer `power`)
 - Deutschland/Europa als lokaler Daten-Standard: lokal sind RP und BW; Europa-Extrakt fehlt (Plattenplatz)
 
 ## 5. Daten und Tiles
@@ -273,7 +272,7 @@ Nicht ohne neuen Auftrag bauen:
 - **Layer:** `transport`, `routes` (ab z11), `landcover`, `protected_area`, `water`, `waterway`, `cliff`,
   `building` (jedes Gebäude bei z12–14; Merkmal `industrial`), `place`, `peak`, `poi` (ab z12, Art-Tabelle mit
   `rank`). Booleans nur wenn wahr; optionale Attribute fehlen statt leer; Flächen-POIs ergeben einen Punkt.
-  Bushaltestellen nicht im Schema, sondern eigene Datei (`bus_stop`: `name`, `sat`, `sun`, `min`, z10–14).
+  Bushaltestellen stehen nicht im Schema, sondern in einer eigenen Datei (`bus_stop`: `name`, `sat`, `sun`, `min`, z10–14).
 - **Druckzoom:** Die App lädt Tiles beim gebrochenen Druckzoom gerundet (`VECTOR_TILE_ZOOM = "round"`: 1:25 000
   → z13, 1:50 000 → z12); alle druckrelevanten Features müssen deshalb ab z12 mit geringer Vereinfachung in den
   Tiles sein (z12: 0,1 px, keine Mindestlänge). Wegzeichen und Ausdünnung lesen den Layer `routes`/`poi` der z12-Tiles.
@@ -341,10 +340,7 @@ stehen in `deploy/README.md` (maßgeblich, nicht hier duplizieren).
   - *Origin-Traffic:* viele Range-Requests je Kartenansicht, kein CDN; bei Bedarf für `/app/data/` ergänzen.
   - *Speicherbedarf des Laufs* (siehe Messwerte).
   - Backup: nur `.env`; Daten sind jederzeit neu erzeugbar.
-- **Kein Healthcheck/Monitoring, bewusst.** Es gibt keine externe Überwachung und keinen Ping nach dem Lauf.
-  Die Umgebungsvariable `HEALTHCHECK_URL` existiert noch in `update.sh`/Compose, ist aber unbenutzt (leer lassen).
-  Das Web-Image hat lediglich ein Docker-`HEALTHCHECK` (nur Statusanzeige von Docker). Fehler zeigen sich in den Logs
-  (`work/logs/`, die letzten 8) und daran, dass `live/` alt bleibt.
+- Fehler des Updaters zeigen sich in den Logs (`work/logs/`, die letzten 8) und daran, dass `live/` alt bleibt.
 - Datenstand erneuert sich von selbst: die App liest ihn zur Laufzeit aus den Dateien.
 
 ## 7. Konventionen für Agents
@@ -360,8 +356,7 @@ stehen in `deploy/README.md` (maßgeblich, nicht hier duplizieren).
 - **Stil des Codes:** reine Logik von DOM/MapLibre trennen und testen (`*.test.ts` neben dem Modul); Größen in Papier-mm;
   Symbolgrößen nur in `style/sizes.ts`, Rangfolge nur in `style/hierarchy.ts`, Farben nur in `style/palette.ts`. Keine
   `DemSource` in Tests oder `style/` erzeugen (startet einen Worker). Zeichenreihenfolge = Reihenfolge in `GROUPS`.
-- **Workflow:** Implementierung durch Subagents läuft ausschließlich auf **Sonnet**; Opus bereitet höchstens
-  Aufträge vor und implementiert nichts. Agents committen nicht ohne ausdrückliche Anweisung. Nach einem Meilenstein
+- **Workflow:** Agents committen nicht ohne ausdrückliche Anweisung. Nach einem Meilenstein
   kurzer Statusbericht, Weiterarbeit nach Freigabe.
 - **Das Repo ist öffentlich.** Nie committen: Hostnamen, IPs, Benutzernamen des Servers, Namen anderer Projekte auf
   dem Server. Echte Werte nur in den gitignorten Dateien `deploy/.env` und `deploy/deploy.env` (Vorlagen mit
@@ -390,6 +385,5 @@ stehen in `deploy/README.md` (maßgeblich, nicht hier duplizieren).
 - **Exotische `osmc:symbol`-Werte:** Rückfallkette fängt sie auf; die häufigsten Werte sind abgedeckt, ein
   Abgleich anderer Regionen steht aus (Stichprobe nur BW).
 - **Namen von Restaurants/Bäckereien/Cafés** (wann sichtbar) ist ungeklärt (Eintrag in `IDEEN.md`).
-- **Ideen-Backlog `IDEEN.md`:** teilweise veraltet (einzelne Wegzeichen, nur benannte Aussichtspunkte und das Ausdünnen in
-  Städten sind umgesetzt); bei Gelegenheit bereinigen. Eine Legende im Blattrand/auf einer PDF-Seite und ein npm-Paket
-  für die OSMC-Wegzeichen sind dort offen.
+- **Ideen-Backlog `IDEEN.md`:** offen sind unter anderem eine Legende im Blattrand/auf einer PDF-Seite und ein npm-Paket
+  für die OSMC-Wegzeichen.

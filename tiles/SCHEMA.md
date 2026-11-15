@@ -1,49 +1,8 @@
-# capercailye tile schema (0.3.1-m7; M1 base, bus stops removed in M2c)
+# capercailye tile schema (version 0.3.1-m7)
 
 Produced by `tiles/CapercailyeProfile.java` (Planetiler 0.10.2), zoom 0–14, PMTiles,
 `$CAPERCAILYE_DATA/capercailye-<area>.pmtiles`. Rebuild: `tiles/build.sh [input.pbf] [area]`.
-This file is the contract for the style (M2).
-
-## Changes (0.3 → 0.3.1, not breaking)
-
-1. **`routes.nets`:** the switch classes of the routes of a segment (`iwn|nwn|rwn|lwn`, deduplicated, in
-   this order, joined with `|`; per route its own `network` if iwn/nwn/rwn, everything else including none
-   is `lwn`; e.g. `networks="rwn||local"` → `nets="rwn|lwn"`). Always set. The app's network switches
-   filter the band by it ("at least one route of the segment lies in a switched-on network") and size it
-   by the highest switched-on network. `network` stays as it was.
-2. **`hotel` and `toilets` carry `weight`, `tags` and (towns and cities only) `urban=true`**, like
-   `restaurant` / `cafe`. The app thins urban restaurants/cafés, toilets and hotels by paper distance, each
-   group on its own (see "Urban"). Nothing is thinned in the tiles; merging and `toilets` filtering are
-   unchanged (`hotel` is still never merged). `hotel` is now collected in `finish()` like the other
-   urban kinds (areas still via `pointOnSurface`, feature ids unchanged).
-3. **`toilets`: indoor- or room-mapped toilets and toilets on institution grounds (university, hospital,
-   school, …) without any evidence of being public are no longer written** (filter Q, see "Toilets
-   filter"). Typical case: one area per WC room and floor on a campus. No new attributes.
-
-## Breaking changes (M2c → 0.3)
-
-1. **`routes`: every route of a segment individually.** No deduplication and no cap of 4 any more. New
-   slot-aligned lists `ids` (relation ids) and `networks`; `symbols`, `refs`, `names`, `colours` now
-   cover all routes. `count` is gone. `network` (highest network of the segment) is unchanged.
-2. **POIs are merged at build time:** similar objects less than 75 m apart become one point with `count`
-   (parking, guidepost, wayside_shrine, stone, rock, mast, toilets, fountain); picnic site, barbecue and
-   shelter within 75 m become one rest-area point (`bbq=true`). See "Merging" under `poi`.
-3. **Unnamed `viewpoint`s are no longer in the tiles** (only named ones).
-4. **`restaurant` / `cafe` carry `weight`, `tags` and (towns and cities only) `urban=true`.** Nothing is
-   thinned in the tiles; the app thins by paper distance (see "Urban"; since 0.3.1 `hotel` and `toilets`
-   too).
-
-## Breaking changes (M0 → M1)
-
-All M0 layer names, attribute names and values still exist with the same meaning. Changed behaviour:
-
-1. **`routes` minzoom 10 → 11.** At z10 there are no route features any more.
-2. **Nested-route rules** (see `routes`): a child route with its own, different `osmc:symbol` is no
-   longer hidden by a signed ancestor (same network); instead the ancestors with another symbol are
-   hidden ("the most specific sign wins"). Within a network rank, routes belonging to a superroute
-   are listed before plain local routes (in 0.3 the cap of 4 is gone, the order stays).
-3. **`building` is complete at z12–z14:** no building is dropped for size (only degenerate ones
-   < 0.05 px). Accepted budget: tiles may be up to ≈ 3 MB each (dense city tiles at z12).
+This file is the contract for the style.
 
 ## General rules (read first)
 
@@ -55,7 +14,7 @@ All M0 layer names, attribute names and values still exist with the same meaning
 4. Areas that become points (POIs, some places) yield **one** point on the polygon surface
    (`pointOnSurface`, guaranteed inside). One OSM object never yields two points. A node and a separate
    area for the same thing (e.g. a church node inside a church building polygon that also has
-   `amenity=place_of_worship`) are two objects and give two points. Exception since 0.3: a **group** of
+   `amenity=place_of_worship`) are two objects and give two points. Exception: a **group** of
    similar OSM objects less than 75 m apart can become one point (merging, see `poi`).
 
 ## Metadata and licence
@@ -63,10 +22,8 @@ All M0 layer names, attribute names and values still exist with the same meaning
 The tiles are a derivative database of OpenStreetMap data and fall under the ODbL 1.0. The PMTiles
 metadata `attribution` (profile method `attribution()`) therefore names the licence next to the OSM
 copyright: `<a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>
-(<a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a>)` (HTML, as Planetiler's default
-was). The web app's style sets its own attribution per source, which overrides the TileJSON one, so
-this text only reaches people who download the file (`/app/data/`). Takes effect with the next tile
-build. Human-readable sources and licences: the sources page (`site/quellen/`).
+(<a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a>)` (HTML, like Planetiler's default). The web app's style sets its own attribution per source, which overrides the TileJSON one, so
+this text only reaches people who download the file (`/app/data/`). Human-readable sources and licences: the sources page (`site/quellen/`).
 
 ## Zoom and detail
 
@@ -74,7 +31,7 @@ At z12–z14 lines use 0.1 px simplification (tile = 256 px) and no minimum leng
 contain every path, track and stream. Buildings keep anything ≥ 0.05 px at z12–z14 (i.e. all of them); landcover, water and protected areas ≥ 0.5 px (≈ 12 m at z12). Below z12 lines are merged
 and simplified more (0.2 px, short lines < 0.5 px dropped), landcover is merged with neighbours.
 Points (`poi`, `place`, `peak`) are not thinned by density: everything that passes the tag rules is in
-the tile from its minzoom on. Exception (since 0.3): similar `poi` objects less than 75 m apart are merged
+the tile from its minzoom on. Exception: similar `poi` objects less than 75 m apart are merged
 into one point (kinds, representative rules and the rest-area ensemble under `poi` / "Merging"). Merging
 is done once globally at build time (not per tile), so tile borders do not matter. All point layers use a
 64 px buffer.
@@ -133,7 +90,7 @@ individually. Adjacent segments with identical attributes are merged.
 | `symbols` | raw `osmc:symbol` values joined with `\|`; empty slot if the route has none |
 | `refs`, `names`, `colours` | `ref`, `name`, `colour` of the same routes, same order, empty slots aligned |
 | `network` | highest network on the segment: `iwn` > `nwn` > `rwn` > `lwn`; missing if none of these |
-| `nets` | (0.3.1) switch classes of the routes of the segment, deduplicated, in the order `iwn\|nwn\|rwn\|lwn`, joined with `\|`. Per route: its own `network` if `iwn`, `nwn` or `rwn`, everything else (incl. empty slot, `lwn`, `local`, …) is `lwn`. Example: `networks="rwn\|\|local"` → `nets="rwn\|lwn"`. Always set (every segment has at least one route). A pure function of `networks`, so it does not change which segments are merged |
+| `nets` | switch classes of the routes of the segment, deduplicated, in the order `iwn\|nwn\|rwn\|lwn`, joined with `\|`. Per route: its own `network` if `iwn`, `nwn` or `rwn`, everything else (incl. empty slot, `lwn`, `local`, …) is `lwn`. Example: `networks="rwn\|\|local"` → `nets="rwn\|lwn"`. Always set (every segment has at least one route). A pure function of `networks`, so it does not change which segments are merged |
 
 All six lists are always present and slot-aligned (same number of entries, empty slots allowed). There is
 no `count`; the number of routes is the number of `ids` entries.
@@ -263,7 +220,7 @@ matches several rows, the one with the **lowest rank** wins (e.g. `man_made=towe
 → `restaurant`). Within a tile features are ordered by rank, named before unnamed.
 
 Common attrs: `kind`, `rank` (integer, lower = more important; use as `symbol-sort-key`), `name`,
-`ele`. Extra attrs per kind are listed in the table. Since 0.3 one point can stand for several OSM
+`ele`. Extra attrs per kind are listed in the table. One point can stand for several OSM
 objects (merging, below).
 
 `rank` tiers: **10** landmarks that structure a hike · **20** shelters, views, churches, natural
@@ -316,7 +273,7 @@ features · **30** food, water, guideposts, parking · **40** comfort and minor 
 
 Peaks and saddles are not in `poi` but in `peak`.
 
-### Toilets filter (since 0.3.1)
+### Toilets filter
 
 Goal: the print shows publicly accessible toilets from outside, not the WC rooms of campuses, hospitals or
 shopping centres. Filter Q applies to toilets that passed the `access` rule (missing, `yes` or `public`). A
@@ -340,7 +297,7 @@ Q runs on the single candidates before grouping, so a room record cannot become 
 merged point and hide a public toilet. No tile attribute is added; the build log has a `toilets filter Q`
 line with the counts.
 
-### Merging (since 0.3)
+### Merging
 
 Similar `poi` objects less than **75 m** apart become one point (`CLUSTER_RADIUS_M`), computed once over the
 whole input after reading it (so tile borders do not split a group). Merged: `parking`, `guidepost`,
@@ -399,8 +356,8 @@ independent villages):
    zone around its node where nothing is thinned. Doubtful cases are not urban (everything is shown).
 
 
-**Bus stops are not in `poi`:** `highway=bus_stop` was mapped up to M1 and was removed in M2c
-(`public_transport=platform` was never mapped). Bus stops come from the GTFS timetable data instead
+**Bus stops are not in `poi`:** `highway=bus_stop` and `public_transport=platform` are not mapped. Bus
+stops come from the GTFS timetable data
 (SPEC.md 5) as a separate small file `capercailye-busstops.pmtiles` (layer `bus_stop`, points,
 z10–z14, attrs `name`, `sat`, `sun`, `min`; built by `transit/`), not by this profile.
 Railway stations and halts (`railway=station|halt`) stay in `poi`.
@@ -409,9 +366,6 @@ Railway stations and halts (`railway=station|halt`) stay in `poi`.
 
 Counted with GDAL from the z12 tiles (points inside the tile extent, merged points counted once). One A4
 sheet at 1:25,000 covers ≈ 34 km², BW ≈ 35,750 km², so "per sheet" = count / 1050.
-Before merging (M1 build, 2026-11-13): parking 70,428, guidepost 52,157, fountain 7,048, shelter 6,616,
-wayside_shrine 6,066, viewpoint 5,477, mast 4,962, picnic_site 4,556, toilets 4,822, bbq 3,117,
-stone 1,059, rock 746.
 
 | kind | BW | per sheet | | kind | BW | per sheet |
 |---|---|---|---|---|---|---|
@@ -437,11 +391,10 @@ stone 1,059, rock 746.
 | bbq | 1,281 | 1.2 | | alpine_hut | 61 | 0.1 |
 | weir | 1,176 | 1.1 | |  |  |  |
 
-Merging cut `stone` by ≈ 61 %, `wayside_shrine` by ≈ 34 %, `bbq` by ≈ 59 % (rest areas), `picnic_site`
+Merging reduces `stone` by ≈ 61 %, `wayside_shrine` by ≈ 34 %, `bbq` by ≈ 59 % (rest areas), `picnic_site`
 by ≈ 31 %, `rock` ≈ 27 %, `mast` ≈ 26 %, `guidepost` ≈ 21 %, `parking` ≈ 20 % (16,000 parkings with
-customer/permit/… access are written unmerged), `toilets` ≈ 20 %, `fountain` ≈ 15 %. `viewpoint` fell from
-5,477 to 1,636 (named only); 4 towers and 3 wayside crosses reappear because their unnamed
-`tourism=viewpoint` tag no longer wins.
+customer/permit/… access are written unmerged), `toilets` ≈ 20 %, `fountain` ≈ 15 %. `viewpoint` counts
+named ones only (1,636); a tower or wayside cross that also carries `tourism=viewpoint` keeps its own kind.
 
 Still too dense to show everything unfiltered at 1:25,000 (style must filter or rely on the app's
 placement): `parking` (filter by `hiking`, `area_m2`, name), unnamed `guidepost`, `restaurant`/`cafe` in towns

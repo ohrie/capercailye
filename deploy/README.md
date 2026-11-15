@@ -131,7 +131,7 @@ Limit erhöhen. nginx braucht unter 100 MB.
 
 ## Lokal testen
 
-Ohne Traefik des Zielsystems, auf dem Entwicklungsrechner (Docker-Build der eigenen Architektur):
+Mit einem Wegwerf-Traefik, auf dem Entwicklungsrechner (Docker-Build der eigenen Architektur):
 
 ```sh
 cd deploy
@@ -208,7 +208,7 @@ dauerhaft und startet nach Zeitplan.
   mv -f /srv/capercailye/work/prev/capercailye-de.pmtiles /srv/capercailye/live/capercailye-de.pmtiles
   ```
   (gleich für `capercailye-busstops.pmtiles`; laufende Anfragen beenden sich auf dem alten Inode).
-- **Kein Healthcheck/Monitoring** (bewusst): Fehler zeigen sich nur in `work/logs/` und daran, dass `live/` alt bleibt.
+- **Fehler:** zeigen sich in `work/logs/` und daran, dass `live/` alt bleibt.
 - **Neues Image** (jeder `deploy.sh`-Lauf baut neu): Wird das Updater-Image dabei ersetzt, bricht ein
   gerade laufender Update-Lauf ab; `live/` bleibt unverändert.
 

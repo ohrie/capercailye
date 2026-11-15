@@ -288,7 +288,7 @@ describe("computeWaymarks", () => {
       waymarkKey({ ...req, visibility: { "net-lwn": false } }),
     ]);
     expect(keys.size).toBe(6);
-    // Unrelated switches (also the former sign switches) do not.
+    // Unrelated switches (also `waymarks`, which has no switch of its own) do not.
     expect(waymarkKey({ ...req, visibility: { hillshade: false } })).toBe(waymarkKey(req));
     expect(waymarkKey({ ...req, visibility: { waymarks: false } })).toBe(waymarkKey(req));
   });

@@ -16,7 +16,7 @@ transit/build.sh -- --saturday 2026-11-28         # andere Woche erzwingen
 Benötigt `bun`, `curl`, `unzip`, `tippecanoe`. Laufzeit rund 45 s (Zählen ca. 30 s, tippecanoe ca. 15 s), Speicher
 einige hundert MB (stop_times.txt mit 2,1 GB wird gestreamt). Plattenplatz für den Feed: Zip 263 MiB + entpackt 2,1 GB.
 
-Ausgabe:
+Ausgabe (im Verzeichnis `CAPERCAILYE_DATA`):
 
 - `$CAPERCAILYE_DATA/capercailye-busstops.pmtiles` (rund 24 MB für ganz Deutschland, 124 265 Haltestellen)
 - `$CAPERCAILYE_DATA/capercailye-busstops.geojsonl` (Zwischendatei, GeoJSON Lines)
@@ -82,7 +82,7 @@ Verzeichnisname nicht zum Muster, entfällt `-N` und damit der Stand. Prüfen: i
    meist den Ort enthalten. Abfahrten der Masten werden addiert, die Position ist der Mittelpunkt der Masten mit Abfahrten.
    Größte beobachtete Ausdehnung einer zusammengefassten Haltestelle: 226 m.
 8. **Auswahl:** `min(sat, sun) >= Schwelle` (Standard 4), je Haltestelle (nach Regel 7).
-9. **Benachbarte Haltestellen zusammenfassen** (`--merge-m 75`, seit 2026-11-14): ausgewählte Haltestellen, die höchstens
+9. **Benachbarte Haltestellen zusammenfassen** (`--merge-m 75`): ausgewählte Haltestellen, die höchstens
    75 m auseinanderliegen, werden zu **einem** Symbol (Leader-Verfahren wie bei den Picknickplätzen im Tile-Profil,
    deterministisch). Sortierung: `min` absteigend, dann `sat + sun` absteigend, dann Name (Code-Einheiten-Vergleich),
    dann Länge und Breite. Die beste noch freie Haltestelle wird Repräsentant und nimmt alle freien innerhalb 75 m

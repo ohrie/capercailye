@@ -12,7 +12,7 @@ services:
     mem_limit: 256m
     networks: [capercailye]
     volumes:
-      # PMTiles-Dateien; schreibt später nur der Updater
+      # PMTiles-Dateien; geschrieben wird nur vom Updater
       - ${DATA_ROOT:?DATA_ROOT fehlt in .env}/live:/usr/share/nginx/html/app/data:ro
     labels:
       - traefik.enable=true
@@ -48,7 +48,6 @@ services:
       JAVA_XMX: ${JAVA_XMX:-3g}
       THREADS: ${UPDATER_CPUS:-4}
       TZ: Europe/Berlin
-      HEALTHCHECK_URL: ${HEALTHCHECK_URL:-}
     volumes:
       - ${DATA_ROOT:?DATA_ROOT fehlt in .env}:/srv/capercailye
     labels:

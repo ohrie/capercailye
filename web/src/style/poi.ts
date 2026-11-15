@@ -27,7 +27,7 @@
 //                switch. Unnamed: small flag in guideposts-minor, lowest priority (drops out first).
 //   viewpoint    only named ones are in the tiles; own layer `viewpoints-main` (group "viewpoints",
 //                on by default); view towers stay in poi-main.
-//   bus stops    no longer from OSM: GTFS stops (>= 4 departures per weekend day) come from their own
+//   bus stops    not from OSM: GTFS stops (>= 4 departures per weekend day) come from their own
 //                PMTiles file as group "busstops" (busstopLayers below); railway stations/halts stay here.
 //   restaurant/cafe  icon + name. In towns and cities (`urban=true`) the print placement thins them
 //                to one per 8 mm of paper, the one with the higher `weight` stays

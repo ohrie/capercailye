@@ -251,7 +251,7 @@ public class CapercailyeProfile implements Profile {
       case "church" -> refineWorship(p, sf);
       case "castle" -> sf.hasTag("ruins", "yes") ? new Poi("castle_ruins", 10, true) : p;
       case "ruins" -> sf.hasTag("ruins", "castle") ? new Poi("castle_ruins", 10, true) : p;
-      case "viewpoint" -> sf.hasTag("name") ? p : null; // only named viewpoints (PLAN 4a)
+      case "viewpoint" -> sf.hasTag("name") ? p : null; // only named viewpoints
       case "memorial" -> SKIP_MEMORIALS.contains(sf.getString("memorial", "")) ? null : p;
       case "parking" -> sf.hasTag("access", "private", "no") ||
         SKIP_PARKING.contains(sf.getString("parking", "")) ? null : p;
@@ -265,7 +265,7 @@ public class CapercailyeProfile implements Profile {
 
   // ---------------------------------------------------------------------------------------------
   // Toilets: all toilet-specific rules live here; nothing else in this file filters toilets.
-  // refineToilets is the access filter. Filter Q (PLAN 4a, from the Karlsruhe analysis: indoor room mapping
+  // refineToilets is the access filter. Filter Q (from the Karlsruhe analysis: indoor room mapping
   // of campuses, hospitals, shopping centres) keeps only publicly reachable toilets; it runs in finish() on
   // the single candidates, before the 75 m merge and the urban test, see dropReason.
   // ---------------------------------------------------------------------------------------------
@@ -567,7 +567,7 @@ public class CapercailyeProfile implements Profile {
       .thenComparing(RouteInfo::symbol)
       .thenComparingLong(RouteInfo::id));
 
-    // All active routes individually, in sort order: no deduplication, no cap (PLAN 3). All lists are
+    // All active routes individually, in sort order: no deduplication, no cap. All lists are
     // slot-aligned and always present (empty slots); `ids` makes the route set of a segment unambiguous, so
     // line merging only joins neighbours with the same routes.
     var f = features.line("routes")
@@ -865,19 +865,19 @@ public class CapercailyeProfile implements Profile {
 
   // ---------------------------------------------------------------------------------------------
   // POI candidates. Kinds that are merged (CLUSTER_*) or need the urban test (restaurant, cafe, hotel) are
-  // collected in processPoi and written in finish(); all other kinds are written directly as before.
+  // collected in processPoi and written in finish(); all other kinds are written directly.
   // ---------------------------------------------------------------------------------------------
-  /** Merge radius for similar POIs (metres), PLAN 4a. */
+  /** Merge radius for similar POIs (metres). */
   static final double CLUSTER_RADIUS_M = 75;
   /**
    * Settlement polygons closer than this belong to the same settlement area (bridges streets, parks, rails), metres.
-   * 60 instead of 30: with 30 m, Karlsruhe's centre falls apart into many small areas (only ~50 % of its
-   * restaurants became urban); 60 m gives ~90 %.
+   * 60 m keeps Karlsruhe's centre together as one area (about 90 % of its restaurants are urban); with 30 m it
+   * falls apart into many small areas (about 50 %).
    */
   static final double SETTLEMENT_BRIDGE_M = 60;
   /** A place node is assigned to the settlement area of the nearest polygon within this distance, metres. */
   static final double PLACE_SNAP_M = 100;
-  /** A restaurant/cafe/hotel/toilet belongs to a settlement area if a polygon is within this distance (60 instead of 30: unmapped pedestrian zones), metres. */
+  /** A restaurant/cafe/hotel/toilet belongs to a settlement area if a polygon is within this distance (60 m also covers unmapped pedestrian zones), metres. */
   static final double POI_IN_SETTLEMENT_M = 60;
   /** Weights for the weighted distance (metres / weight) to place nodes within a settlement area. */
   static final Map<String, Double> PLACE_WEIGHT = Map.of("city", 5.0, "town", 3.0, "village", 1.0, "hamlet", 0.5);

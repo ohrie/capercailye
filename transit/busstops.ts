@@ -8,7 +8,7 @@
  *       [--cluster-m 150] [--merge-m 75] [--include-on-demand] [--include-rail-replacement] [--stats <datei.json>] [--all <datei.geojsonl>]
  *
  * --merge-m: ausgewaehlte Haltestellen im Umkreis dieser Metern (Leader-Verfahren) zu einem Symbol zusammenfassen
- * (Standard 75, 0 = aus); --all liefert weiterhin alle Haltestellen unzusammengefasst.
+ * (Standard 75, 0 = aus); --all liefert alle Haltestellen unzusammengefasst.
  *
  * stop_times.txt (mehrere GB) wird gestreamt; im Speicher liegen nur trips (aktive Fahrten) und Zaehler je Mast.
  */

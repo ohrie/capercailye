@@ -6,6 +6,8 @@
 // second one on 5181 whose CAPERCAILYE_DATA directory has `capercailye-rp.pmtiles` symlinked to the
 // Baden-Württemberg file (the app always loads that name), see README.md. Without names, all images
 // are rendered. Output goes to ../img as JPEG (@1x and @2x; the OG image only @1x).
+// The Chrome/Chromium binary comes from the CHROME_PATH environment variable (default
+// /opt/google/chrome/chrome).
 import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -187,7 +189,7 @@ async function render(
 
 const { names, base } = parseArgs();
 const browser = await chromium.launch({
-  executablePath: "/opt/google/chrome/chrome",
+  executablePath: process.env.CHROME_PATH ?? "/opt/google/chrome/chrome",
   args: ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
 });
 try {
