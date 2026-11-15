@@ -75,9 +75,9 @@ Photon (Suche, online), GPX-Datei (lokal) ────────────�
 | `web/src/print/` | Maßstab/Zoom (`scale.ts`), Papier (`paper.ts`), Blattschnitt (`layout.ts`), Rahmen/Griffe (`frame.ts`), Zeichnen (`draw.ts`), versteckte Karte (`render.ts`), PDF mit Blattrand (`pdf.ts`), Exportschleife (`export.ts`) |
 | `web/src/icons/` | Piktogramme als SVG, zur Laufzeit in Druckauflösung gerastert |
 | `web/src/search.ts`, `gpx.ts`, `credits.ts`, `data.ts`, `tiles.ts`, `config.ts` | Photon-Suche; GPX-Upload; Quellenangaben mit Datenstand; Datei-/Metadaten-Prüfung; Worker, Protokolle, DemSource; Konstanten (`PMTILES_PATH`, Relief-Credits, Startansicht) |
-| `web/public/fonts/` | Noto Sans als Glyph-PBF (OFL), `web/public/logo.svg` Kopie von `site/logo.svg` |
+| `web/public/fonts/` | Noto Sans als Glyph-PBF (OFL), `web/public/logo.svg` Kopie von `site/logo.svg`, `web/public/licenses-extra.txt` (Lizenztexte, die der Build-Bericht nicht enthält) |
 | `web/vite-plugin-serve-data.ts` | Dev-/Preview-Server liefert `<base>data/` aus `$CAPERCAILYE_DATA` (Standard `~/.local/share/capercailye`) mit Range-Requests |
-| `site/` | Landingpage, Logo-/Screenshot-Skripte (`site/scripts/`), Impressum, Datenschutz |
+| `site/` | Landingpage, Logo-/Screenshot-Skripte (`site/scripts/`), Impressum, Datenschutz, Quellen und Lizenzen |
 | `deploy/` | Compose, nginx, Updater (`updater/update.sh`, `check.ts`, `crontab`), `deploy.sh` |
 | `IDEEN.md` | loses Ideen-Backlog, nichts davon eingeplant; Einträge können veraltet sein, diese Spezifikation gewinnt |
 
@@ -124,7 +124,7 @@ Schrittnummern 1 bis 3 in Kreisen, Start in Erkunden.
 
 ### 4.3 Druck und PDF
 
-- **Blattraster:** druckbare Fläche = A4 minus 8 mm Rand; unten ein 11-mm-Streifen (Maßstab, Kontrollstrecke,
+- **Blattraster:** druckbare Fläche = A4 minus 8 mm Rand; unten ein 11-mm-Streifen (Maßstab, Druckhinweis,
   Quellen), Kartenfeld hochkant 194 × 270 mm. Überlappung 10 mm (zwischen Kartenfeldern gerechnet). Raster
   mittig über dem Gebiet; einzelne Blätter sind nicht verschiebbar, nur das ganze Raster.
 - **Modus „Maßstab“** (Standard): 1:15 000 / 1:25 000 / 1:50 000 wählen, Seitenzahl ergibt sich. **Modus
@@ -138,8 +138,10 @@ Schrittnummern 1 bis 3 in Kreisen, Start in Erkunden.
   `…-hoch-6-seiten.pdf`. Relief-Fehler (Timeout je DEM-Kachel 15 s) lassen den Export weiterlaufen und
   werden gewarnt.
 - **Blattrand (Vektor, `print/pdf.ts`):** Rahmen, Maßstabszahl, Maßstabsleiste, Nordpfeil, „Blatt n von N“
-  (nur bei mehr als einem Blatt), Nachbarblatt-Nummern mit Pfeil an den Kanten, 10-cm-Kontrollstrecke,
-  Quellenzeile mit Lizenzen (ohne Datenstand), Hinweis „Drucken mit 100 % (nicht „An Seite anpassen“)“.
+  (nur bei mehr als einem Blatt), Nachbarblatt-Nummern mit Pfeil an den Kanten,
+  einzeilige Quellenzeile über die ganze Streifenbreite (4.8; ohne Datenstand), Hinweis „Drucken mit 100 % (nicht
+  „An Seite anpassen“)“ oben rechts. Eine 10-cm-Kontrollstrecke gibt es nicht mehr (Platz für die Quellenzeile; die
+  Maßstabsleiste dient zur Kontrolle).
 - Automatisierter Export: `window.__capercailye.exportPdf({...})` liefert `{ blob, meta }` ohne Download
   (Parameter und `meta` siehe `web/README.md`); `layout()`, `loadGpx(text)`, `clearGpx()`, `setState()`, `credits`.
 
@@ -197,14 +199,39 @@ Straßen und unter den Namen, Start/Ende als Kreise (fixed). Track erscheint in 
 no-referrer`. Ergebnisliste als `combobox`/`listbox`, `/` fokussiert das Feld. Fehler: „Suche nicht erreichbar
 – Internetverbindung prüfen“. Die Quelle steht in der Seitenleiste, nicht im PDF.
 
-### 4.8 Quellenangaben, Datenstand
+### 4.8 Quellenangaben, Datenstand, Lizenzseite
 
 Muster `<Quelle> (<Lizenz>, Stand <TT.MM.JJJJ>)` (`credits.ts`, Konstanten in `config.ts`). Stand nur auf der
 Website (Sidebar-Fuß, Karten-Attribution), nicht im PDF-Blattrand. OSM-Stand aus
 `planetiler:osm:osmosisreplicationtime` der PMTiles-Metadaten; GTFS-Stand aus `feed_date=` in der
 Beschreibung der Busstops-Datei; Relief-Jahr statisch je Gebiet (`RELIEF_CREDITS`: `bw`, `rp`, `de`).
-Credit-Texte gehören zur Lizenzprüfung und werden nicht ohne Abstimmung umformuliert (der GTFS-Wortlaut ist
-vorläufig, siehe 8).
+Credit-Texte gehören zur Lizenzprüfung und werden nicht ohne Abstimmung umformuliert.
+
+**Lizenzpflichten, wie umgesetzt** (Quellen: OSMF-Attributionsrichtlinien, ODbL 1.0, dl-de/by-2-0 § 2, CC BY 4.0
+§ 3 a, BSD/MIT-Lizenztexte):
+- **OSM:** „© OpenStreetMap-Mitwirkende“ ist in der Karten-Attribution (MapLibre, als HTML) und im Sidebar-Fuß
+  (per DOM gebaut) auf `https://www.openstreetmap.org/copyright` verlinkt; die PDF-Zeile nennt
+  `openstreetmap.org/copyright` als Text. Die ausgelieferten PMTiles sind eine abgeleitete Datenbank (ODbL): ihre
+  Metadaten-`attribution` nennt „ODbL 1.0“ mit Link (Profil, `tiles/SCHEMA.md`; die Stil-Attribution der App
+  überschreibt sie auf dem Bildschirm).
+- **Relief** (Mapterhorn, DGM der Länder, je Land dl-de/by-2-0, CC BY 4.0 oder dl-de/zero-2-0): der Credit nennt
+  „bearbeitet“ (Schummerung und Höhenlinien sind berechnet) und verlinkt auf die Lizenzseite.
+- **Haltestellen** (DELFI e.V./gtfs.de, CC BY 4.0): „ausgewertet“ (nur Haltestellen mit ≥ 4 Abfahrten am Samstag
+  und Sonntag), Link auf die Lizenzseite.
+- **Lizenzseite** `site/quellen/` (`/quellen/`, deutsch, noindex, nicht in der Sitemap wie Impressum/Datenschutz):
+  Quellen mit Lizenz-URLs, Tabelle der deutschen Relief-Hersteller je Land (wörtlich aus
+  `download.mapterhorn.com/attribution.json`, abgerufen 2026-11-15; 17 Einträge, Baden-Württemberg hat zwei),
+  Änderungsvermerke, Schriften (OFL), Bibliotheken. Verlinkt von Landingpage-Fuß, Impressum, Datenschutz,
+  Seitenleiste der App und den Credits (Relief, Haltestellen).
+- **PDF-Zeile:** `OSM-Text, openstreetmap.org/copyright · Relief: …, bearbeitet · Fahrplandaten: …, ausgewertet
+  (CC BY 4.0) · Lizenzen: <Host>/quellen`; der Host kommt zur Laufzeit aus `window.location.host` (die Domain
+  steht nicht im App-Code). Die Zeile steht einzeilig über die ganze Streifenbreite, bei Bedarf bis 4 pt
+  verkleinert (`creditFontSize`).
+- **Bibliotheken:** `vite.config.ts` schreibt mit `build.license` `third-party-licenses.txt` (alle gebündelten Pakete
+  mit Lizenztext) nach `dist/` (`/app/third-party-licenses.txt`). Was dort fehlt (pmtiles liefert keine
+  Lizenzdatei; in MapLibres fertige Bundles eingebaute Bibliotheken) steht in `web/public/licenses-extra.txt`.
+  DOMPurify („MPL-2.0 OR Apache-2.0“) wird unter Apache-2.0 verwendet (Hinweis auf der Lizenzseite).
+  Bei neuen oder aktualisierten Abhängigkeiten `licenses-extra.txt` prüfen.
 
 ### 4.9 Landingpage (`site/`)
 
@@ -213,17 +240,18 @@ vorläufig, siehe 8).
   `canonical`, `og:*`, JSON-LD, `robots.txt`, `sitemap.xml`; `DOMAIN` in `deploy/.env` steuert nur die Traefik-Regel.
 - Abschnitte: Header (sticky), Hero (Dahner Felsenland, Höhenlinien-Ornament), „Less screen, more trail.“,
   Features (Print it, Bring your GPX, A style made for hiking mit POI-Chips), „Paper is harder than screens.“,
-  How it works (Schritte 1–3 wie in der App), Galerie (4 Bilder), Coverage-Satz, „Free and open source“
-  (Danksagung/Quellen), Abschluss-CTA, Footer mit Quellen und Links zu Impressum/Datenschutz.
+  How it works (Schritte 1–3 wie in der App), Galerie (4 Bilder) mit Bildnachweis-Zeile darunter (OSM, Relief "modified", Haltestellen "analysed", Link auf `/quellen/`), Coverage-Satz, „Free and open source“
+  (Danksagung/Quellen), Abschluss-CTA, Footer mit Quellen und Links zu Impressum/Datenschutz/Quellen.
 - Bilder `site/img/` (`dahn`, `calmont`, `schwarzwald`, `feldberg`, `gpx`, `print` je `.jpg` und `@2x.jpg`,
   `og-image.jpg` 1200 × 630), erzeugt mit `site/scripts/snapshots.ts` (`playwright-core`, lokaler Chrome,
   zwei Dev-Server für RP und BW) aus der echten App; GPX-Beispiel `site/scripts/sample-dahn.gpx`. Logo:
   8-Bit-Auerhahn, `site/scripts/logo.ts` erzeugt `logo.svg`/`favicon.svg` aus einer 24 × 24-Matrix (nach
   `web/public/logo.svg` kopiert).
-- Seiten `site/impressum/` und `site/datenschutz/` (deutsch). Skripte: `site/mail.js` (setzt die E-Mail-Adresse
+- Seiten `site/impressum/`, `site/datenschutz/` und `site/quellen/` (Quellen und Lizenzen; deutsch). Skripte: `site/mail.js` (setzt die E-Mail-Adresse
   erst im Browser zusammen) und das Umami-Analytics-Skript (cookielos, eigene Analytics-Subdomain; steht
-  in `site/index.html`, `web/index.html` und ist in der Datenschutzerklärung beschrieben). Beide Seiten der
-  Seitenleiste verlinken Impressum und Datenschutz als absolute Pfade `/impressum/`, `/datenschutz/`.
+  in `site/index.html`, `web/index.html` und ist in der Datenschutzerklärung beschrieben). Die
+  Seitenleiste der App verlinkt Impressum, Datenschutz und Quellen als absolute Pfade `/impressum/`, `/datenschutz/`,
+  `/quellen/`.
 - Landingpage-Texte nennen nur Funktionen, die es gibt; keine erfundenen Zahlen.
 
 ### 4.10 Nicht gebaut (bewusst zurückgestellt oder gestrichen)
@@ -348,9 +376,9 @@ stehen in `deploy/README.md` (maßgeblich, nicht hier duplizieren).
 
 - **Landingpage-Abdeckung:** Der Coverage-Satz nennt Rheinland-Pfalz und Baden-Württemberg, der Betrieb baut ganz
   Deutschland; Text und Galerie nach dem ersten Deutschland-Lauf angleichen.
-- **Lizenzen öffentlicher Betrieb:** Nutzungsbedingungen von Mapterhorn und gtfs.de für eine öffentliche Seite vor dem
-  Start prüfen; Wortlaut der GTFS-Quellenangabe (`BUSSTOPS_CREDIT`) ist vorläufig. Die Lizenzprüfung ist ein
-  eigener Arbeitsstrang.
+- **Lizenzen öffentlicher Betrieb:** die Pflichtangaben sind umgesetzt (4.8). Offen ist die Entscheidung des
+  Betreibers, ob für das Impressum (§ 5 DDG) ein zweiter, schneller Kontaktweg neben der E-Mail-Adresse angegeben
+  wird.
 - **Relief hängt am Netz:** ohne Mapterhorn fehlen Schummerung und Höhenlinien (Export läuft mit Warnung weiter).
 - **GTFS ist ein Schnappschuss** (30 Tage gültig, Fahrplanwechsel-Regel, Landesfeiertage und Ferien nicht berücksichtigt).
 - **Raster-PDF:** keine Vektorkarte; Qualität hängt an 300 dpi und Canvas-Limit des Browsers.

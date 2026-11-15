@@ -1599,9 +1599,18 @@ public class CapercailyeProfile implements Profile {
     return "Hiking map tiles (1:25,000 print) with hiking routes per way segment";
   }
 
+  /**
+   * PMTiles/TileJSON attribution: the OSM copyright link plus the licence of the database (ODbL 1.0,
+   * the tiles are a derivative database). The app's own style attribution overrides this text on
+   * screen; it matters for everyone who downloads the PMTiles file.
+   */
+  private static final String ATTRIBUTION =
+    "<a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">&copy; OpenStreetMap contributors</a>"
+      + " (<a href=\"https://opendatacommons.org/licenses/odbl/1-0/\" target=\"_blank\">ODbL 1.0</a>)";
+
   @Override
   public String attribution() {
-    return OSM_ATTRIBUTION;
+    return ATTRIBUTION;
   }
 
   @Override

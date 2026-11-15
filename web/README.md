@@ -53,7 +53,7 @@ src/
 ├── sidebar.ts       Suche, Modusschalter, Druck-Einstellungen, GPX-Panel, Ebenen-Schalter mit Legende (Abschnitte, Unterschalter), Einklappen
 ├── mode.ts          Modi Erkunden/Zeichnen/Seiten (rein): interactionFor, dragRect, areaOutside
 ├── legend.ts        Legenden-Symbole der Schalter (rein): legendSvg(groupId)
-├── credits.ts       Quellenangaben mit Datenstand (rein): formatStand, osmStand, gtfsStand, buildCredits
+├── credits.ts       Quellenangaben mit Datenstand (rein): formatStand, osmStand, gtfsStand, buildCredits (HTML, Sidebar-Teile, PDF-Zeile)
 ├── search.ts        Photon-Suche (photonUrl, parsePhoton rein und getestet; initSearch: Feld, Liste, Sprung)
 ├── gpx.ts           GPX-Upload (normalizeTrack, areaForTrack, trackLengthKm rein und getestet; Datei, Drag-and-drop)
 ├── state.ts         kleiner beobachtbarer App-Zustand (Modus, Druck, Druckansicht, Sichtbarkeit, GPX-Track)
@@ -143,7 +143,8 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   - **Blattrand im PDF** (`print/pdf.ts`): Maßstabszahl, Leiste (höchstens 40 mm), Nordpfeil,
     „Blatt n von N“ (nur bei mehr als einem Blatt) laufen über einen Cursor von links nach rechts;
     die Nachbarblätter stehen als Nummer mit Pfeil mittig an jeder Kante außerhalb des Rahmens.
-    Dazu Kontrollstrecke und Quellenzeile wie bisher.
+    Dazu der Druckhinweis (oben rechts) und die einzeilige Quellenzeile über die volle Streifenbreite
+    (`creditFontSize`: bis 4 pt verkleinert, wenn sie breiter ist). Die frühere 10-cm-Kontrollstrecke ist entfallen.
 - **Mehrseitiger Export** (`print/export.ts`): **ein** PDF, die Blätter in Nummernfolge, je Blatt
   eine versteckte Karte mit eigenem Mittelpunkt und gemeinsamem Zoom (300 dpi fest). Der Canvas
   wird nach `addImage` freigegeben. Die Statuszeile zeigt „Seite 3 von 6 wird gerendert …“, der
@@ -350,7 +351,9 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
 - **Datenstand:** Muster je Quelle `<Quelle> (<Lizenz>, Stand <Datum>)` (`src/credits.ts`), Datum
   `TT.MM.JJJJ` aus dem UTC-Datumsteil; ohne bekannten Stand entfällt nur „, Stand …“. Der Stand
   erscheint **nur auf der Website** (Sidebar-Fuß, Karten-Attribution), **nicht im PDF-Blattrand**: der
-  trägt dieselben Quellen mit Lizenz, aber ohne Stand (`credits.line`).
+  trägt dieselben Quellen in Kurzform, ohne Stand (`credits.line`): mit `openstreetmap.org/copyright`, den
+  Änderungsvermerken „bearbeitet“ (Relief) und „ausgewertet“ (Haltestellen) und am Ende `Lizenzen: <Host>/quellen`
+  (Host aus `window.location.host`, nicht fest verdrahtet).
   - **OSM:** `planetiler:osm:osmosisreplicationtime` aus den PMTiles-Metadaten
     (`pmtilesMetadata` in `src/data.ts`, `new PMTiles(url).getMetadata()`; kein Tile-Neubau).
   - **GTFS:** `transit/build.sh` schreibt `feed_date=YYYY-MM-DD` (aus dem Feed-Verzeichnis
@@ -358,8 +361,17 @@ vite-plugin-serve-data.ts   /data/ mit Range-Unterstützung
   - **Relief:** Mapterhorn liefert keinen abfragbaren Datenstand, deshalb steht das Jahr
     **statisch** je Gebiet in `RELIEF_CREDITS` (`src/config.ts`; Herkunft: `access_year` in
     `attribution.json`, abgerufen 2026-11-14). Unbekanntes Gebiet: ohne Stand.
+  - **Links und Lizenzpflichten:** `SourceCredit` hat `href` (OSM: `openstreetmap.org/copyright`, Relief und
+    Haltestellen: `/quellen/`) und `print` (PDF-Wortlaut). Die Karten-Attribution bekommt HTML (`creditHtml`,
+    MapLibre bereinigt es; `a` mit `href`/`target`/`rel` bleibt), der Sidebar-Fuß wird aus `CreditPart`s mit
+    DOM-APIs gebaut (`setAttribution`, kein `innerHTML`). Die Lizenzseite ist `site/quellen/`; Hintergrund und
+    Pflichten: SPEC.md 4.8.
   - Datenfluss: `buildStyle({ credits })` (Standard: ohne Stand) für die Karten-Attribution,
     `setAttribution(credits.sidebar)` für den Fuß, `ExportOptions.credits` für das PDF.
-    `window.__capercailye.credits` enthält die gebauten Texte.
+    `window.__capercailye.credits` enthält die gebauten Texte (`osm`/`relief`/`busstops` als HTML, `sidebar` als
+    Teile, `line` für das PDF).
+  - **Bibliothekslizenzen:** `build.license` in `vite.config.ts` schreibt `dist/third-party-licenses.txt`;
+    `public/licenses-extra.txt` ergänzt, was darin ohne Text bleibt (pmtiles) oder nicht erfasst ist (in MapLibres
+    Bundles eingebaute Bibliotheken). Beide sind unter `/app/` erreichbar und auf der Lizenzseite verlinkt.
 - Beim Drucken „Tatsächliche Größe“ / 100 % wählen, nicht „An Seite anpassen“; die
-  Kontrollstrecke (10 cm) auf dem Ausdruck nachmessen.
+  Maßstabsleiste auf dem Ausdruck nachmessen.

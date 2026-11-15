@@ -40,7 +40,6 @@ export interface PdfPageResult {
   imageMm: SizeMm & { x: number; y: number };
 }
 
-const CHECK_LINE_MM = 100;
 const SCALE_BAR_MAX_MM = 40;
 const FRAME_LINE_MM = 0.25;
 /** Strip furniture stays above this offset from the strip top (the credits line runs below). */
@@ -124,7 +123,7 @@ function drawLegendStrip(
   doc.line(x0, top, x0 + area.width, top);
 
   // Left to right with a cursor: scale number, bar, north arrow, sheet number, grid overview.
-  // The bar gets whatever is left up to the check line (at most SCALE_BAR_MAX_MM).
+  // The bar is at most SCALE_BAR_MAX_MM long (less on a very narrow sheet).
   doc.setTextColor(0);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
@@ -142,8 +141,7 @@ function drawLegendStrip(
   }
   const used =
     scaleWidth + 4 + 5 + arrowWidth + 3 + (sheet ? blattWidth + 4 + (grid?.width ?? 0) : 0);
-  const room = right - CHECK_LINE_MM - 3 - left;
-  const barMax = Math.min(SCALE_BAR_MAX_MM, room - used);
+  const barMax = Math.min(SCALE_BAR_MAX_MM, right - left - used);
 
   doc.setFontSize(10);
   doc.text(scaleText, left, top + 5.2);
@@ -183,32 +181,16 @@ function drawLegendStrip(
     if (grid) drawGrid(doc, cursor, top, sheet, grid);
   }
 
-  // 10 cm check line with end ticks.
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6);
-  doc.setTextColor(0);
-  const cx1 = right;
-  const cx0 = right - CHECK_LINE_MM;
-  const cy = top + 3.8;
-  doc.setLineWidth(0.2);
-  doc.setDrawColor(0);
-  doc.line(cx0, cy, cx1, cy);
-  doc.line(cx0, cy - 1.2, cx0, cy + 1.2);
-  doc.line(cx1, cy - 1.2, cx1, cy + 1.2);
-  doc.text("Kontrollstrecke 10 cm", (cx0 + cx1) / 2, cy + 2.8, { align: "center" });
-
-  // Attribution (OSM, relief, GTFS bus stops; see credits.ts) and print hint. The credits are
-  // shrunk if they would run into the hint on a narrow sheet.
+  // Print hint in the upper row at the right; the credits get the whole width of the lower row.
+  // They are shrunk (down to CREDIT_MIN_PT) only if the line is still wider than the strip.
   const hint = "Drucken mit 100 % (nicht „An Seite anpassen“)";
-  doc.setFontSize(5.5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(CREDIT_PT);
   doc.setTextColor(70);
-  const hintWidth = doc.getTextWidth(hint);
-  const creditWidth = doc.getTextWidth(credits);
-  const creditRoom = right - left - hintWidth - 4;
-  doc.setFontSize(creditFontSize(creditWidth, creditRoom));
+  doc.text(hint, right, top + 4.4, { align: "right" });
+  const creditRoom = right - left;
+  doc.setFontSize(creditFontSize(doc.getTextWidth(credits), creditRoom));
   doc.text(credits, left, top + LEGEND_STRIP_MM - 1.4);
-  doc.setFontSize(5.5);
-  doc.text(hint, right, top + LEGEND_STRIP_MM - 1.4, { align: "right" });
 }
 
 /** Font size of the credits line in pt. */
@@ -218,7 +200,7 @@ export const CREDIT_MIN_PT = 4;
 
 /**
  * Font size of the credits line: CREDIT_PT, shrunk (down to CREDIT_MIN_PT) if the line, measured
- * at CREDIT_PT as `width` mm, does not fit into `room` mm beside the print hint.
+ * at CREDIT_PT as `width` mm, does not fit into `room` mm (the width of the strip).
  */
 export function creditFontSize(width: number, room: number): number {
   return width > room ? Math.max(CREDIT_MIN_PT, (CREDIT_PT * room) / width) : CREDIT_PT;

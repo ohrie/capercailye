@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { jsPDF } from "jspdf";
+import { BUSSTOPS_CREDIT, RELIEF_CREDITS } from "../config";
 import { buildCredits } from "../credits";
 import { printableArea } from "./paper";
 import { CREDIT_MIN_PT, CREDIT_PT, creditFontSize } from "./pdf";
@@ -11,29 +12,43 @@ describe("creditFontSize", () => {
     expect(creditFontSize(110, 100)).toBeCloseTo((CREDIT_PT * 100) / 110, 10);
     expect(creditFontSize(1000, 100)).toBe(CREDIT_MIN_PT);
   });
+});
 
-  test("the credits line of the sheet margin fits beside the print hint, portrait and landscape", () => {
-    const hint = "Drucken mit 100 % (nicht „An Seite anpassen“)";
-    const relief = [
-      { name: "Relief: Mapterhorn, LGL, www.lgl-bw.de", license: "dl-de/by-2-0" },
-      { name: "Relief: Mapterhorn, ©GeoBasis-DE / LVermGeoRP", license: "dl-de/by-2-0" },
-    ];
+describe("credits line of the sheet margin", () => {
+  const host = "capercailye.chilla.dev";
+
+  test("fits the strip width without going below the minimum size, portrait and landscape", () => {
     for (const orientation of ["portrait", "landscape"] as const) {
-      for (const r of relief) {
-        const line = buildCredits({ relief: r }).line;
-        expect(line).not.toContain("Stand");
-        const doc = new jsPDF({ unit: "mm", format: "a4", orientation });
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(CREDIT_PT);
-        const room = printableArea(orientation).width - 6 - doc.getTextWidth(hint) - 4;
-        const size = creditFontSize(doc.getTextWidth(line), room);
-        expect(size, `${orientation} ${r.name}`).toBeGreaterThanOrEqual(CREDIT_MIN_PT);
-        // At that size the line ends before the hint starts.
-        expect(
-          (doc.getTextWidth(line) * size) / CREDIT_PT,
-          `${orientation} ${r.name}`,
-        ).toBeLessThanOrEqual(room + 1e-9);
+      for (const busstopsAvailable of [true, false]) {
+        for (const [area, relief] of Object.entries(RELIEF_CREDITS)) {
+          const line = buildCredits({ host, busstopsAvailable, relief }).line;
+          const label = `${orientation} bus=${busstopsAvailable} ${area}`;
+          expect(line, label).not.toContain("Stand");
+          const doc = new jsPDF({ unit: "mm", format: "a4", orientation });
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(CREDIT_PT);
+          const room = printableArea(orientation).width - 6;
+          const size = creditFontSize(doc.getTextWidth(line), room);
+          expect(size, label).toBeGreaterThanOrEqual(CREDIT_MIN_PT);
+          // Readable: the production line (all of Germany) loses at most about a point.
+          if (area === "de") expect(size, label).toBeGreaterThanOrEqual(5);
+          // At that size the line ends inside the strip.
+          expect((doc.getTextWidth(line) * size) / CREDIT_PT, label).toBeLessThanOrEqual(
+            room + 1e-9,
+          );
+        }
       }
     }
+  });
+
+  test("has the OSM copyright URL, modification notes, licences and the sources pointer", () => {
+    const text = buildCredits({ host }).line;
+    expect(text).toContain("openstreetmap.org/copyright");
+    expect(text).toContain("ODbL");
+    expect(text).toContain(`Lizenzen: ${host}/quellen`);
+    expect(text).toContain("bearbeitet");
+    expect(text).toContain("ausgewertet");
+    expect(text).toContain(BUSSTOPS_CREDIT.license!);
+    expect(text).not.toContain("Stand");
   });
 });

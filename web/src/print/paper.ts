@@ -7,7 +7,7 @@ export const A4_MM = { width: 210, height: 297 } as const;
 export const MARGIN_MM = 8;
 /** Extra map rendered on each side and cropped afterwards, so labels at the edge are not cut. */
 export const BLEED_MM = 5;
-/** Height of the white strip at the bottom of the map area holding scale, check line, attribution. */
+/** Height of the white strip at the bottom of the map area holding scale, print hint, attribution. */
 export const LEGEND_STRIP_MM = 11;
 
 /** Resolution of the PDF export: always 300 dpi (A4 incl. bleed stays far below the canvas limit). */

@@ -4,7 +4,7 @@ import type { LayerSpecification, StyleSpecification } from "@maplibre/maplibre-
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
 import { BUSSTOPS_CREDIT, OSM_CREDIT, RELIEF_CREDIT } from "../config";
-import { creditText } from "../credits";
+import { creditHtml } from "../credits";
 import { buildingLayers } from "./buildings";
 import { cliffLayers } from "./cliffs";
 import { contourLayers, hillshadeLayers } from "./hillshade";
@@ -272,11 +272,14 @@ export interface StyleOptions {
   gpx?: FeatureCollection;
   /** Placed waymark signs (waymarks/index.ts, GeoJSON points); empty source without them. */
   waymarks?: FeatureCollection;
-  /** Attribution text per source (map attribution); default: the sources without data dates. */
+  /** Attribution HTML per source (map attribution); default: the sources without data dates. */
   credits?: SourceCredits;
 }
 
-/** Texts of the map attribution, one per source (the relief text serves DEM and contours). */
+/**
+ * HTML of the map attribution, one per source (the relief text serves DEM and contours). It is
+ * sanitized by MapLibre; links open in a new tab. Overrides the attribution of the PMTiles metadata.
+ */
 export interface SourceCredits {
   osm: string;
   relief: string;
@@ -284,9 +287,9 @@ export interface SourceCredits {
 }
 
 const DEFAULT_CREDITS: SourceCredits = {
-  osm: creditText(OSM_CREDIT),
-  relief: creditText({ ...RELIEF_CREDIT, stand: undefined }),
-  busstops: creditText(BUSSTOPS_CREDIT),
+  osm: creditHtml(OSM_CREDIT),
+  relief: creditHtml(RELIEF_CREDIT),
+  busstops: creditHtml(BUSSTOPS_CREDIT),
 };
 
 export function buildStyle(opts: StyleOptions): StyleSpecification {

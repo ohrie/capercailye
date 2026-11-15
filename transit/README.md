@@ -42,7 +42,8 @@ Attribute: `name` (string), `sat` (int, Abfahrten Samstag), `sun` (int, Abfahrte
 - Lizenz: Creative Commons Namensnennung 4.0 (CC BY 4.0), <https://creativecommons.org/licenses/by/4.0/>. gtfs.de nennt
   keinen verbindlichen Wortlaut; `attributions.txt` im Feed nennt DELFI e.V. und GTFS.de als Hersteller.
 - Vorschlag für den Blattrand: **Bushaltestellen: Fahrplandaten DELFI e.V., aufbereitet von gtfs.de (CC BY 4.0), von capercailye
-  ausgewertet**. Kurzform: `Fahrplandaten: DELFI e.V. / gtfs.de, CC BY 4.0`. (Die Auswahl ist eine Bearbeitung, das
+  ausgewertet**. In der App steht `Fahrplandaten: DELFI e.V. / gtfs.de, ausgewertet (CC BY 4.0, Stand …)`, im PDF die Kurzform
+  `Fahrplandaten: DELFI/gtfs.de, ausgewertet (CC BY 4.0)`; Lizenz-URL und Änderungsvermerk stehen auf `/quellen/`. (Die Auswahl ist eine Bearbeitung, das
   ist bei CC BY zu kennzeichnen; der Zusatz „ausgewertet“ erfüllt das.)
 
 ## Stand des Feeds in den Tiles

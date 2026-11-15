@@ -14,6 +14,8 @@ scripts/logo.ts generates logo.svg and favicon.svg from a pixel matrix
 scripts/snapshots.ts renders img/ from the running web app (needs two dev servers, see its header)
 mail.js         assembles the contact address in the browser (Impressum, Datenschutz)
 impressum/, datenschutz/   legal pages (German)
+quellen/        sources and licences page (German; OSM, relief per state, bus stops, fonts, libraries); linked
+                from the footer, the app sidebar and the map credits; noindex, not in the sitemap
 ```
 
 ## Logo
@@ -24,6 +26,9 @@ Edit `MATRIX` in `scripts/logo.ts` (24 x 24, one character per pixel, `.` = empt
 `W` beak / white patches `#eeebc6`.
 
 ## Image fallback
+
+The gallery has a one-line image credit (OSM, relief, bus stops, link to `/quellen/`); keep it in step
+with what the screenshots show.
 
 Every image sits in a `.shot` figure with `--forest-light` background and 3:2 aspect ratio. The
 `<img>` already points at its final file name and is absolutely positioned inside the figure. If

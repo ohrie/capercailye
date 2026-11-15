@@ -128,8 +128,13 @@ body {
   color: var(--fg-muted);
 }
 
+.sidebar__footer a {
+  color: inherit;
+}
+
 .sidebar__legal {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-3);
   padding: 0 var(--space-5) var(--space-4);
   font-size: 11px;

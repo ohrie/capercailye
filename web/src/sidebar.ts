@@ -1,5 +1,6 @@
 // Sidebar wiring: mode switch, print settings, GPX panel, layer toggles with legend symbols
 // (sections, sub-switches), collapse.
+import type { CreditPart } from "./credits";
 import { legendDataUrl, legendSvg, LEGEND_CELL, LEGEND_SCALE } from "./legend";
 import { MAP_MODES, type MapMode } from "./mode";
 import { MAX_SHEETS, type PrintMode, type SheetLayout } from "./print/layout";
@@ -186,9 +187,27 @@ function refreshExportButton(): void {
   }
 }
 
-/** Sidebar footer: the credits of the sources (with their data dates). */
-export function setAttribution(text: string): void {
-  el("attribution").textContent = text;
+/**
+ * Sidebar footer: the credits of the sources (with their data dates), names with a target as links.
+ * Built with DOM APIs (text nodes and anchors), no HTML string goes in.
+ */
+export function setAttribution(parts: CreditPart[]): void {
+  const nodes: Node[] = [];
+  parts.forEach((part, i) => {
+    if (i > 0) nodes.push(document.createTextNode(" · "));
+    if (part.href) {
+      const a = document.createElement("a");
+      a.href = part.href;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = part.name;
+      nodes.push(a);
+    } else {
+      nodes.push(document.createTextNode(part.name));
+    }
+    if (part.suffix) nodes.push(document.createTextNode(part.suffix));
+  });
+  el("attribution").replaceChildren(...nodes);
 }
 
 /** While an export runs the button turns into "Abbrechen". */

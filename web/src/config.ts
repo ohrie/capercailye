@@ -33,19 +33,42 @@ export const RELIEF_TIMEOUT_MS = 15_000;
 /**
  * Source credits. Pattern per source: `<name> (<licence>, Stand <date>)`; the date part is added
  * by src/credits.ts (OSM and GTFS: read from the data files, relief: static, see below).
- * Provisional wording of the GTFS credit: adjust here once the licence text is final.
+ * The credits are part of the licence compliance (SPEC.md 4.8): where the licence asks for it
+ * the name says that the data was changed ("bearbeitet", "ausgewertet"), and the full references
+ * (licence texts and URIs, per-state producers) are on the sources page `SOURCES_PATH`.
  */
 export interface SourceCredit {
   name: string;
   license?: string;
   /** Static data date (relief only); the others are read at runtime. */
   stand?: string;
+  /** Link target of the name on screen (map attribution, sidebar). */
+  href?: string;
+  /**
+   * Wording on the PDF sheet margin (no date, no link); default: name and licence. Kept short: the
+   * licence references are behind the pointer to the sources page at the end of the line.
+   */
+  print?: string;
 }
 
-export const OSM_CREDIT: SourceCredit = { name: "© OpenStreetMap-Mitwirkende", license: "ODbL" };
+/** The sources and licences page of the site (German), root-absolute like the legal pages. */
+export const SOURCES_PATH = "/quellen/";
+/** The OSM copyright page the OSM credit links to (OSMF attribution guidelines). */
+export const OSM_COPYRIGHT_URL = "https://www.openstreetmap.org/copyright";
+
+export const OSM_CREDIT: SourceCredit = {
+  name: "© OpenStreetMap-Mitwirkende",
+  license: "ODbL",
+  href: OSM_COPYRIGHT_URL,
+  // The OSMF guidelines want the copyright URL printed where the map is printed.
+  print: "© OpenStreetMap-Mitwirkende (ODbL), openstreetmap.org/copyright",
+};
+/** Only stops with at least 4 departures on Saturday and Sunday are kept (transit/README.md). */
 export const BUSSTOPS_CREDIT: SourceCredit = {
-  name: "Fahrplandaten: DELFI e.V. / gtfs.de",
+  name: "Fahrplandaten: DELFI e.V. / gtfs.de, ausgewertet",
   license: "CC BY 4.0",
+  href: SOURCES_PATH,
+  print: "Fahrplandaten: DELFI/gtfs.de, ausgewertet (CC BY 4.0)",
 };
 
 /**
@@ -60,24 +83,34 @@ export const BUSSTOPS_CREDIT: SourceCredit = {
  * has two): access_year 2025 for all but `dehessen` and `debw025`, which have 2026, hence
  * "2025/2026". The licences differ per state: dl-de/by-2-0 (BW, BB, HH, RP, SL, SN, ST, TH),
  * CC BY 4.0 (BY, HB, MV, NI, SH) and dl-de/zero-2-0 (BE, HE, NW). The credit therefore names the
- * three licences, credits the state surveying administrations in general and points to
- * mapterhorn.com/attribution for the per-state producer texts. Retrieved 2026-11-14.
+ * three licences and credits the state surveying administrations in general; the per-state
+ * producer texts, licence names and URIs are on the sources page (site/quellen/, from
+ * attribution.json, retrieved 2026-11-15), which also points to mapterhorn.com/attribution.
+ *
+ * All names say "bearbeitet": hillshade and contour lines are computed from the elevation model
+ * (dl-de/by-2-0 section 2 and CC BY 4.0 section 3(a) ask for an indication of changes).
  */
-const RELIEF_CREDITS: Record<string, SourceCredit> = {
+export const RELIEF_CREDITS: Record<string, SourceCredit> = {
   bw: {
-    name: "Relief: Mapterhorn, LGL, www.lgl-bw.de",
+    name: "Relief: Mapterhorn, LGL, www.lgl-bw.de, bearbeitet",
     license: "dl-de/by-2-0",
     stand: "2025/2026",
+    href: SOURCES_PATH,
+    print: "Relief: Mapterhorn, LGL, bearbeitet",
   },
   rp: {
-    name: "Relief: Mapterhorn, ©GeoBasis-DE / LVermGeoRP",
+    name: "Relief: Mapterhorn, ©GeoBasis-DE / LVermGeoRP, bearbeitet",
     license: "dl-de/by-2-0",
     stand: "2025",
+    href: SOURCES_PATH,
+    print: "Relief: Mapterhorn, GeoBasis-DE/LVermGeoRP, bearbeitet",
   },
   de: {
-    name: "Relief: Mapterhorn, © GeoBasis-DE / Landesvermessungsverwaltungen, Quellen: mapterhorn.com/attribution",
+    name: "Relief: Mapterhorn, © GeoBasis-DE / Vermessungsverwaltungen der Länder, bearbeitet",
     license: "dl-de/by-2-0, CC BY 4.0, dl-de/zero-2-0 je nach Land",
     stand: "2025/2026",
+    href: SOURCES_PATH,
+    print: "Relief: Mapterhorn, GeoBasis-DE/Länder, bearbeitet",
   },
 };
 
@@ -86,7 +119,8 @@ export const AREA = /capercailye-([^/]+)\.pmtiles$/.exec(PMTILES_PATH)?.[1] ?? "
 
 /** Relief credit for the loaded area; unknown areas point to Mapterhorn's full source list, no date. */
 export const RELIEF_CREDIT: SourceCredit = RELIEF_CREDITS[AREA] ?? {
-  name: "Relief: Mapterhorn, Quellen: mapterhorn.com/attribution",
+  name: "Relief: Mapterhorn, bearbeitet, Quellen: mapterhorn.com/attribution",
+  href: SOURCES_PATH,
 };
 
 /** Place search; named in the sidebar footer only (the sheet margin lists what is printed on it). */

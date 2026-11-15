@@ -58,6 +58,16 @@ All M0 layer names, attribute names and values still exist with the same meaning
    `amenity=place_of_worship`) are two objects and give two points. Exception since 0.3: a **group** of
    similar OSM objects less than 75 m apart can become one point (merging, see `poi`).
 
+## Metadata and licence
+
+The tiles are a derivative database of OpenStreetMap data and fall under the ODbL 1.0. The PMTiles
+metadata `attribution` (profile method `attribution()`) therefore names the licence next to the OSM
+copyright: `<a href="https://www.openstreetmap.org/copyright">&copy; OpenStreetMap contributors</a>
+(<a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a>)` (HTML, as Planetiler's default
+was). The web app's style sets its own attribution per source, which overrides the TileJSON one, so
+this text only reaches people who download the file (`/app/data/`). Takes effect with the next tile
+build. Human-readable sources and licences: the sources page (`site/quellen/`).
+
 ## Zoom and detail
 
 At z12–z14 lines use 0.1 px simplification (tile = 256 px) and no minimum length, so z12 tiles

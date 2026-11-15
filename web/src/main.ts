@@ -77,6 +77,8 @@ const credits = buildCredits({
   osm: osmStand(osmMeta),
   gtfs: busstopsAvailable ? gtfsStand(busstopsMeta) : undefined,
   busstopsAvailable,
+  // The PDF line points to <host>/quellen; the domain is not hard-coded in the app.
+  host: window.location.host,
 });
 
 function currentStyle(waymarks?: FeatureCollection) {

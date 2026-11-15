@@ -8,5 +8,11 @@ export default defineConfig({
   server: { port: 5173 },
   // Pre-bundle up front so the first page load does not trigger a dependency reload.
   optimizeDeps: { include: ["maplibre-gl", "pmtiles", "jspdf", "@tmcw/togeojson"] },
-  build: { target: "es2022", chunkSizeWarningLimit: 2000 },
+  build: {
+    target: "es2022",
+    chunkSizeWarningLimit: 2000,
+    // Licence notices of all bundled third-party code (BSD/MIT/ISC/Apache/MPL require them with
+    // binary redistribution). Linked from the sources page (site/quellen/).
+    license: { fileName: "third-party-licenses.txt" },
+  },
 });
