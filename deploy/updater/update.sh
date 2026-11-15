@@ -157,10 +157,15 @@ step_start=$SECONDS
 curl_args=(-fsSL --retry 3 -A "$UA" -R -o "$PBF.part")
 [[ -f "$PBF" ]] && curl_args+=(-z "$PBF")
 log "Download: $PBF_URL"
-curl "${curl_args[@]}" "$PBF_URL"
+# Geofabrik leitet "-latest" auf einen Spiegel um; die .md5 liegt neben der Datei auf dem Spiegel.
+final_url="$(curl "${curl_args[@]}" -w '%{url_effective}' "$PBF_URL")"
 if [[ -s "$PBF.part" ]]; then
-  log "neuer Auszug geladen ($(du -h "$PBF.part" | cut -f1)), prüfe md5"
-  expected="$(curl -fsSL --retry 3 -A "$UA" "$PBF_URL.md5" | awk '{print $1; exit}')"
+  log "neuer Auszug geladen ($(du -h "$PBF.part" | cut -f1)) von $final_url, prüfe md5"
+  expected=""
+  for md5_url in "$final_url.md5" "$PBF_URL.md5"; do
+    expected="$(curl -fsSL --retry 3 -A "$UA" "$md5_url" 2>/dev/null | awk '{print $1; exit}' || true)"
+    [[ -n "$expected" ]] && break
+  done
   actual="$(md5sum "$PBF.part" | awk '{print $1}')"
   if [[ -z "$expected" || "$expected" != "$actual" ]]; then
     rm -f "$PBF.part"
