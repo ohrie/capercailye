@@ -12,8 +12,8 @@ PMTiles); Umfang und Entscheidungen stehen in [SPEC.md](SPEC.md).
 - **tippecanoe**, `unzip` – nur für `transit/build.sh` (Bushaltestellen)
 - osmium wird nicht gebraucht
 
-Speicher: Baden-Württemberg und Rheinland-Pfalz laufen mit dem Standard-Heap von 4 GB
-(`JAVA_XMX=8g` zum Ändern).
+Speicher: Standard-Heap 4 GB (`JAVA_XMX=8g` zum Ändern); Bundesland-Extrakte wie Rheinland-Pfalz oder
+Baden-Württemberg laufen damit.
 
 ## Kartendaten erzeugen
 
@@ -23,7 +23,8 @@ alternativ in `web/.env.local` setzen (steht in `.gitignore`).
 
 ### 1. OSM-Extrakt laden
 
-Geofabrik-Extrakt eines Bundeslandes (oder `germany`, `europe`), Beispiel Rheinland-Pfalz:
+Geofabrik-Extrakt für Deutschland (`germany`; auch ein Bundesland oder `europe` geht). Für einen schnellen
+lokalen Test eignet sich ein kleines Land, hier als Beispiel Rheinland-Pfalz:
 
 ```sh
 export CAPERCAILYE_DATA="${CAPERCAILYE_DATA:-$HOME/.local/share/capercailye}"
@@ -38,6 +39,7 @@ Rheinland-Pfalz hat rund 270 MB, Baden-Württemberg rund 640 MB, ganz Deutschlan
 
 ```sh
 tiles/build.sh [input.osm.pbf] [gebiet]
+tiles/build.sh $CAPERCAILYE_DATA/germany-latest.osm.pbf                  # → capercailye-de.pmtiles
 tiles/build.sh $CAPERCAILYE_DATA/rheinland-pfalz-latest.osm.pbf          # → capercailye-rp.pmtiles
 tiles/build.sh $CAPERCAILYE_DATA/baden-wuerttemberg-latest.osm.pbf       # → capercailye-bw.pmtiles
 tiles/build.sh $CAPERCAILYE_DATA/foo-latest.osm.pbf mein-gebiet          # → capercailye-mein-gebiet.pmtiles
@@ -80,10 +82,19 @@ bun run dev        # http://localhost:5173
 Der Dev-Server liefert die Dateien aus dem Verzeichnis `CAPERCAILYE_DATA` unter `/data/` aus. Weitere
 Befehle und der Aufbau: [web/README.md](web/README.md).
 
-### Gebiet wechseln
 
-Die App lädt die Datei aus `PMTILES_PATH` in `web/src/config.ts` (Standard
-`data/capercailye-rp.pmtiles`, Rheinland-Pfalz); eine Umschaltung zur Laufzeit gibt es nicht. Für
-ein anderes Gebiet dort den Dateinamen ändern (z. B. `data/capercailye-bw.pmtiles`) und die
-Startansicht (`INITIAL_CENTER`, `INITIAL_ZOOM`, Standard Dahn im Pfälzerwald) ins Gebiet
-verschieben. Die Bushaltestellen-Datei braucht keine Anpassung.
+## Dank
+
+capercailye gibt es nur, weil andere ihre Arbeit offen teilen:
+
+- **Daten:** [OpenStreetMap](https://www.openstreetmap.org/) (Kartendaten),
+  [Mapterhorn](https://mapterhorn.com/) (Höhenkacheln aus den Daten der Landesvermessungsämter),
+  [Photon](https://photon.komoot.io/) von komoot (Ortssuche), [gtfs.de](https://gtfs.de/) (Haltestellen),
+  [Geofabrik](https://download.geofabrik.de/) (OSM-Extrakte)
+- **Software:** [MapLibre GL JS](https://maplibre.org/), [PMTiles](https://docs.protomaps.com/pmtiles/)
+  von Protomaps, [Planetiler](https://github.com/onthegomap/planetiler),
+  [tippecanoe](https://github.com/felt/tippecanoe),
+  [maplibre-contour](https://github.com/onthegomap/maplibre-contour),
+  [OsmcToSVG](https://github.com/mueschel/OsmcToSVG), [jsPDF](https://github.com/parallax/jsPDF)
+
+Lizenzen und Quellenangaben im Einzelnen: [site/quellen](site/quellen/index.html).

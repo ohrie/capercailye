@@ -15,7 +15,7 @@ mehrseitiges PDF, das man selbst druckt. Eigener Kartenstil, ausgelegt auf Lesba
 
 **Für wen:** Wanderer, die Papier statt Bildschirm mitnehmen wollen. Öffentlicher Dienst, kostenlos,
 Quellcode MIT. Kartendaten: Deutschland (Tile-Build mit Planetiler läuft für jedes Geofabrik-Extrakt;
-lokal Rheinland-Pfalz und Baden-Württemberg, im Betrieb ganz Deutschland).
+im Betrieb ganz Deutschland; lokal zum Testen die Extrakte von Rheinland-Pfalz und Baden-Württemberg).
 
 **Bewusst nicht:**
 - kein Backend, keine Konten, keine Speicherung von Nutzerdaten (Gebiet, GPX und Einstellungen sind
@@ -369,8 +369,6 @@ stehen in `deploy/README.md` (maßgeblich, nicht hier duplizieren).
 
 ## 8. Offene Punkte und bekannte Grenzen
 
-- **Landingpage-Abdeckung:** Der Coverage-Satz nennt Rheinland-Pfalz und Baden-Württemberg, der Betrieb baut ganz
-  Deutschland; Text und Galerie nach dem ersten Deutschland-Lauf angleichen.
 - **Lizenzen öffentlicher Betrieb:** die Pflichtangaben sind umgesetzt (4.8). Offen ist die Entscheidung des
   Betreibers, ob für das Impressum (§ 5 DDG) ein zweiter, schneller Kontaktweg neben der E-Mail-Adresse angegeben
   wird.
