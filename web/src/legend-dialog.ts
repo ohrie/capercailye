@@ -36,7 +36,7 @@ function entryItem(entry: LegendEntry, section: LegendGroup["section"]): HTMLEle
   img.className = section === "areas" ? "legend__img legend__img--area" : "legend__img";
   img.alt = "";
   img.src = legendDataUrl(entry.image);
-  const scale = section === "areas" ? LEGEND_DIALOG_AREA_SCALE : LEGEND_DIALOG_SCALE;
+  const scale = section !== "symbols" ? LEGEND_DIALOG_AREA_SCALE : LEGEND_DIALOG_SCALE;
   img.style.width = `${entry.image.width * scale}px`;
   img.style.height = `${entry.image.height * scale}px`;
   cell.append(img);

@@ -274,7 +274,11 @@ const pathColor = cases(
 
 /** Width of a standard path signature in paper mm (also the legend symbol). */
 export const PATH_MM = 0.25;
-const DOT_MM = 0.34;
+/** Dotted signature of sac_scale T2 and above (also the legend symbols). */
+export const DOT_MM = 0.34;
+export const DOT_PITCH_MM = 0.7;
+/** Dash pattern (dash, gap, offset) of a standard path in paper mm. */
+export const PATH_DASH_MM = [1.2, 0.45] as const;
 const SHARED_UNDERLAY_MM = 0.75;
 
 function pathLayers(level: Level): LayerSpecification[] {
@@ -300,7 +304,7 @@ function pathLayers(level: Level): LayerSpecification[] {
       {
         "line-color": pathColor,
         "line-width": lineWidth(PATH_MM),
-        "line-dasharray": dashes(PATH_MM, 1.2, 0.45),
+        "line-dasharray": dashes(PATH_MM, ...PATH_DASH_MM),
         "line-opacity": opacity,
       },
     ),
@@ -313,7 +317,7 @@ function pathLayers(level: Level): LayerSpecification[] {
       {
         "line-color": pathColor,
         "line-width": lineWidth(DOT_MM),
-        "line-dasharray": dots(DOT_MM, 0.7),
+        "line-dasharray": dots(DOT_MM, DOT_PITCH_MM),
         "line-opacity": opacity,
       },
     ),

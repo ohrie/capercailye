@@ -18,7 +18,7 @@ import { POI_CATEGORIES } from "./style/poi";
 import { PROTECTED_BANDS } from "./style/protected";
 import { BAND_MAJOR_MM, BAND_MAJOR_OPACITY } from "./style/routes";
 import { WAYMARK_GAP_MM } from "./style/sizes";
-import { PATH_MM } from "./style/transport";
+import { DOT_MM, DOT_PITCH_MM, PATH_DASH_MM, PATH_MM } from "./style/transport";
 import { mm } from "./style/units";
 import { WATER_OUTLINE_MM } from "./style/water";
 
@@ -198,6 +198,17 @@ function swatch(fill: string, edge?: { color: string; mm: number }): SvgImage {
   );
 }
 
+/** A way line over the field; dash and gap in paper mm (dash 0: round dots of the line width). */
+function sacLine(color: string, width: number, dashMm: number, gapMm: number): SvgImage {
+  const { width: w, height: h } = SIGNATURE_VIEWBOX;
+  const dash = dashMm === 0 ? 0 : mm(dashMm);
+  const pattern = `${fmt(dash)} ${fmt(Math.max(mm(gapMm), 1))}`;
+  const cap = dashMm === 0 ? "round" : "butt";
+  return signature(
+    `<path d="M2 ${h / 2}H${w - 2}" fill="none" stroke="${color}" stroke-width="${fmt(width)}" stroke-linecap="${cap}" stroke-dasharray="${pattern}"/>`,
+  );
+}
+
 /** Area kinds of the legend with their swatch: land cover (style/landcover.ts) and water. */
 const AREAS: [string, SvgImage][] = [
   ["forest", swatch(COLORS.forest, { color: COLORS.forestEdge, mm: FOREST_EDGE_MM })],
@@ -217,6 +228,13 @@ const AREAS: [string, SvgImage][] = [
   ["water", swatch(COLORS.water, { color: COLORS.waterOutline, mm: WATER_OUTLINE_MM })],
 ];
 
+/** Way signatures by sac_scale, as on the map (style/transport.ts): dashes T1, dots T2-T3, orange dots T4-T6. */
+const SAC: [string, SvgImage][] = [
+  ["sac_hiking", sacLine(COLORS.path, px(PATH_MM), PATH_DASH_MM[0], PATH_DASH_MM[1])],
+  ["sac_mountain", sacLine(COLORS.path, px(DOT_MM), 0, DOT_PITCH_MM)],
+  ["sac_alpine", sacLine(COLORS.pathAlpine, px(DOT_MM), 0, DOT_PITCH_MM)],
+];
+
 /** One entry of the static legend: an image and the message keys of its text. */
 export interface LegendEntry {
   /** Pictogram kind (`busstop` included) or area name, unique within the symbols / the areas. */
@@ -227,7 +245,7 @@ export interface LegendEntry {
 
 export interface LegendGroup {
   id: string;
-  section: "symbols" | "areas";
+  section: "symbols" | "areas" | "paths";
   /** Heading of the group; none for the areas (their section heading is enough). */
   titleKey?: string;
   entries: LegendEntry[];
@@ -237,6 +255,7 @@ export interface LegendGroup {
 export const LEGEND_SECTION_KEYS = {
   symbols: "legend_section_symbols",
   areas: "legend_section_areas",
+  paths: "legend_section_paths",
 } as const;
 
 /** Pictograms that stand apart from the categories (own switch, but no POI_CATEGORIES entry). */
@@ -284,7 +303,16 @@ export function legendCatalog(): LegendGroup[] {
     })),
     { key: "building", labelKey: "layer_buildings", image: buildings(true) },
   ];
-  return [...symbols, { id: "areas", section: "areas", entries: areas }];
+  const paths: LegendEntry[] = SAC.map(([key, image]) => ({
+    key,
+    labelKey: `legend_${key}`,
+    image,
+  }));
+  return [
+    ...symbols,
+    { id: "paths", section: "paths", entries: paths },
+    { id: "areas", section: "areas", entries: areas },
+  ];
 }
 
 /** `data:` URL of an image for an <img src>. */

@@ -116,6 +116,20 @@ describe("legendCatalog", () => {
     );
   });
 
+  test("SAC scale: dashes, dots, alpine dots in the warning colour", () => {
+    const paths = catalog.filter((g) => g.section === "paths");
+    expect(paths.length).toBe(1);
+    const [hiking, mountain, alpine] = paths[0]!.entries;
+    expect(paths[0]!.entries.map((e) => e.key)).toEqual([
+      "sac_hiking",
+      "sac_mountain",
+      "sac_alpine",
+    ]);
+    expect(hiking!.image.svg).toContain(COLORS.path);
+    expect(mountain!.image.svg).toContain('stroke-linecap="round"');
+    expect(alpine!.image.svg).toContain(COLORS.pathAlpine);
+  });
+
   test("every image has a viewBox and a size", () => {
     expect(entries.length).toBeGreaterThan(50);
     for (const e of entries) {
@@ -127,7 +141,7 @@ describe("legendCatalog", () => {
   });
 
   test("no routes or way signatures", () => {
-    for (const e of entries) {
+    for (const e of entries.filter((e) => !e.key.startsWith("sac_"))) {
       expect(e.key, e.key).not.toMatch(/route|path|track|road|trail|waymark|net-/);
       expect(e.image.svg, e.key).not.toContain(COLORS.route);
       expect(e.image.svg, e.key).not.toContain(COLORS.path);
