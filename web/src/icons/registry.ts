@@ -118,6 +118,11 @@ const OWN = {
     { d: circle(7.5, 7.5, 6.4), fill: BUS_YELLOW, stroke: BUS_GREEN, strokeWidth: 1.4 },
     { d: "M4.7 3.6h1.7v3h2.2v-3h1.7v7.8H8.6V8.2H6.4v3.2H4.7Z", fill: BUS_GREEN },
   ],
+  // No-entry sign (Zeichen 250), marks private ways (style/transport.ts): red disc, white bar.
+  no_entry: [
+    { d: circle(7.5, 7.5, 6.4), fill: "#d42a2f", stroke: "#ffffff", strokeWidth: 1 },
+    { d: "M3.9 6.5h7.2v2H3.9Z", fill: "#ffffff" },
+  ],
   flag: FLAG,
 } satisfies Record<string, GlyphPart[]>;
 
@@ -174,6 +179,8 @@ export const POI_ICONS: Record<string, IconDef> = {
   // Not a tile kind: GTFS bus stops (own PMTiles file, layer `bus_stop`, no `kind`), drawn by the
   // `busstops` group. Larger than the other plain symbols so the "H" stays readable.
   busstop: { style: "plain", glyph: OWN.busstop, sizeMm: PLAIN_XL_MM },
+  // Private ways (`access=private|no`): repeated along the line, not a POI.
+  no_entry: { style: "plain", glyph: OWN.no_entry, sizeMm: PLAIN_SMALL_MM },
   // Not a tile kind: unnamed guideposts get a smaller flag.
   guidepost_small: { style: "plain", glyph: OWN.flag, sizeMm: PLAIN_SMALL_MM },
 };

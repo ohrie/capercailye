@@ -303,11 +303,10 @@ export function legendCatalog(): LegendGroup[] {
     })),
     { key: "building", labelKey: "layer_buildings", image: buildings(true) },
   ];
-  const paths: LegendEntry[] = SAC.map(([key, image]) => ({
-    key,
-    labelKey: `legend_${key}`,
-    image,
-  }));
+  const paths: LegendEntry[] = [
+    ...SAC.map(([key, image]) => ({ key, labelKey: `legend_${key}`, image })),
+    { key: "private", labelKey: "legend_private", image: poiIconSvg("no_entry")! },
+  ];
   return [
     ...symbols,
     { id: "paths", section: "paths", entries: paths },

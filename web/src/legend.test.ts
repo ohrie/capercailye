@@ -124,6 +124,7 @@ describe("legendCatalog", () => {
       "sac_hiking",
       "sac_mountain",
       "sac_alpine",
+      "private",
     ]);
     expect(hiking!.image.svg).toContain(COLORS.path);
     expect(mountain!.image.svg).toContain('stroke-linecap="round"');

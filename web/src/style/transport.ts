@@ -10,7 +10,8 @@ import type { ExpressionSpecification, LayerSpecification } from "@maplibre/mapl
 import { all, any, attrIn, cases, flag, kindIn, matchAttr, not } from "./expr";
 import { COLORS } from "./palette";
 import { OSM_SOURCE } from "./sources";
-import { dashes, dots, lineWidth } from "./units";
+import { iconSizeByScale } from "./sizes";
+import { dashes, dots, lineWidth, mm } from "./units";
 
 type Level = "tunnel" | "ground" | "bridge";
 type Filter = ExpressionSpecification;
@@ -504,8 +505,38 @@ function levelLayers(level: Level): LayerSpecification[] {
   ];
 }
 
+/** No-entry sign repeated along private ways (grey line + sign, also in the legend). */
+const NO_ENTRY_SPACING_MM = 25;
+function privateSigns(): LayerSpecification {
+  return {
+    id: "transport-private-no-entry",
+    type: "symbol",
+    source: OSM_SOURCE,
+    "source-layer": "transport",
+    filter: all(
+      not(isRail),
+      privateAccess,
+      kindIn("track", "path", "footway", "cycleway", "bridleway", "steps", "service"),
+    ),
+    minzoom: 12,
+    layout: {
+      "symbol-placement": "line",
+      "symbol-spacing": mm(NO_ENTRY_SPACING_MM),
+      "icon-image": "poi:no_entry",
+      "icon-size": iconSizeByScale,
+      "icon-rotation-alignment": "viewport",
+      "icon-padding": mm(1),
+    },
+  } as LayerSpecification;
+}
+
 export function transportLayers(): LayerSpecification[] {
-  return [...levelLayers("tunnel"), ...levelLayers("ground"), ...levelLayers("bridge")];
+  return [
+    ...levelLayers("tunnel"),
+    ...levelLayers("ground"),
+    ...levelLayers("bridge"),
+    privateSigns(),
+  ];
 }
 
 /** Road kinds that get a name label (labels.ts); minor streets only when zoomed in on screen. */
