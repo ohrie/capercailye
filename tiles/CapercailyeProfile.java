@@ -182,6 +182,8 @@ public class CapercailyeProfile implements Profile {
     "man_made", "power", "railway", "highway", "historic", "tourism", "information", "amenity", "leisure",
     "natural", "waterway", "building");
 
+  static final Poi DRINKING_WATER = new Poi("drinking_water", 30, true);
+
   static void poi(int rank, String kind, String... tags) {
     poi(rank, kind, true, tags);
   }
@@ -213,7 +215,7 @@ public class CapercailyeProfile implements Profile {
     poi(30, "restaurant", "amenity=restaurant", "amenity=pub", "amenity=biergarten");
     poi(30, "cafe", "amenity=cafe");
     poi(30, "spring", "natural=spring");
-    poi(30, "drinking_water", "amenity=drinking_water");
+    poi(30, "drinking_water", "amenity=drinking_water"); // also any object with drinking_water=yes, see matchPoi
     poi(30, "guidepost", "information=guidepost");
     poi(30, "parking", "amenity=parking");
     poi(30, "monument", "historic=monument");
@@ -224,7 +226,6 @@ public class CapercailyeProfile implements Profile {
     poi(40, "hotel", "tourism=hotel", "tourism=guest_house");
     poi(40, "caravan_site", "tourism=caravan_site");
     poi(40, "toilets", "amenity=toilets");
-    poi(40, "fountain", "amenity=fountain");
     poi(40, "memorial", "historic=memorial");
     poi(40, "communication_tower", "man_made=communications_tower");
     // rank 50: small orientation points
@@ -860,6 +861,10 @@ public class CapercailyeProfile implements Profile {
         }
       }
     }
+    // Anything else that is tagged drinking_water=yes (fountains, water taps, wells …) is drinking water.
+    if (best == null && sf.hasTag("drinking_water", "yes")) {
+      best = DRINKING_WATER;
+    }
     return best;
   }
 
@@ -883,7 +888,7 @@ public class CapercailyeProfile implements Profile {
   static final Map<String, Double> PLACE_WEIGHT = Map.of("city", 5.0, "town", 3.0, "village", 1.0, "hamlet", 0.5);
   /** Kinds merged per kind. */
   static final Set<String> CLUSTER_KINDS =
-    Set.of("parking", "guidepost", "wayside_shrine", "stone", "rock", "mast", "toilets", "fountain");
+    Set.of("parking", "guidepost", "wayside_shrine", "stone", "rock", "mast", "toilets");
   /** Rest-area ensemble: merged into one group, ranked in this order (best first). */
   static final List<String> ENSEMBLE_KINDS = List.of("shelter", "picnic_site", "bbq");
   /**
@@ -978,7 +983,7 @@ public class CapercailyeProfile implements Profile {
       case "shelter" -> putIfNotNull(attrs, "shelter_type", sf.getString("shelter_type"));
       case "tower" -> putIfNotNull(attrs, "tower_type", sf.getString("tower:type"));
       case "railway_station", "railway_halt" -> putIfNotNull(attrs, "station", sf.getString("station"));
-      case "spring", "fountain" -> putIfNotNull(attrs, "drinking_water", sf.getString("drinking_water"));
+      case "spring" -> putIfNotNull(attrs, "drinking_water", sf.getString("drinking_water"));
       case "parking" -> {
         access = sf.getString("access");
         putIfNotNull(attrs, "access", access);

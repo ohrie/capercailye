@@ -75,7 +75,6 @@ describe("importance hierarchy", () => {
     expect(keys(8)).toEqual(
       [
         "communication_tower",
-        "fountain",
         "mast",
         "memorial",
         "rock",

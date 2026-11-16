@@ -96,7 +96,6 @@ const POI_KINDS = [
   "hotel",
   "caravan_site",
   "toilets",
-  "fountain",
   "memorial",
   "communication_tower",
   "tower",
@@ -420,7 +419,6 @@ describe("M6 switches", () => {
   });
 
   test("small kinds of a category keep their minor layer, guideposts split by name", () => {
-    expect(passing({ kind: "fountain", name: "x" })).toEqual(["drinking-minor"]);
     expect(passing({ kind: "drinking_water" })).toEqual(["drinking-main"]);
     expect(passing({ kind: "memorial" })).toEqual(["heritage-minor"]);
     expect(passing({ kind: "guidepost", name: "Hadeck" })).toEqual(["guideposts-main"]);

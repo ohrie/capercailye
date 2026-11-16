@@ -248,7 +248,7 @@ features · **30** food, water, guideposts, parking · **40** comfort and minor 
 | `restaurant` | 30 | `amenity=restaurant\|pub\|biergarten` | `weight`, `tags` (always), `urban` (towns/cities only), see Urban |
 | `cafe` | 30 | `amenity=cafe` | `weight`, `tags` (always), `urban` (towns/cities only), see Urban |
 | `spring` | 30 | `natural=spring` | `drinking_water` (raw, e.g. `yes`, `no`) |
-| `drinking_water` | 30 | `amenity=drinking_water` | |
+| `drinking_water` | 30 | `amenity=drinking_water`, or any other object (e.g. `amenity=fountain`) with `drinking_water=yes` that matches no other kind | |
 | `guidepost` | 30 | `information=guidepost` (with `tourism=information` or no `tourism`) | `count` (merged); names are signpost location names, label them |
 | `parking` | 30 | `amenity=parking`, not `access=private\|no`, not `parking=underground\|street_side\|lane\|on_kerb\|half_on_kerb` | `access` (raw), `hiking` (`true` for `hiking=yes`; for a merged point `true` if **any** member has `hiking=yes` or a name containing `wanderparkplatz`), `area_m2` (integer, areas only; missing for nodes; of the representative), `count` (merged) |
 | `monument` | 30 | `historic=monument` | |
@@ -257,7 +257,6 @@ features · **30** food, water, guideposts, parking · **40** comfort and minor 
 | `hotel` | 40 | `tourism=hotel\|guest_house` | `weight`, `tags` (always), `urban` (towns/cities only), see Urban |
 | `caravan_site` | 40 | `tourism=caravan_site` | |
 | `toilets` | 40 | `amenity=toilets`, only if `access` is missing or `yes\|public` (all other values dropped: `customers`, `permit`, `permissive`, `private`, `no`, …), and not dropped by filter Q (indoor / room-mapped / institution-ground toilets without evidence of being public, see "Toilets filter") | `count` (merged); `weight`, `tags` (always, of the representative), `urban` (towns/cities only, tested at the representative's position after merging), see Urban |
-| `fountain` | 40 | `amenity=fountain` | `drinking_water`, `count` (merged) |
 | `memorial` | 40 | `historic=memorial`, not `memorial=stolperstein\|plaque\|blue_plaque` | |
 | `communication_tower` | 40 | `man_made=communications_tower`, `man_made=tower` + `tower:type=communication` | |
 | `tower` | 40 | other `man_made=tower` (not `tower:type=bell_tower`) | `tower_type` (raw `tower:type`) |
@@ -301,7 +300,7 @@ line with the counts.
 
 Similar `poi` objects less than **75 m** apart become one point (`CLUSTER_RADIUS_M`), computed once over the
 whole input after reading it (so tile borders do not split a group). Merged: `parking`, `guidepost`,
-`wayside_shrine`, `stone`, `rock`, `mast`, `toilets`, `fountain` (each kind on its own), plus the rest-area
+`wayside_shrine`, `stone`, `rock`, `mast`, `toilets` (each kind on its own), plus the rest-area
 ensemble `shelter` + `picnic_site` + `bbq` (one common group). Everything else is never merged
 (`wayside_cross`, `church`, `chapel`, `spring`, `castle`, `railway_*`, `camp_site`, `wind_turbine`,
 `communication_tower`, `viewpoint`, `hotel`, `restaurant`, `cafe`, …; `hotel` in particular is never merged).
@@ -375,7 +374,7 @@ sheet at 1:25,000 covers ≈ 34 km², BW ≈ 35,750 km², so "per sheet" = count
 | wayside_cross | 13,905 | 13.2 | | ruins | 738 | 0.7 |
 | church | 8,259 | 7.9 | | caravan_site | 716 | 0.7 |
 | shelter | 6,312 | 6.0 | | castle | 673 | 0.6 |
-| fountain | 6,014 | 5.7 | | railway_station | 560 | 0.5 |
+|  |  |  | | railway_station | 560 | 0.5 |
 | memorial | 5,374 | 5.1 | | rock | 547 | 0.5 |
 | cafe | 4,505 | 4.3 | | camp_site | 511 | 0.5 |
 | hotel | 4,266 | 4.1 | | cave_entrance | 493 | 0.5 |
@@ -393,7 +392,7 @@ sheet at 1:25,000 covers ≈ 34 km², BW ≈ 35,750 km², so "per sheet" = count
 
 Merging reduces `stone` by ≈ 61 %, `wayside_shrine` by ≈ 34 %, `bbq` by ≈ 59 % (rest areas), `picnic_site`
 by ≈ 31 %, `rock` ≈ 27 %, `mast` ≈ 26 %, `guidepost` ≈ 21 %, `parking` ≈ 20 % (16,000 parkings with
-customer/permit/… access are written unmerged), `toilets` ≈ 20 %, `fountain` ≈ 15 %. `viewpoint` counts
+customer/permit/… access are written unmerged), `toilets` ≈ 20 %. `viewpoint` counts
 named ones only (1,636); a tower or wayside cross that also carries `tourism=viewpoint` keeps its own kind.
 
 Still too dense to show everything unfiltered at 1:25,000 (style must filter or rely on the app's

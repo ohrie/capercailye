@@ -78,7 +78,6 @@ export const TIERS: readonly Tier[] = [
       wayside_cross: 82,
       wayside_shrine: 82,
       memorial: 83,
-      fountain: 83,
       rock: 84,
       stone: 84,
       sinkhole: 84,

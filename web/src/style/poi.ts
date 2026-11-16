@@ -17,7 +17,7 @@
 // displaced by priority (same sort key), and only names may drop out.
 //
 // Density rules (per A4 sheet at 1:25 000 in BW: parking 67, guideposts 50 …):
-//   merging      parking, guideposts, wayside shrines, stones, rocks, masts, toilets and fountains
+//   merging      parking, guideposts, wayside shrines, stones, rocks, masts, and toilets
 //                closer than 75 m are merged into one point at tile build time (`count`); picnic
 //                site, barbecue and shelter within 75 m become one rest-area symbol (`bbq=true`).
 //                `count` and `bbq` are not drawn (yet).
@@ -87,7 +87,6 @@ export const MINOR_KINDS: PoiKind[] = [
   "wayside_cross",
   "wayside_shrine",
   "memorial",
-  "fountain",
   "tower",
   "communication_tower",
   "mast",
@@ -178,8 +177,8 @@ export const POI_CATEGORIES: readonly PoiCategory[] = [
     get label() {
       return m.layer_drinking();
     },
-    kinds: ["drinking_water", "fountain"],
-    legend: ["drinking_water", "fountain"],
+    kinds: ["drinking_water"],
+    legend: ["drinking_water"],
     defaultVisible: true,
   },
   {
