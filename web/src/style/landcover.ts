@@ -6,6 +6,10 @@ import { COLORS } from "./palette";
 import { OSM_SOURCE } from "./sources";
 import { lineWidth } from "./units";
 
+/** Outline widths in paper mm (also the legend swatches). */
+export const FOREST_EDGE_MM = 0.12;
+export const QUARRY_EDGE_MM = 0.15;
+
 const SETTLEMENT = ["residential", "commercial", "industrial"];
 
 /** Wetland tint by raw `wetland` subtype: open wet grassland greener, wooded mires bluer. */
@@ -83,7 +87,7 @@ export function landcoverLayers(): LayerSpecification[] {
       "source-layer": "landcover",
       filter: kindIn("forest"),
       minzoom: 11,
-      paint: { "line-color": COLORS.forestEdge, "line-width": lineWidth(0.12, 0.5, 1.3) },
+      paint: { "line-color": COLORS.forestEdge, "line-width": lineWidth(FOREST_EDGE_MM, 0.5, 1.3) },
     },
     {
       id: "landcover-quarry-edge",
@@ -92,7 +96,7 @@ export function landcoverLayers(): LayerSpecification[] {
       "source-layer": "landcover",
       filter: kindIn("quarry"),
       minzoom: 12,
-      paint: { "line-color": COLORS.quarryLine, "line-width": lineWidth(0.15, 0.5, 1.3) },
+      paint: { "line-color": COLORS.quarryLine, "line-width": lineWidth(QUARRY_EDGE_MM, 0.5, 1.3) },
     },
   ];
 }

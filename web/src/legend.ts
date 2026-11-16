@@ -8,10 +8,11 @@
 // every legend image at LEGEND_SCALE. The signatures (lines, areas, text) are drawn in a field of
 // SIGNATURE_VIEWBOX units whose SvgImage size is 0.8 of that, so after LEGEND_SCALE one unit is one
 // CSS px and the widths (paper mm via `mm()`, at least 1 px) are exactly what is on screen.
-import { poiIconSvg, type SvgImage } from "./icons/registry";
+import { POI_KINDS, poiIconSvg, type SvgImage } from "./icons/registry";
 import { osmcToSvg } from "./osmc/render";
 import { BUILDING_OUTLINE_MM } from "./style/buildings";
 import { CONTOUR_INDEX_MM, CONTOUR_MM, HILLSHADE_SHADOW } from "./style/hillshade";
+import { FOREST_EDGE_MM, QUARRY_EDGE_MM } from "./style/landcover";
 import { COLORS } from "./style/palette";
 import { POI_CATEGORIES } from "./style/poi";
 import { PROTECTED_BANDS } from "./style/protected";
@@ -19,9 +20,14 @@ import { BAND_MAJOR_MM, BAND_MAJOR_OPACITY } from "./style/routes";
 import { WAYMARK_GAP_MM } from "./style/sizes";
 import { PATH_MM } from "./style/transport";
 import { mm } from "./style/units";
+import { WATER_OUTLINE_MM } from "./style/water";
 
 /** Display scale of legend images in the sidebar. */
 export const LEGEND_SCALE = 1.25;
+/** Display scale of pictograms in the legend dialog (a box icon becomes about 28-32 CSS px). */
+export const LEGEND_DIALOG_SCALE = 2.5;
+/** Display scale of the area swatches in the legend dialog (32x12.8 -> 60x24 CSS px). */
+export const LEGEND_DIALOG_AREA_SCALE = 1.875;
 /** Cell of the legend column in CSS px (symbols are left-aligned and vertically centred in it). */
 export const LEGEND_CELL = { width: 40, height: 18 } as const;
 /** Field of the signatures (viewBox units = CSS px on screen). */
@@ -37,10 +43,12 @@ const fmt = (n: number): string => String(Math.round(n * 100) / 100);
 /** Paper mm -> px of the signature field, at least 1 px. */
 const px = (value: number): number => Math.max(1, mm(value));
 
-function signature(body: string): SvgImage {
+/** `onPaper`: the field is filled with the map's paper colour, for areas that are light themselves. */
+function signature(body: string, onPaper = false): SvgImage {
   const { width, height } = SIGNATURE_VIEWBOX;
+  const paper = onPaper ? `<rect width="${width}" height="${height}" fill="${COLORS.paper}"/>` : "";
   return {
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${body}</svg>`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}">${paper}${body}</svg>`,
     width: width / LEGEND_SCALE,
     height: height / LEGEND_SCALE,
   };
@@ -88,24 +96,27 @@ function hillshade(): SvgImage {
   );
 }
 
-function protectedArea(): SvgImage {
+function protectedArea(kind = "nature_reserve", onPaper = false): SvgImage {
   // A band lying inside the boundary, as on the map (the stroke is centred on an inset rectangle).
-  const w = px(PROTECTED_BANDS.find(([kind]) => kind === "nature_reserve")![1]);
+  const [, bandMm, color] = PROTECTED_BANDS.find(([k]) => k === kind)!;
+  const w = px(bandMm);
   const x = 4;
   const y = 2;
   const width = SIGNATURE_VIEWBOX.width - 2 * x;
   const height = SIGNATURE_VIEWBOX.height - 2 * y;
   return signature(
-    `<rect x="${fmt(x + w / 2)}" y="${fmt(y + w / 2)}" width="${fmt(width - w)}" height="${fmt(height - w)}" fill="none" stroke="${COLORS.protectedReserve}" stroke-width="${fmt(w)}"/>`,
+    `<rect x="${fmt(x + w / 2)}" y="${fmt(y + w / 2)}" width="${fmt(width - w)}" height="${fmt(height - w)}" fill="none" stroke="${color}" stroke-width="${fmt(w)}"/>`,
+    onPaper,
   );
 }
 
-function buildings(): SvgImage {
+function buildings(onPaper = false): SvgImage {
   const stroke = `stroke="${COLORS.buildingOutline}" stroke-width="${fmt(px(BUILDING_OUTLINE_MM))}"`;
   const fill = `fill="${COLORS.building}"`;
   return signature(
     `<rect x="7" y="4.5" width="11" height="8" ${fill} ${stroke}/>` +
       `<rect x="22" y="6.5" width="10" height="6" ${fill} ${stroke}/>`,
+    onPaper,
   );
 }
 
@@ -175,6 +186,105 @@ export function legendSvg(groupId: string): SvgImage | undefined {
     default:
       return undefined;
   }
+}
+
+/** Filled rectangle over the whole field, with the outline the map draws on it (inset, so it stays inside). */
+function swatch(fill: string, edge?: { color: string; mm: number }): SvgImage {
+  const { width, height } = SIGNATURE_VIEWBOX;
+  const w = edge ? px(edge.mm) : 0;
+  const stroke = edge ? ` stroke="${edge.color}" stroke-width="${fmt(w)}"` : "";
+  return signature(
+    `<rect x="${fmt(w / 2)}" y="${fmt(w / 2)}" width="${fmt(width - w)}" height="${fmt(height - w)}" fill="${fill}"${stroke}/>`,
+  );
+}
+
+/** Area kinds of the legend with their swatch: land cover (style/landcover.ts) and water. */
+const AREAS: [string, SvgImage][] = [
+  ["forest", swatch(COLORS.forest, { color: COLORS.forestEdge, mm: FOREST_EDGE_MM })],
+  ["meadow", swatch(COLORS.meadow)],
+  ["farmland", swatch(COLORS.farmland)],
+  ["orchard", swatch(COLORS.orchard)],
+  ["vineyard", swatch(COLORS.vineyard)],
+  ["heath", swatch(COLORS.heath)],
+  ["scrub", swatch(COLORS.scrub)],
+  ["wetland", swatch(COLORS.wetland)],
+  ["bare_rock", swatch(COLORS.bareRock)],
+  ["scree", swatch(COLORS.scree)],
+  ["quarry", swatch(COLORS.quarry, { color: COLORS.quarryLine, mm: QUARRY_EDGE_MM })],
+  ["residential", swatch(COLORS.residential)],
+  ["commercial", swatch(COLORS.commercial)],
+  ["industrial", swatch(COLORS.industrial)],
+  ["water", swatch(COLORS.water, { color: COLORS.waterOutline, mm: WATER_OUTLINE_MM })],
+];
+
+/** One entry of the static legend: an image and the message keys of its text. */
+export interface LegendEntry {
+  /** Pictogram kind (`busstop` included) or area name, unique within the symbols / the areas. */
+  key: string;
+  labelKey: string;
+  image: SvgImage;
+}
+
+export interface LegendGroup {
+  id: string;
+  section: "symbols" | "areas";
+  /** Heading of the group; none for the areas (their section heading is enough). */
+  titleKey?: string;
+  entries: LegendEntry[];
+}
+
+/** Message key of the section headings of the legend. */
+export const LEGEND_SECTION_KEYS = {
+  symbols: "legend_section_symbols",
+  areas: "legend_section_areas",
+} as const;
+
+/** Pictograms that stand apart from the categories (own switch, but no POI_CATEGORIES entry). */
+const SINGLE_GROUPS = [
+  { id: "viewpoints", kind: "viewpoint" },
+  { id: "busstops", kind: "busstop" },
+];
+
+const symbol = (kind: string): LegendEntry => ({
+  key: kind,
+  labelKey: `legend_kind_${kind}`,
+  image: poiIconSvg(kind)!,
+});
+
+/**
+ * The whole legend, independent of the switches (pure data, built by the dialog on first use):
+ * every pictogram kind once, grouped like the sidebar switches, then the areas. No routes, no
+ * line signatures. `guidepost_small` is only a variant of `guidepost` and not listed.
+ */
+export function legendCatalog(): LegendGroup[] {
+  const grouped = new Set<string>(POI_CATEGORIES.flatMap((c) => c.kinds));
+  for (const g of SINGLE_GROUPS) grouped.add(g.kind);
+  const rest = POI_KINDS.filter((k) => !grouped.has(k));
+  const symbols: LegendGroup[] = [
+    ...POI_CATEGORIES.map((c) => ({
+      id: c.id,
+      section: "symbols" as const,
+      titleKey: `layer_${c.id}`,
+      entries: c.kinds.map(symbol),
+    })),
+    ...SINGLE_GROUPS.map((g) => ({
+      id: g.id,
+      section: "symbols" as const,
+      titleKey: `layer_${g.id}`,
+      entries: [symbol(g.kind)],
+    })),
+    { id: "poi", section: "symbols", titleKey: "layer_poi", entries: rest.map(symbol) },
+  ];
+  const areas: LegendEntry[] = [
+    ...AREAS.map(([key, image]) => ({ key, labelKey: `legend_area_${key}`, image })),
+    ...PROTECTED_BANDS.map(([kind]) => ({
+      key: kind,
+      labelKey: `legend_area_${kind}`,
+      image: protectedArea(kind, true),
+    })),
+    { key: "building", labelKey: "layer_buildings", image: buildings(true) },
+  ];
+  return [...symbols, { id: "areas", section: "areas", entries: areas }];
 }
 
 /** `data:` URL of an image for an <img src>. */

@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { POI_ICONS, poiIconSvg } from "./icons/registry";
-import { legendSvg, NO_LEGEND } from "./legend";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { POI_ICONS, POI_KINDS, poiIconSvg } from "./icons/registry";
+import { LEGEND_SECTION_KEYS, legendCatalog, legendSvg, NO_LEGEND } from "./legend";
 import { COLORS } from "./style/palette";
 import { POI_CATEGORIES } from "./style/poi";
+import { PROTECTED_BANDS } from "./style/protected";
 import { SECTIONS, uiGroups } from "./style";
 
 const labelled = SECTIONS.flatMap((s) => uiGroups(s.id));
@@ -57,5 +60,92 @@ describe("legendSvg", () => {
     const one = poiIconSvg("shelter")!;
     expect(two.width).toBeGreaterThan(2 * one.width);
     expect(legendSvg("parking")!.svg).toBe(poiIconSvg("parking")!.svg);
+  });
+});
+
+describe("legendCatalog", () => {
+  const catalog = legendCatalog();
+  const symbols = catalog.filter((g) => g.section === "symbols");
+  const areas = catalog.filter((g) => g.section === "areas");
+  const entries = catalog.flatMap((g) => g.entries);
+  const messages = (locale: string): Record<string, unknown> =>
+    JSON.parse(readFileSync(join(import.meta.dir, "..", "messages", `${locale}.json`), "utf8"));
+
+  test("every pictogram kind appears exactly once (plus the bus stop, without guidepost_small)", () => {
+    const keys = symbols.flatMap((g) => g.entries.map((e) => e.key));
+    expect([...keys].sort()).toEqual([...POI_KINDS, "busstop"].sort());
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys).not.toContain("guidepost_small");
+  });
+
+  test("symbol groups: the categories, then viewpoints, bus stops and the rest", () => {
+    const ids = symbols.map((g) => g.id);
+    expect(ids).toEqual([...POI_CATEGORIES.map((c) => c.id), "viewpoints", "busstops", "poi"]);
+    for (const c of POI_CATEGORIES) {
+      const group = symbols.find((g) => g.id === c.id)!;
+      expect(group.entries.map((e) => e.key)).toEqual(c.kinds);
+      expect(group.titleKey).toBe(`layer_${c.id}`);
+    }
+    expect(symbols.find((g) => g.id === "poi")!.entries.length).toBeGreaterThan(0);
+  });
+
+  test("pictograms come from poiIconSvg", () => {
+    for (const g of symbols) {
+      for (const e of g.entries) expect(e.image.svg, e.key).toBe(poiIconSvg(e.key)!.svg);
+    }
+  });
+
+  test("areas: land cover, water, one entry per protected-area kind, buildings", () => {
+    expect(areas.length).toBe(1);
+    const keys = areas[0]!.entries.map((e) => e.key);
+    for (const k of ["forest", "meadow", "farmland", "quarry", "industrial", "water", "building"]) {
+      expect(keys, k).toContain(k);
+    }
+    for (const [kind, , color] of PROTECTED_BANDS) {
+      const entry = areas[0]!.entries.find((e) => e.key === kind)!;
+      expect(entry.image.svg, kind).toContain(color);
+    }
+    expect(areas[0]!.entries.find((e) => e.key === "forest")!.image.svg).toContain(
+      COLORS.forestEdge,
+    );
+    expect(areas[0]!.entries.find((e) => e.key === "water")!.image.svg).toContain(
+      COLORS.waterOutline,
+    );
+    expect(areas[0]!.entries.find((e) => e.key === "building")!.image.svg).toContain(
+      COLORS.building,
+    );
+  });
+
+  test("every image has a viewBox and a size", () => {
+    expect(entries.length).toBeGreaterThan(50);
+    for (const e of entries) {
+      expect(e.image.svg.startsWith("<svg"), e.key).toBe(true);
+      expect(e.image.svg, e.key).toContain("viewBox=");
+      expect(e.image.width, e.key).toBeGreaterThan(0);
+      expect(e.image.height, e.key).toBeGreaterThan(0);
+    }
+  });
+
+  test("no routes or way signatures", () => {
+    for (const e of entries) {
+      expect(e.key, e.key).not.toMatch(/route|path|track|road|trail|waymark|net-/);
+      expect(e.image.svg, e.key).not.toContain(COLORS.route);
+      expect(e.image.svg, e.key).not.toContain(COLORS.path);
+    }
+  });
+
+  test("every label key exists in both languages", () => {
+    const keys = [
+      ...entries.map((e) => e.labelKey),
+      ...catalog.flatMap((g) => (g.titleKey ? [g.titleKey] : [])),
+      ...Object.values(LEGEND_SECTION_KEYS),
+      "legend_open",
+      "legend_heading",
+      "legend_close",
+    ];
+    for (const locale of ["de", "en"]) {
+      const known = messages(locale);
+      for (const k of keys) expect(known[k], `${locale}.${k}`).toBeString();
+    }
   });
 });

@@ -2,6 +2,7 @@
 // (sections, sub-switches), collapse.
 import type { CreditPart } from "./credits";
 import { formatNumber } from "./i18n";
+import { initLegendDialog } from "./legend-dialog";
 import { legendDataUrl, legendSvg, LEGEND_CELL, LEGEND_SCALE } from "./legend";
 import { MAP_MODES, type MapMode } from "./mode";
 import { m } from "./paraglide/messages.js";
@@ -139,6 +140,7 @@ export function initSidebar(hooks: SidebarHooks): void {
   });
 
   initLayerToggles(hooks.unavailableGroups ?? []);
+  initLegendDialog();
 
   const setCollapsed = (collapsed: boolean) => {
     document.body.classList.toggle("sidebar-collapsed", collapsed);

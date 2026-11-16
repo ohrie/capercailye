@@ -5,6 +5,9 @@ import { COLORS } from "./palette";
 import { OSM_SOURCE } from "./sources";
 import { dashes, lineWidth } from "./units";
 
+/** Outline width of water areas in paper mm (also the legend swatch). */
+export const WATER_OUTLINE_MM = 0.15;
+
 /** Waterway widths in paper mm by importance. */
 const WIDTH: [string, number][] = [
   ["river", 0.75],
@@ -59,7 +62,10 @@ export function waterLayers(): LayerSpecification[] {
       "source-layer": "water",
       filter: not(intermittent),
       minzoom: 10,
-      paint: { "line-color": COLORS.waterOutline, "line-width": lineWidth(0.15, 0.5, 1.3) },
+      paint: {
+        "line-color": COLORS.waterOutline,
+        "line-width": lineWidth(WATER_OUTLINE_MM, 0.5, 1.3),
+      },
     },
     {
       id: "water-area-outline-intermittent",
@@ -70,7 +76,7 @@ export function waterLayers(): LayerSpecification[] {
       minzoom: 12,
       paint: {
         "line-color": COLORS.waterOutline,
-        "line-width": lineWidth(0.15, 0.5, 1.3),
+        "line-width": lineWidth(WATER_OUTLINE_MM, 0.5, 1.3),
         "line-dasharray": dashes(0.15, 1.0, 0.5),
       },
     },

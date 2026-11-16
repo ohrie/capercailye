@@ -245,9 +245,28 @@ const t = (key: keyof typeof m): string => (m[key] as (i: object, o: object) => 
       </section>
 
       <section class="panel" aria-labelledby="layers-heading">
-        <h2 class="panel__title" id="layers-heading" data-i18n="app_layers_heading">
-          {t("app_layers_heading")}
-        </h2>
+        <div class="panel__head">
+          <h2 class="panel__title" id="layers-heading" data-i18n="app_layers_heading">
+            {t("app_layers_heading")}
+          </h2>
+          <button class="button button--compact" id="legend-open" type="button" aria-haspopup="dialog">
+            <svg
+              class="button__icon"
+              viewBox="0 0 16 16"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2.5 4h2M7 4h6.5M2.5 8h2M7 8h6.5M2.5 12h2M7 12h6.5" />
+            </svg>
+            <span class="button__label" data-i18n="legend_open">{t("legend_open")}</span>
+          </button>
+        </div>
         <div id="layer-toggles" class="layers"></div>
       </section>
 
@@ -293,6 +312,31 @@ const t = (key: keyof typeof m): string => (m[key] as (i: object, o: object) => 
       </button>
     </main>
   </div>
+
+  <!-- Outside the sidebar: on narrow screens the sidebar moves into the bottom sheet. Filled by
+       src/legend-dialog.ts on first open. -->
+  <dialog class="legend-dialog" id="legend-dialog" aria-labelledby="legend-title">
+    <div class="legend-dialog__panel">
+      <header class="legend-dialog__header">
+        <h2 class="legend-dialog__title" id="legend-title" data-i18n="legend_heading">
+          {t("legend_heading")}
+        </h2>
+        <button
+          class="icon-button"
+          id="legend-close"
+          type="button"
+          title={t("legend_close")}
+          aria-label={t("legend_close")}
+          data-i18n-title="legend_close"
+          data-i18n-aria-label="legend_close"
+        >
+          ×
+        </button>
+      </header>
+      <div class="legend-dialog__body" id="legend-body"></div>
+    </div>
+  </dialog>
+
   <!-- First script: the texts are translated before anything else runs (no flash of English). -->
   <script>
     import { translateDocument } from "../../translate-dom.ts";

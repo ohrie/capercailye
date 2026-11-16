@@ -126,6 +126,14 @@ body {
   color: var(--fg-muted);
 }
 
+/* Panel title with a compact action button on the right (legend button of the layers panel). */
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 /* Small notice on the map data (liability), set apart in the map's road yellows and orange (palette:
    roadSecondary, roadTrunk). The footer below takes the free space. */
 .notice {
@@ -431,6 +439,12 @@ span.switch__legend {
   flex: 0 0 auto;
 }
 
+.button--compact {
+  height: 28px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+}
+
 /* While the export button cancels, only the word is shown. */
 .button--cancel .button__icon {
   display: none;
@@ -700,6 +714,126 @@ span.switch__legend {
   z-index: 1;
 }
 
+/* Legend dialog (src/legend-dialog.ts): opened with showModal(), outside the sidebar. The panel fills
+   the dialog, so a click on the dialog element itself is a click on the backdrop. */
+.legend-dialog {
+  width: min(640px, calc(100vw - 2 * var(--space-4)));
+  max-height: 90dvh;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: calc(var(--radius) * 2);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 8px 32px rgba(31, 31, 31, 0.25);
+  overflow: hidden;
+}
+
+.legend-dialog[open] {
+  display: flex;
+}
+
+.legend-dialog::backdrop {
+  background: rgba(31, 31, 31, 0.55);
+  touch-action: none;
+}
+
+/* Nothing behind the dialog scrolls (the page is inert, this keeps touch drags off the map). */
+body:has(.legend-dialog[open]) {
+  overflow: hidden;
+}
+
+.legend-dialog__panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.legend-dialog__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.legend-dialog__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.legend-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2) var(--space-4) var(--space-5);
+}
+
+.legend__section {
+  margin: var(--space-4) 0 var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+
+.legend__section:first-child {
+  margin-top: var(--space-2);
+}
+
+.legend__group {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.legend__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 36px;
+}
+
+/* Image cell of a fixed width (as in the sidebar): all images start at the same left edge. */
+.legend__cell {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 64px;
+  height: 36px;
+}
+
+.legend__img {
+  display: block;
+  flex: none;
+  max-width: 100%;
+}
+
+/* Light area colours need an edge against the white dialog (the map has paper around them). */
+.legend__img--area {
+  outline: 1px solid var(--line-strong);
+  outline-offset: -1px;
+}
+
 /* Narrow screens (MOBILE_QUERY in sheet.ts): the sidebar lives in a bottom sheet (Cupertino Pane,
    src/mobile-sheet.ts) and the map fills the screen. Until the sheet has taken the sidebar out of
    .app it stays hidden. */
@@ -761,5 +895,40 @@ span.switch__legend {
 
   .mobile-sheet__host .panel--mode {
     order: -1;
+  }
+}
+
+/* Legend dialog on narrow screens (MOBILE_QUERY in sheet.ts): the whole screen, one column. */
+@media (max-width: 767px) {
+  .legend-dialog {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+
+  .legend-dialog__header {
+    padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0px));
+    padding-left: calc(var(--space-4) + env(safe-area-inset-left, 0px));
+    padding-right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
+  }
+
+  .legend-dialog__body {
+    padding-left: calc(var(--space-4) + env(safe-area-inset-left, 0px));
+    padding-right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
+    padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .legend__list {
+    grid-template-columns: 1fr;
+  }
+
+  /* Touch target of the legend button in the bottom sheet. */
+  .button--compact {
+    min-height: 40px;
+    padding: 0 var(--space-4);
   }
 }
