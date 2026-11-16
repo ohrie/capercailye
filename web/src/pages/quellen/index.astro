@@ -41,7 +41,7 @@ import Legal from "../../layouts/Legal.astro";
     am 15. November 2026). Die Spalte „Herausgeber“ gibt den Quellenvermerk wörtlich wieder.
   </p>
   <div class="legal__table">
-    <table>
+    <table class="legal__sources">
       <thead>
         <tr>
           <th scope="col">Land</th>
@@ -52,106 +52,106 @@ import Legal from "../../layouts/Legal.astro";
       </thead>
       <tbody>
         <tr>
-          <td>Baden-Württemberg</td>
-          <td>LGL, www.lgl-bw.de, dl-de/by-2-0</td>
-          <td>DGM 1 Baden-Württemberg</td>
-          <td><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
+          <td data-label="Land">Baden-Württemberg</td>
+          <td data-label="Herausgeber">LGL, www.lgl-bw.de, dl-de/by-2-0</td>
+          <td data-label="Datensatz">DGM 1 Baden-Württemberg</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
         </tr>
         <tr>
-          <td>Baden-Württemberg</td>
-          <td>LGL, www.lgl-bw.de, dl-de/by-2-0</td>
-          <td>Baden-Württemberg DGM ALS_3</td>
-          <td><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
+          <td data-label="Land">Baden-Württemberg</td>
+          <td data-label="Herausgeber">LGL, www.lgl-bw.de, dl-de/by-2-0</td>
+          <td data-label="Datensatz">Baden-Württemberg DGM ALS_3</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
         </tr>
         <tr>
-          <td>Bayern</td>
-          <td>Bayerische Vermessungsverwaltung</td>
-          <td>Digitales Geländemodell 1m (DGM1)</td>
-          <td><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
+          <td data-label="Land">Bayern</td>
+          <td data-label="Herausgeber">Bayerische Vermessungsverwaltung</td>
+          <td data-label="Datensatz">Digitales Geländemodell 1m (DGM1)</td>
+          <td data-label="Lizenz"><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
         </tr>
         <tr>
-          <td>Berlin</td>
-          <td>Senatsverwaltung für Stadtentwicklung, Bauen und Wohnen Berlin</td>
-          <td>Digitale Geländemodelle - ATKIS DGM</td>
-          <td><a href="https://www.govdata.de/dl-de/zero-2-0">Datenlizenz Deutschland – Zero – Version 2.0 (dl-de/zero-2-0)</a></td>
+          <td data-label="Land">Berlin</td>
+          <td data-label="Herausgeber">Senatsverwaltung für Stadtentwicklung, Bauen und Wohnen Berlin</td>
+          <td data-label="Datensatz">Digitale Geländemodelle - ATKIS DGM</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/zero-2-0">Datenlizenz Deutschland – Zero – Version 2.0 (dl-de/zero-2-0)</a></td>
         </tr>
         <tr>
-          <td>Brandenburg</td>
-          <td>GeoBasis-DE / LGB</td>
-          <td>Digitales Geländemodell 1m Brandenburg</td>
-          <td><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
+          <td data-label="Land">Brandenburg</td>
+          <td data-label="Herausgeber">GeoBasis-DE / LGB</td>
+          <td data-label="Datensatz">Digitales Geländemodell 1m Brandenburg</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
         </tr>
         <tr>
-          <td>Bremen</td>
-          <td>Landesamt GeoInformation Bremen</td>
-          <td>ATKIS - DGM1 Land Bremen</td>
-          <td><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
+          <td data-label="Land">Bremen</td>
+          <td data-label="Herausgeber">Landesamt GeoInformation Bremen</td>
+          <td data-label="Datensatz">ATKIS - DGM1 Land Bremen</td>
+          <td data-label="Lizenz"><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
         </tr>
         <tr>
-          <td>Hamburg</td>
-          <td>Freie und Hansestadt Hamburg, Landesbetrieb Geoinformation und Vermessung (LGV)</td>
-          <td>Digitales Höhenmodell Hamburg DGM 1</td>
-          <td><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
+          <td data-label="Land">Hamburg</td>
+          <td data-label="Herausgeber">Freie und Hansestadt Hamburg, Landesbetrieb Geoinformation und Vermessung (LGV)</td>
+          <td data-label="Datensatz">Digitales Höhenmodell Hamburg DGM 1</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
         </tr>
         <tr>
-          <td>Hessen</td>
-          <td>Hessisches Ministerium für Umwelt, Klimaschutz, Landwirtschaft und Verbraucherschutz</td>
-          <td>ATKIS-DGM 1</td>
-          <td><a href="https://www.govdata.de/dl-de/zero-2-0">Datenlizenz Deutschland – Zero – Version 2.0 (dl-de/zero-2-0)</a></td>
+          <td data-label="Land">Hessen</td>
+          <td data-label="Herausgeber">Hessisches Ministerium für Umwelt, Klimaschutz, Landwirtschaft und Verbraucherschutz</td>
+          <td data-label="Datensatz">ATKIS-DGM 1</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/zero-2-0">Datenlizenz Deutschland – Zero – Version 2.0 (dl-de/zero-2-0)</a></td>
         </tr>
         <tr>
-          <td>Mecklenburg-Vorpommern</td>
-          <td>© GeoBasis-DE/M-V 2025</td>
-          <td>Digitales Geländemodell 1m (DGM1) Mecklenburg-Vorpommern</td>
-          <td><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
+          <td data-label="Land">Mecklenburg-Vorpommern</td>
+          <td data-label="Herausgeber">© GeoBasis-DE/M-V 2025</td>
+          <td data-label="Datensatz">Digitales Geländemodell 1m (DGM1) Mecklenburg-Vorpommern</td>
+          <td data-label="Lizenz"><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
         </tr>
         <tr>
-          <td>Niedersachsen</td>
-          <td>Landesamtes für Geoinformation und Landesvermessung Niedersachsen (LGLN)</td>
-          <td>Digitales Geländemodell 1m (DGM1)</td>
-          <td><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
+          <td data-label="Land">Niedersachsen</td>
+          <td data-label="Herausgeber">Landesamtes für Geoinformation und Landesvermessung Niedersachsen (LGLN)</td>
+          <td data-label="Datensatz">Digitales Geländemodell 1m (DGM1)</td>
+          <td data-label="Lizenz"><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
         </tr>
         <tr>
-          <td>Nordrhein-Westfalen</td>
-          <td>Ministerium des Innern des Landes Nordrhein-Westfalen</td>
-          <td>Digitales Geländemodell - Rasterweite 1 m</td>
-          <td><a href="https://www.govdata.de/dl-de/zero-2-0">Datenlizenz Deutschland – Zero – Version 2.0 (dl-de/zero-2-0)</a></td>
+          <td data-label="Land">Nordrhein-Westfalen</td>
+          <td data-label="Herausgeber">Ministerium des Innern des Landes Nordrhein-Westfalen</td>
+          <td data-label="Datensatz">Digitales Geländemodell - Rasterweite 1 m</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/zero-2-0">Datenlizenz Deutschland – Zero – Version 2.0 (dl-de/zero-2-0)</a></td>
         </tr>
         <tr>
-          <td>Rheinland-Pfalz</td>
-          <td>©GeoBasis-DE / LVermGeoRP 2025</td>
-          <td>Digitales Geländemodell Gitterweite 1 m</td>
-          <td><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
+          <td data-label="Land">Rheinland-Pfalz</td>
+          <td data-label="Herausgeber">©GeoBasis-DE / LVermGeoRP 2025</td>
+          <td data-label="Datensatz">Digitales Geländemodell Gitterweite 1 m</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
         </tr>
         <tr>
-          <td>Saarland</td>
-          <td>GeoBasis DE/LVGL-SL 2025</td>
-          <td>DGM 1 Saarland</td>
-          <td><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
+          <td data-label="Land">Saarland</td>
+          <td data-label="Herausgeber">GeoBasis DE/LVGL-SL 2025</td>
+          <td data-label="Datensatz">DGM 1 Saarland</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
         </tr>
         <tr>
-          <td>Sachsen</td>
-          <td>GeoSN, dl-de/by-2-0</td>
-          <td>Digitales Geländemodell (DGM1)</td>
-          <td><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
+          <td data-label="Land">Sachsen</td>
+          <td data-label="Herausgeber">GeoSN, dl-de/by-2-0</td>
+          <td data-label="Datensatz">Digitales Geländemodell (DGM1)</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
         </tr>
         <tr>
-          <td>Sachsen-Anhalt</td>
-          <td>Landesamt für Vermessung und Geoinformation Sachsen-Anhalt (LVermGeo)</td>
-          <td>DGM - Digitales Geländemodell</td>
-          <td><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
+          <td data-label="Land">Sachsen-Anhalt</td>
+          <td data-label="Herausgeber">Landesamt für Vermessung und Geoinformation Sachsen-Anhalt (LVermGeo)</td>
+          <td data-label="Datensatz">DGM - Digitales Geländemodell</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
         </tr>
         <tr>
-          <td>Schleswig-Holstein</td>
-          <td>© GeoBasis-DE/LVermGeo SH/CC BY 4.0</td>
-          <td>DGM 1 Schleswig-Holstein</td>
-          <td><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
+          <td data-label="Land">Schleswig-Holstein</td>
+          <td data-label="Herausgeber">© GeoBasis-DE/LVermGeo SH/CC BY 4.0</td>
+          <td data-label="Datensatz">DGM 1 Schleswig-Holstein</td>
+          <td data-label="Lizenz"><a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Namensnennung 4.0 International (CC BY 4.0)</a></td>
         </tr>
         <tr>
-          <td>Thüringen</td>
-          <td>© GDI-Th</td>
-          <td>DGM 1 Thüringen</td>
-          <td><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
+          <td data-label="Land">Thüringen</td>
+          <td data-label="Herausgeber">© GDI-Th</td>
+          <td data-label="Datensatz">DGM 1 Thüringen</td>
+          <td data-label="Lizenz"><a href="https://www.govdata.de/dl-de/by-2-0">Datenlizenz Deutschland – Namensnennung – Version 2.0 (dl-de/by-2-0)</a></td>
         </tr>
       </tbody>
     </table>

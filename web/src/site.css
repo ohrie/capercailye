@@ -777,3 +777,50 @@ section {
   vertical-align: top;
   border-bottom: 1px solid var(--ink-muted);
 }
+
+/* Quellen-Tabelle: auf schmalen Bildschirmen jede Zeile als Karte */
+@media (max-width: 639px) {
+  .legal__sources,
+  .legal__sources tbody,
+  .legal__sources tr,
+  .legal__sources td {
+    display: block;
+  }
+
+  .legal__sources thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .legal__sources tr {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ink-muted);
+  }
+
+  .legal__sources td {
+    padding: 2px 0;
+    border: 0;
+  }
+
+  .legal__sources td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+
+  .legal__sources td:first-child {
+    font-weight: 600;
+  }
+
+  .legal__sources td:first-child::before {
+    font-weight: 400;
+  }
+
+  .legal__sources td + td {
+    margin-top: 6px;
+  }
+}
