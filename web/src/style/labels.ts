@@ -5,7 +5,7 @@
 // `labelLayers` (group "labels") sits above the POI group, `nameLayers` (group "names") below it.
 // Both follow the "Labels" toggle (index.ts).
 import type { ExpressionSpecification, LayerSpecification } from "@maplibre/maplibre-gl-style-spec";
-import { all, kindIn, matchAttr } from "./expr";
+import { all, attrIn, kindIn, matchAttr } from "./expr";
 import { FONT_ITALIC, FONT_MEDIUM, FONT_REGULAR, halo } from "./fonts";
 import { COLORS } from "./palette";
 import { OSM_SOURCE } from "./sources";
@@ -174,6 +174,15 @@ const waterwayNamed = all(["has", "name"], kindIn("river", "canal", "stream", "d
 const refRoads = ["motorway", "trunk", "primary", "secondary", "tertiary", "unclassified"];
 const refInitial: ExpressionSpecification = ["slice", ["get", "ref"], 0, 1];
 
+/** OSM sac_scale value to the label shown on the map. */
+const SAC_GRADES: Record<string, string> = {
+  mountain_hiking: "T2",
+  demanding_mountain_hiking: "T3",
+  alpine_hiking: "T4",
+  demanding_alpine_hiking: "T5",
+  difficult_alpine_hiking: "T6",
+};
+
 export function nameLayers(): LayerSpecification[] {
   return [
     // Street names: larger roads at print zooms, minor streets only when zoomed in on screen.
@@ -243,6 +252,28 @@ export function nameLayers(): LayerSpecification[] {
         "text-halo-blur": 0,
       },
       10,
+    ),
+    // SAC hiking scale (T2-T6) as a small label along demanding paths; T1 is the default, no label.
+    symbol(
+      "names",
+      "sac-scale",
+      "transport",
+      all(
+        ["!", ["==", ["get", "rail"], true]],
+        kindIn("path", "footway", "bridleway", "cycleway"),
+        attrIn("sac_scale", ...Object.keys(SAC_GRADES)),
+      ),
+      {
+        "symbol-placement": "line",
+        "symbol-spacing": mm(60),
+        "text-field": matchAttr("sac_scale", Object.entries(SAC_GRADES), ""),
+        "text-font": FONT_MEDIUM,
+        "text-size": pt(5.5),
+        "text-max-angle": 30,
+        "text-padding": mm(0.5),
+      },
+      { "text-color": COLORS.textRoad, ...halo(0.3) },
+      13,
     ),
     // Flurnamen / Gewannnamen: italic grey-brown, spaced.
     symbol(
