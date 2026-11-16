@@ -126,6 +126,29 @@ body {
   color: var(--fg-muted);
 }
 
+/* Small notice on the map data (liability), set apart in the map's road yellows and orange (palette:
+   roadSecondary, roadTrunk). The footer below takes the free space. */
+.notice {
+  margin: var(--space-4) var(--space-5) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid #ec7b40;
+  border-left: 4px solid #ec7b40;
+  border-radius: var(--radius);
+  background: #fbd45e;
+  color: var(--fg);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.notice p {
+  margin: 0;
+}
+
+.notice a {
+  color: inherit;
+  white-space: nowrap;
+}
+
 .sidebar__footer {
   margin-top: auto;
   padding: var(--space-4) var(--space-5);

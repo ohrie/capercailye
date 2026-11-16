@@ -251,6 +251,15 @@ const t = (key: keyof typeof m): string => (m[key] as (i: object, o: object) => 
         <div id="layer-toggles" class="layers"></div>
       </section>
 
+      <aside class="notice" aria-label={t("app_notice_label")} data-i18n-aria-label="app_notice_label">
+        <p>
+          <span data-i18n="app_notice_text">{t("app_notice_text")}</span>
+          <a href="/impressum/#haftung" target="_blank" rel="noopener" data-i18n="app_notice_more"
+            >{t("app_notice_more")}</a
+          >
+        </p>
+      </aside>
+
       <!-- Filled by main.ts (credits with the data dates). -->
       <footer class="sidebar__footer" id="attribution"></footer>
       <nav
