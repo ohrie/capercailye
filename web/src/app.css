@@ -753,4 +753,13 @@ span.switch__legend {
   .mobile-sheet__host .sidebar__header {
     padding-block: var(--space-3);
   }
+
+  /* Collapsed sheet shows the three steps (what to do), the search follows below them. */
+  .mobile-sheet__host .sidebar__header {
+    order: -2;
+  }
+
+  .mobile-sheet__host .panel--mode {
+    order: -1;
+  }
 }

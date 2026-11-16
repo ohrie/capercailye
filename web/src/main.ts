@@ -24,7 +24,7 @@ import { m } from "./paraglide/messages.js";
 import { downloadBlob, exportLayout, type ExportResult, isAbortError } from "./print/export";
 import { PrintPlacement, rectAround, withPlacementLayers } from "./placement";
 import type { Obstacle } from "./placement/displace";
-import type { RectMm } from "./placement/geo";
+import { mmToLngLat, type RectMm } from "./placement/geo";
 import { AreaDrawer } from "./print/draw";
 import { PrintFrame } from "./print/frame";
 import {
@@ -150,9 +150,27 @@ let modeBeforeDraw: MapMode = "explore";
 /** Drawing: a drawn rectangle becomes the print area and the app shows the sheets. */
 const drawer = new AreaDrawer(
   map,
-  (area) => setState({ mode: "sheets", print: { ...getState().print, area } }),
+  (area) => {
+    setState({ mode: "sheets", print: { ...getState().print, area } });
+    fitSheets();
+  },
   () => setState({ mode: modeBeforeDraw }),
 );
+
+/** After drawing: zooms out (never in) so the whole sheet grid is visible; not in print view (fixed zoom). */
+function fitSheets(): void {
+  const l = currentLayout();
+  if (!l || getState().printView) return;
+  const [west, north] = mmToLngLat(l.gridMm.minX, l.gridMm.minY, l.zoom);
+  const [east, south] = mmToLngLat(l.gridMm.maxX, l.gridMm.maxY, l.zoom);
+  map.fitBounds(
+    [
+      [west, south],
+      [east, north],
+    ],
+    { padding: 40, duration: 600, maxZoom: map.getZoom() },
+  );
+}
 
 function viewBounds(): Area {
   const b = map.getBounds();

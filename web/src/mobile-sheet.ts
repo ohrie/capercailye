@@ -26,10 +26,10 @@ interface Sheet {
 
 let sheet: Sheet | null = null;
 
-/** Collapsed = grip + sidebar header + search panel. */
+/** Collapsed = grip + sidebar header + steps panel (mode switch). */
 function measureCollapsed(sidebar: HTMLElement): number {
   const parts = [sidebar.querySelector<HTMLElement>(".sidebar__header")];
-  parts.push(sidebar.querySelector<HTMLElement>(".panel--search"));
+  parts.push(sidebar.querySelector<HTMLElement>(".panel--mode"));
   const px = parts.reduce((sum, el) => sum + (el?.offsetHeight ?? 0), 0);
   return px > 0 ? GRIP_PX + px : FALLBACK_COLLAPSED_PX;
 }
@@ -95,7 +95,7 @@ async function create(): Promise<Sheet | null> {
     void applyBreaks(s);
   };
   const observer = new ResizeObserver(refresh);
-  for (const el of sidebar.querySelectorAll(".sidebar__header, .panel--search")) {
+  for (const el of sidebar.querySelectorAll(".sidebar__header, .panel--mode")) {
     observer.observe(el);
   }
   let frame = 0;
