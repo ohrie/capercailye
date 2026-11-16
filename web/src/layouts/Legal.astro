@@ -1,5 +1,5 @@
 ---
-// Legal pages (German): header with link to the app, `main.legal` and the legal footer.
+// Legal pages (German): header with link to the app, `main.legal` and the site footer.
 import SiteFooter from "../components/SiteFooter.astro";
 import Site from "./Site.astro";
 
@@ -31,8 +31,5 @@ const { title } = Astro.props;
     </div>
   </main>
 
-  <SiteFooter>
-    <a href="/impressum/">Impressum</a> · <a href="/datenschutz/">Datenschutz</a> ·
-    <a href="/quellen/">Quellen und Lizenzen</a>
-  </SiteFooter>
+  <SiteFooter locale="de" />
 </Site>
