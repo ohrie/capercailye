@@ -175,8 +175,9 @@ und JSON-LD stehen im `<head>` der Seite (je Sprache übersetzt, mit `canonical`
 Alles Übersetzte (Landingpage und App) steht in einem Katalog: `messages/en.json` (Basissprache) und
 `messages/de.json`, verwaltet mit [Paraglide JS](https://paraglidejs.com) (`@inlang/paraglide-js`
 2.x, inlang-Projekt in `project.inlang/`). Impressum, Datenschutz und Quellen sind bewusst nur
-deutsch (deutsches Recht), es gibt keine Sprachumschalter in der Oberfläche und keinen
-verlinkten Wechsel zwischen den Sprachen (nur `hreflang` im `<head>`).
+deutsch (deutsches Recht); ihre Sprachauswahl im Kopf speichert nur die Wahl und führt zur Landingpage
+in der gewählten Sprache. Sonst gibt es keinen verlinkten Wechsel zwischen den Sprachen (nur
+`hreflang` im `<head>`).
 
 **Wie die Sprache bestimmt wird**
 
@@ -185,13 +186,19 @@ verlinkten Wechsel zwischen den Sprachen (nur `hreflang` im `<head>`).
   mit `locale` als Prop; jede Nachricht wird zur Bauzeit mit `m.schlüssel(eingaben, { locale })`
   geholt, nichts hängt am Browser. Wer von `/` nach `/de/` kommt, entscheidet nginx anhand von
   `Accept-Language` (`../deploy/web/nginx.conf`): ist die erste Sprache Deutsch, gibt es auf `/` ein
-  302 nach `/de/`, sonst die englische Seite (`Vary: Accept-Language`). Es gibt weder Cookie noch
-  Merken; `/de/` und alle anderen Pfade werden nie umgeleitet. Im Dev-Server gibt es die
+  302 nach `/de/`, sonst die englische Seite (`Vary: Accept-Language, Cookie`). Ein Cookie `lang=de|en`
+  hat Vorrang vor `Accept-Language` (`lang=de` leitet um, `lang=en` nie); es wird nur gesetzt, wenn
+  jemand in der Sprachauswahl wählt (`src/components/LangSelect.astro`, im Kopf der Landingpage, der
+  Rechtsseiten und der App-Sidebar identisch; `src/lang-switch.ts`, `src/lang-cookie.ts`).
+  `/de/` und alle anderen Pfade werden nie umgeleitet. Im Dev-Server gibt es die
   Weiterleitung nicht, `/de/` ruft man direkt auf.
 - _App:_ Die App ist eine einzige statische HTML-Datei, die Sprache wird im Browser bestimmt
   (`detectLocale` in `src/i18n.ts`, als eigene Paraglide-Client-Strategie `custom-appLanguage`,
   siehe `paraglide.config.mjs`): 1. URL-Parameter `?lang=de|en` (zum Testen und Verlinken, wird nicht
-  gespeichert), 2. die erste Sprache in `navigator.languages`, die mit `de` oder `en` beginnt, 3. sonst Englisch. Es gibt keine Cookie- und keine localStorage-Strategie.
+  gespeichert), 2. das Cookie `lang` (`de|en`), 3. die erste Sprache in `navigator.languages`, die mit
+  `de` oder `en` beginnt, 4. sonst Englisch. Das Cookie schreibt nur die Sprachauswahl (links neben dem Einklappen-Knopf im
+  Kopf der Sidebar), und nur bei der Wahl: Cookie setzen, Seite neu laden (ein `?lang=` wird dafür aus
+  der URL entfernt). Beim Start zeigt sie die erkannte Sprache (`initLangSelect(getLocale())`). Es gibt kein localStorage.
   `src/pages/app/index.astro` wird einmal auf Englisch gerendert (Texte per `data-i18n="schlüssel"`,
   Attribute per `data-i18n-title`, `-aria-label`, `-placeholder`, `-alt`); `src/translate-dom.ts`
   setzt als erstes Skript der Seite `<html lang>`, `<title>` und alle Texte in die aktive Sprache,

@@ -100,8 +100,9 @@ in der Umgebung. Die Domain der Landingpage (`canonical`, `hreflang`, `og:*`, `r
 Die Landingpage gibt es unter `/` (englisch) und `/de/` (deutsch). `web/nginx.conf` leitet nur bei
 exakt `/` weiter: Ist die **erste** Sprache im `Accept-Language`-Header Deutsch (`de`, `de-DE`,
 `de-AT`, `de-CH` …), gibt es ein 302 auf `/de/`, sonst die englische Seite; die Antwort auf `/`
-trägt `Vary: Accept-Language`. Kein Cookie, kein Merken, `/de/` und alle anderen Pfade werden nie
-umgeleitet. Die Rechtsseiten (`/impressum/`, `/datenschutz/`, `/quellen/`) gibt es nur deutsch. Die
+trägt `Vary: Accept-Language, Cookie`. Ein Cookie `lang=de|en` hat Vorrang (`lang=de` leitet
+immer um, `lang=en` nie); nginx setzt es nie, es kommt von der Sprachauswahl der Seite. `/de/` und
+alle anderen Pfade werden nie umgeleitet. Die Rechtsseiten (`/impressum/`, `/datenschutz/`, `/quellen/`) gibt es nur deutsch. Die
 Sprache der App wird im Browser bestimmt, nginx ist daran nicht beteiligt (siehe `web/README.md`,
 „Sprachen (i18n)“).
 

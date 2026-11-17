@@ -1,4 +1,5 @@
 ---
+import LangSelect from "../../components/LangSelect.astro";
 import Base from "../../layouts/Base.astro";
 import { m } from "../../paraglide/messages.js";
 import { formatScale } from "../../print/scale";
@@ -27,17 +28,21 @@ const t = (key: keyof typeof m): string => (m[key] as (i: object, o: object) => 
     >
       <header class="sidebar__header">
         <h1 class="brand"><a href="/">capercailye</a></h1>
-        <button
-          class="icon-button"
-          id="sidebar-collapse"
-          type="button"
-          title={t("app_sidebar_collapse")}
-          aria-label={t("app_sidebar_collapse")}
-          data-i18n-title="app_sidebar_collapse"
-          data-i18n-aria-label="app_sidebar_collapse"
-        >
-          ‹
-        </button>
+        <div class="sidebar__controls">
+          <!-- Built as English; initLangSelect (below) shows the real locale. Changing it reloads. -->
+          <LangSelect locale="en" />
+          <button
+            class="icon-button"
+            id="sidebar-collapse"
+            type="button"
+            title={t("app_sidebar_collapse")}
+            aria-label={t("app_sidebar_collapse")}
+            data-i18n-title="app_sidebar_collapse"
+            data-i18n-aria-label="app_sidebar_collapse"
+          >
+            ‹
+          </button>
+        </div>
       </header>
 
       <section
@@ -340,7 +345,10 @@ const t = (key: keyof typeof m): string => (m[key] as (i: object, o: object) => 
   <!-- First script: the texts are translated before anything else runs (no flash of English). -->
   <script>
     import { translateDocument } from "../../translate-dom.ts";
+    import { initLangSelect } from "../../lang-switch.ts";
+    import { getLocale } from "../../paraglide/runtime.js";
     translateDocument();
+    initLangSelect(getLocale());
   </script>
 
   <!-- Own script: the bottom sheet (narrow screens) must not depend on the map starting. -->

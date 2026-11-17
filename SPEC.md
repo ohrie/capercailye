@@ -234,7 +234,7 @@ Credit-Texte gehören zur Lizenzprüfung und werden nicht ohne Abstimmung umform
 
 ### 4.9 Landingpage (`web/src/components/Landing.astro`)
 
-- Statisch, zweisprachig: `/` (`lang="en"`) und `/de/` (`lang="de"`), beide aus `web/src/components/Landing.astro` (Texte: `web/messages/`, Paraglide; Sprachwahl: URL, nginx leitet `/` nach `Accept-Language` auf `/de/`), mit `canonical`/`hreflang`/`og:locale`; `web/src/site.css` (Tokens = Palette, 1,5-px-Konturen, Radius 4 px, ohne
+- Statisch, zweisprachig: `/` (`lang="en"`) und `/de/` (`lang="de"`), beide aus `web/src/components/Landing.astro` (Texte: `web/messages/`, Paraglide; Sprachwahl: URL, nginx leitet `/` nach Cookie `lang`, sonst `Accept-Language` auf `/de/`; das Cookie setzt nur die Sprachauswahl `LangSelect.astro`), mit `canonical`/`hreflang`/`og:locale`; `web/src/site.css` (Tokens = Palette, 1,5-px-Konturen, Radius 4 px, ohne
   Schatten/Verläufe, Systemschrift). Alle CTAs zeigen auf `/app/`. Feste Domain (`capercailye.chilla.dev`) in
   `canonical`, `og:*`, JSON-LD, `robots.txt`, `sitemap.xml`; `DOMAIN` in `deploy/.env` steuert nur die Traefik-Regel.
 - Abschnitte: Header (sticky), Hero (Dahner Felsenland, Höhenlinien-Ornament), „Less screen, more trail.“,

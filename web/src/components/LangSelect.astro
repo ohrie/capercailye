@@ -1,0 +1,114 @@
+---
+// Language selection, the same on every page: a translate icon over an invisible native <select>.
+// Behaviour (cookie, navigation or reload) is in src/lang-switch.ts, bundled by the script below.
+// Self-contained styles: colours are inherited, so it fits light and dark headers alike.
+interface Props {
+  /** Selected option at build time (the app starts on "en"; its script syncs the real locale). */
+  locale: "de" | "en";
+  /** Where each language lives. Without it, the page itself reloads in the chosen language. */
+  targets?: Record<"de" | "en", string>;
+}
+
+const { locale, targets } = Astro.props;
+---
+
+<label class="lang-select" title="Sprache · Language">
+  <span class="lang-select__label">Sprache · Language</span>
+  <!-- Own drawing: a Latin "A" and a CJK "文", the usual sign for translation. -->
+  <svg
+    class="lang-select__icon"
+    viewBox="0 0 24 24"
+    width="20"
+    height="20"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M3 21 7.5 10 12 21M4.6 17.5h5.8"></path>
+    <path d="M12.5 4.5h9M17 2.5v2M14.5 4.5c.8 3.6 3 6.4 7 7.5M19.5 4.5c-.8 3.6-3 6.4-7 7.5"></path>
+  </svg>
+  <select
+    class="lang-select__select"
+    data-lang-select
+    data-href-de={targets?.de}
+    data-href-en={targets?.en}
+  >
+    <option value="de" lang="de" selected={locale === "de"}>Deutsch</option>
+    <option value="en" lang="en" selected={locale === "en"}>English</option>
+  </select>
+</label>
+
+<script>
+  import { initLangSelect } from "../lang-switch.ts";
+  // Idempotent: the app calls it again with the locale it detected.
+  initLangSelect();
+</script>
+
+<style>
+  /* Only the icon shows; the native select lies invisibly on top of it, so a click or tap opens
+     the browser's own list of languages (on phones its picker). */
+  .lang-select {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    color: inherit;
+    opacity: 0.8;
+    cursor: pointer;
+  }
+
+  .lang-select:hover {
+    opacity: 1;
+    background: color-mix(in srgb, currentColor 10%, transparent);
+  }
+
+  .lang-select:focus-within {
+    opacity: 1;
+  }
+
+  .lang-select:has(:focus-visible) {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  .lang-select__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .lang-select__icon {
+    pointer-events: none;
+  }
+
+  .lang-select__select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    appearance: none;
+    font-size: 16px; /* no zoom-on-focus on iOS */
+    cursor: pointer;
+  }
+
+  /* The native list keeps its own, readable colours. */
+  .lang-select__select option {
+    background: Canvas;
+    color: CanvasText;
+  }
+</style>

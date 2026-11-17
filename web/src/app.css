@@ -75,11 +75,20 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
+/* Language select and collapse button: brand left, controls right. */
+.sidebar__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .brand {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  /* Logo and name stay on one line next to the language select. */
+  white-space: nowrap;
 }
 
 .brand a {

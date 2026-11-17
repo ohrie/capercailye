@@ -3,6 +3,7 @@
 // (de, /de/) render it; every text goes through Paraglide with the locale passed in, so the
 // language is fixed at build time (no browser detection here).
 import GitHubIcon from "./GitHubIcon.astro";
+import LangSelect from "./LangSelect.astro";
 import SiteFooter from "./SiteFooter.astro";
 import Site from "../layouts/Site.astro";
 import { m } from "../paraglide/messages.js";
@@ -110,11 +111,12 @@ const CHIPS: (keyof typeof m)[] = [
     <div class="wrap">
       <a class="brand" href="#top" aria-label={t("landing_brand_label")}>
         <img src="/logo.svg" width="32" height="32" alt="" />
-        capercailye
+        <span class="brand__name">capercailye</span>
       </a>
       <nav class="nav" aria-label={t("landing_nav_label")}>
         <a href="#features">{t("landing_nav_features")}</a>
         <a href="#how">{t("landing_nav_how")}</a>
+        <LangSelect locale={locale} targets={{ en: PATHS.en, de: PATHS.de }} />
         <a
           class="nav__github"
           href="https://github.com/ohrie/capercailye"

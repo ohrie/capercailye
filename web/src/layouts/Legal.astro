@@ -1,5 +1,6 @@
 ---
 // Legal pages (German): header with link to the app, `main.legal` and the site footer.
+import LangSelect from "../components/LangSelect.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import Site from "./Site.astro";
 
@@ -17,9 +18,12 @@ const { title } = Astro.props;
     <div class="wrap">
       <a class="brand" href="/" aria-label="capercailye, Startseite">
         <img src="/logo.svg" width="32" height="32" alt="" />
-        capercailye
+        <span class="brand__name">capercailye</span>
       </a>
       <nav class="nav" aria-label="Hauptmenü">
+        <!-- The legal texts exist only in German: choosing a language stores it and opens the landing
+             page in that language. -->
+        <LangSelect locale="de" targets={{ en: "/", de: "/de/" }} />
         <a class="btn btn--small" href="/app/">Karte öffnen</a>
       </nav>
     </div>

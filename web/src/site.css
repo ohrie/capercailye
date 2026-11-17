@@ -657,8 +657,14 @@ section {
 }
 
 @media (max-width: 639px) {
-  .nav a:not(.btn, .nav__github) {
+  .nav a:not(.btn) {
     display: none;
+  }
+  .nav {
+    gap: 10px;
+  }
+  .btn--small {
+    white-space: nowrap;
   }
   section {
     padding: 48px 0;

@@ -7,7 +7,8 @@ export const paraglideOptions = {
   emitTsDeclarations: true,
   // Landing page: every message call passes its locale explicitly at build time, so no strategy
   // is involved. App: the only client strategy is "custom-appLanguage", defined in src/i18n.ts
-  // (?lang=, then navigator.languages). On the server it falls through to baseLocale (en).
-  // No cookie and no localStorage strategy: the language is never stored.
+  // (?lang=, then the `lang` cookie, then navigator.languages). On the server it falls through
+  // to baseLocale (en). The cookie is written by the language select only (src/lang-cookie.ts), not by
+  // Paraglide, so there is no built-in cookie or localStorage strategy.
   strategy: ["custom-appLanguage", "baseLocale"],
 };
